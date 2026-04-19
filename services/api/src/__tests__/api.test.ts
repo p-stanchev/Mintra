@@ -1,0 +1,118 @@
+import { createHmac } from "node:crypto";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { buildApp } from "../app";
+import type { FastifyInstance } from "fastify";
+
+const TEST_SECRET = "integration-test-secret-xyz";
+const TEST_API_KEY = "integration-test-api-key";
+const TEST_WORKFLOW_ID = "test-workflow-id";
+
+function sign(body: string): string {
+  return createHmac("sha256", TEST_SECRET).update(Buffer.from(body)).digest("hex");
+}
+
+describe("Mintra API", () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    app = await buildApp({
+      corsOrigin: "*",
+      diditApiKey: TEST_API_KEY,
+      diditWebhookSecret: TEST_SECRET,
+      diditWorkflowId: TEST_WORKFLOW_ID,
+      logger: false,
+    });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it("GET /health returns ok", async () => {
+    const res = await app.inject({ method: "GET", url: "/health" });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body)).toMatchObject({ ok: true });
+  });
+
+  it("POST /api/providers/didit/webhook with bad signature returns 401", async () => {
+    const body = JSON.stringify({
+      session_id: "sess-999",
+      status: "Approved",
+      webhook_type: "status.updated",
+      vendor_data: "user-1",
+      decision: { id_verification: { status: "APPROVED" } },
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/providers/didit/webhook",
+      headers: {
+        "content-type": "application/json",
+        "x-signature-v2": "badbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadb",
+      },
+      payload: body,
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("GET /api/claims/:userId returns empty claims for unknown user", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/claims/unknown-user" });
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.userId).toBe("unknown-user");
+    expect(data.claims).toEqual({});
+    expect(data.verifiedAt).toBeNull();
+  });
+
+  it("GET /api/verifications/:id/status returns 404 for unknown id", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/verifications/00000000-0000-0000-0000-000000000000/status",
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("GET /api/verifications/:id/status resolves provider session ids too", async () => {
+    const verification = app.store.createVerification("user-provider-ref", "provider-session-123");
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/verifications/provider-session-123/status",
+    });
+
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.id).toBe(verification.id);
+    expect(data.providerReference).toBe("provider-session-123");
+  });
+
+  it("webhook with valid signature updates store and stores claims", async () => {
+    // Seed a verification directly into the store
+    const sessionId = "sess-valid-123";
+    app.store.createVerification("user-webhook", sessionId);
+
+    const body = JSON.stringify({
+      session_id: sessionId,
+      status: "Approved",
+      webhook_type: "status.updated",
+      vendor_data: "user-webhook",
+      decision: { id_verification: { status: "APPROVED", country: "US" } },
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/providers/didit/webhook",
+      headers: {
+        "content-type": "application/json",
+        "x-signature-v2": sign(body),
+      },
+      payload: body,
+    });
+    expect(res.statusCode).toBe(200);
+
+    const claims = app.store.getClaims("user-webhook");
+    expect(claims?.kycPassed).toBe(true);
+    expect(claims?.ageOver18).toBe(true);
+  });
+});
