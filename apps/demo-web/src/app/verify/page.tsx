@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { mintra, DEMO_USER_ID } from "@/lib/mintra";
+import { mintra } from "@/lib/mintra";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
 
 export default function VerifyPage() {
@@ -20,7 +20,7 @@ export default function VerifyPage() {
     setState("loading");
 
     mintra
-      .startVerification({ userId: DEMO_USER_ID, claim: "age_over_18" })
+      .startVerification({ userId: linkedWallet, claim: "age_over_18" })
       .then((session) => {
         setState("redirecting");
         window.location.href = session.verificationUrl;

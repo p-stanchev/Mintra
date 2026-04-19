@@ -73,9 +73,14 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
         writeLinkedWalletAddress(ownerPublicKey);
       }
 
+      const effectiveUserId = userId || ownerPublicKey;
+      if (!effectiveUserId) {
+        throw new Error("No linked wallet available for credential issuance");
+      }
+
       setState("issuing");
       setMessage("Issuing Mina credential...");
-      const issued = await mintra.issueMinaCredential({ userId, ownerPublicKey });
+      const issued = await mintra.issueMinaCredential({ userId: effectiveUserId, ownerPublicKey });
 
       setState("storing");
       setMessage("Saving credential to Auro...");

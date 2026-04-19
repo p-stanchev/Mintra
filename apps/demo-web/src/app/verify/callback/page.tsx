@@ -5,8 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { mintra } from "@/lib/mintra";
 import type { VerificationStatus } from "@mintra/sdk-types";
 import Link from "next/link";
-import { DEMO_USER_ID } from "@/lib/mintra";
 import { Suspense } from "react";
+import { readLinkedWalletAddress } from "@/lib/wallet-session";
 
 function CallbackInner() {
   const params = useSearchParams();
@@ -17,6 +17,7 @@ function CallbackInner() {
     "";
 
   const [status, setStatus] = useState<VerificationStatus | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [polls, setPolls] = useState(0);
 
@@ -28,6 +29,7 @@ function CallbackInner() {
     try {
       const result = await mintra.getVerificationStatus(sessionId);
       setStatus(result.status);
+      setUserId(result.userId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     }
@@ -43,6 +45,12 @@ function CallbackInner() {
     }, 3000);
     return () => clearInterval(timer);
   }, [poll, status]);
+
+  useEffect(() => {
+    if (!userId) {
+      setUserId(readLinkedWalletAddress());
+    }
+  }, [userId]);
 
   const statusConfig = {
     approved: { label: "Verified", color: "var(--success)", next: true },
@@ -78,7 +86,7 @@ function CallbackInner() {
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
                   Your identity has been verified. Claims are now available.
                 </p>
-                <Link href={`/claims/${DEMO_USER_ID}`} className="btn btn-primary">
+                <Link href={userId ? `/claims/${userId}` : "/"} className="btn btn-primary">
                   View my claims
                 </Link>
               </div>

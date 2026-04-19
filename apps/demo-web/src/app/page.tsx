@@ -1,21 +1,58 @@
-import { mintra, DEMO_USER_ID } from "@/lib/mintra";
+"use client";
+
+import { mintra } from "@/lib/mintra";
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, CheckCheck, Lock, Shield, Wallet } from "lucide-react";
 import { WalletCredentialCard } from "@/components/wallet-credential-card";
 import { HomeVerificationCard } from "@/components/home-verification-card";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
+import { useEffect, useState } from "react";
 
-async function getUserData() {
-  try {
-    const claims = await mintra.getClaims(DEMO_USER_ID);
-    return { claims, error: null };
-  } catch {
-    return { claims: null, error: "API unavailable" };
-  }
-}
+type ClaimsResponse = Awaited<ReturnType<typeof mintra.getClaims>>;
 
-export default async function Home() {
-  const { claims, error } = await getUserData();
+export default function Home() {
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [claims, setClaims] = useState<ClaimsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loadingClaims, setLoadingClaims] = useState(true);
+
+  useEffect(() => {
+    const syncWallet = () => {
+      const linkedWallet = readLinkedWalletAddress();
+      setWalletAddress(linkedWallet);
+
+      if (!linkedWallet) {
+        setClaims(null);
+        setError(null);
+        setLoadingClaims(false);
+        return;
+      }
+
+      setLoadingClaims(true);
+      mintra
+        .getClaims(linkedWallet)
+        .then((result) => {
+          setClaims(result);
+          setError(null);
+        })
+        .catch(() => {
+          setClaims(null);
+          setError("API unavailable");
+        })
+        .finally(() => {
+          setLoadingClaims(false);
+        });
+    };
+
+    syncWallet();
+    window.addEventListener("storage", syncWallet);
+    window.addEventListener("mintra:wallet-linked", syncWallet as EventListener);
+    return () => {
+      window.removeEventListener("storage", syncWallet);
+      window.removeEventListener("mintra:wallet-linked", syncWallet as EventListener);
+    };
+  }, []);
+
   const isVerified = claims?.claims.age_over_18 === true || claims?.claims.kyc_passed === true;
 
   return (
@@ -36,13 +73,23 @@ export default async function Home() {
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href={isVerified ? `/claims/${DEMO_USER_ID}` : "/verify"}
-              className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
-            >
-              {isVerified ? "Open claims" : "Start verification"}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            {walletAddress ? (
+              <Link
+                href={isVerified ? `/claims/${walletAddress}` : "/verify"}
+                className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+              >
+                {isVerified ? "Open claims" : "Start verification"}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <a
+                href="#wallet-credential"
+                className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+              >
+                Connect wallet first
+                <ArrowRight className="h-4 w-4" />
+              </a>
+            )}
             <Link
               href="/protected"
               className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-fog"
@@ -67,17 +114,17 @@ export default async function Home() {
             <MetricRow
               icon={<CheckCheck className="h-4 w-4" />}
               label="KYC status"
-              value={claims?.claims.kyc_passed ? "Approved" : "Waiting"}
+              value={loadingClaims ? "Loading" : claims?.claims.kyc_passed ? "Approved" : "Waiting"}
             />
             <MetricRow
               icon={<Shield className="h-4 w-4" />}
               label="Age claim"
-              value={claims?.claims.age_over_18 ? "18+" : "Unavailable"}
+              value={loadingClaims ? "Loading" : claims?.claims.age_over_18 ? "18+" : "Unavailable"}
             />
             <MetricRow
               icon={<Wallet className="h-4 w-4" />}
               label="Wallet flow"
-              value="Auro ready"
+              value={walletAddress ? "Linked" : "Not linked"}
             />
           </div>
 
@@ -96,7 +143,7 @@ export default async function Home() {
       )}
 
       <HomeVerificationCard isVerified={isVerified} />
-      <WalletCredentialCard userId={DEMO_USER_ID} isVerified={isVerified} />
+      <WalletCredentialCard userId={walletAddress ?? ""} isVerified={isVerified} />
 
       <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="rounded-[32px] border border-line bg-white p-8 shadow-card">
@@ -114,9 +161,11 @@ export default async function Home() {
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate">Active claims</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">Current verification state</h2>
             </div>
-            <Link href={`/claims/${DEMO_USER_ID}`} className="text-sm font-medium text-slate transition hover:text-ink">
-              Full claim details
-            </Link>
+            {walletAddress && (
+              <Link href={`/claims/${walletAddress}`} className="text-sm font-medium text-slate transition hover:text-ink">
+                Full claim details
+              </Link>
+            )}
           </div>
 
           {claims && Object.keys(claims.claims).length > 0 ? (
@@ -133,7 +182,11 @@ export default async function Home() {
             </div>
           ) : (
             <div className="rounded-3xl border border-dashed border-line bg-fog px-6 py-8">
-              <p className="text-sm text-slate">No verified claims yet. Complete the verification flow first.</p>
+              <p className="text-sm text-slate">
+                {walletAddress
+                  ? "No verified claims yet. Complete the verification flow first."
+                  : "Connect a wallet to start verification and load claims."}
+              </p>
             </div>
           )}
         </div>

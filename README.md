@@ -99,7 +99,6 @@ Edit `apps/demo-web/.env.local` as needed:
 
 ```env
 NEXT_PUBLIC_MINTRA_API_URL=http://localhost:3001
-NEXT_PUBLIC_DEMO_USER_ID=demo-user-001
 ```
 
 ### 4. Start everything
@@ -122,7 +121,7 @@ Open [http://localhost:3000](http://localhost:3000).
 4. Complete the hosted Didit KYC flow
 5. Return to Mintra and issue the Mina credential into Auro
 
-The demo currently uses a single demo user ID from frontend env. In production, replace that with real authentication and a real user/account mapping strategy.
+The current frontend uses the linked wallet address as the verification user id. In production, replace local wallet-based identity with your real authentication and account model.
 
 The API keeps verification state in memory right now. Restarting the API clears active verification and claim state.
 
@@ -188,7 +187,7 @@ docs/
 - **Single provider**: Only Didit is integrated. Sumsub, Persona, Veriff are on the roadmap.
 - **Off-chain claims only (v1)**: Claims are stored server-side. Mina on-chain proof generation is v2.
 - **In-memory verification state**: The API does not persist verifications or claims across restarts yet.
-- **Demo user model**: The demo app uses a static `userId` from env. Production use requires real authentication.
+- **Wallet address as user id**: The current demo uses the linked wallet address as the verification identifier. Production use should map verification state to real application accounts.
 - **Mina credential issuance**: Functional, but wallet issuance requires `MINA_ISSUER_PRIVATE_KEY` to be set on the API. Key management guidance is in [docs/security.md](docs/security.md).
 - **Auro storage only**: The demo supports connecting Auro and storing the credential there. Presentation/proof flows are still v2 work.
 
@@ -223,7 +222,6 @@ Recommended setup:
   - `CORS_ORIGIN=https://your-frontend-domain`
 - Frontend env on Vercel:
   - `NEXT_PUBLIC_MINTRA_API_URL=https://your-api-domain`
-  - `NEXT_PUBLIC_DEMO_USER_ID=demo-user-001` or your own auth-backed ID strategy
 
 ### Option 2: Render
 

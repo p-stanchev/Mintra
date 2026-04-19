@@ -1,22 +1,47 @@
-import { mintra, DEMO_USER_ID } from "@/lib/mintra";
+"use client";
+
+import { mintra } from "@/lib/mintra";
 import { Lock } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { readLinkedWalletAddress } from "@/lib/wallet-session";
 
-export default async function ProtectedPage() {
-  let allowed = false;
-  let error: string | null = null;
+export default function ProtectedPage() {
+  const [allowed, setAllowed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  try {
-    const data = await mintra.getClaims(DEMO_USER_ID);
-    allowed = data.claims.age_over_18 === true;
-  } catch (err) {
-    error = err instanceof Error ? err.message : "Unknown error";
-  }
+  useEffect(() => {
+    const walletAddress = readLinkedWalletAddress();
+    if (!walletAddress) {
+      setLoading(false);
+      return;
+    }
+
+    mintra
+      .getClaims(walletAddress)
+      .then((data) => {
+        setAllowed(data.claims.age_over_18 === true);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : "Unknown error");
+        setLoading(false);
+      });
+  }, []);
 
   if (error) {
     return (
       <div className="card" style={{ borderColor: "var(--danger)" }}>
         <p style={{ color: "var(--danger)", fontSize: 14 }}>API error: {error}</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="card">
+        <p style={{ color: "var(--muted)", fontSize: 14 }}>Checking wallet claims…</p>
       </div>
     );
   }
