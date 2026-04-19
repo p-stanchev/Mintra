@@ -1,10 +1,16 @@
 import type { FastifyPluginAsync } from "fastify";
 
-const DIDIT_STATUS_MAP: Record<string, "approved" | "rejected" | "needs_review" | "error"> = {
+const DIDIT_STATUS_MAP: Record<string, "approved" | "rejected" | "needs_review" | "pending"> = {
   Approved: "approved",
   Declined: "rejected",
   "In Review": "needs_review",
   Abandoned: "rejected",
+  "Not Started": "pending",
+  Pending: "pending",
+  Started: "pending",
+  "In Progress": "pending",
+  Processing: "pending",
+  Submitted: "pending",
 };
 
 export const webhooksRouter: FastifyPluginAsync = async (app) => {
@@ -27,7 +33,7 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
       return reply.status(401).send({ error: "Invalid signature or payload" });
     }
 
-    const internalStatus = DIDIT_STATUS_MAP[event.rawStatus] ?? "error";
+    const internalStatus = DIDIT_STATUS_MAP[event.rawStatus] ?? "pending";
     const verification = await app.store.updateVerificationStatus(event.sessionId, internalStatus);
 
     if (!verification) {

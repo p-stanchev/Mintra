@@ -115,4 +115,29 @@ describe("Mintra API", () => {
     expect(claims?.kycPassed).toBe(true);
     expect(claims?.ageOver18).toBe(true);
   });
+
+  it("webhook with unmapped interim status stays pending instead of error", async () => {
+    const sessionId = "sess-pending-123";
+    const verification = await app.store.createVerification("user-pending", sessionId);
+
+    const body = JSON.stringify({
+      session_id: sessionId,
+      status: "Not Started",
+      webhook_type: "status.updated",
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/providers/didit/webhook",
+      headers: {
+        "content-type": "application/json",
+        "x-signature-v2": sign(body),
+      },
+      payload: body,
+    });
+    expect(res.statusCode).toBe(200);
+
+    const updated = await app.store.getVerification(verification.id);
+    expect(updated?.status).toBe("pending");
+  });
 });
