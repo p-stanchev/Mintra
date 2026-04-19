@@ -16,20 +16,22 @@ export const DiditWebhookPayloadSchema = z.object({
   session_id: z.string(),
   status: z.string(),
   webhook_type: z.string(),
-  vendor_data: z.string(), // echoed userId
+  vendor_data: z.string().optional(), // echoed userId when provided
   timestamp: z.number().optional(),
   workflow_id: z.string().optional(),
-  decision: z.object({
-    id_verification: z
-      .object({
-        status: z.string(),
-        document_type: z.string().optional(),
-        country: z.string().optional(),
-      })
-      .optional(),
-    face_match: z.object({ status: z.string() }).optional(),
-    liveness: z.object({ status: z.string() }).optional(),
-    aml_screening: z.object({ status: z.string() }).optional(),
-  }),
+  decision: z
+    .object({
+      id_verification: z
+        .object({
+          status: z.string(),
+          document_type: z.string().optional(),
+          country: z.string().optional(),
+        })
+        .optional(),
+      face_match: z.object({ status: z.string() }).optional(),
+      liveness: z.object({ status: z.string() }).optional(),
+      aml_screening: z.object({ status: z.string() }).optional(),
+    })
+    .optional(),
 });
 export type DiditWebhookPayload = z.infer<typeof DiditWebhookPayloadSchema>;

@@ -82,17 +82,19 @@ export class DiditProvider implements VerificationProvider {
 
     const payload = DiditWebhookPayloadSchema.parse(json);
 
+    const decision = payload.decision;
+
     return {
       sessionId: payload.session_id,
-      userId: payload.vendor_data,
+      userId: payload.vendor_data ?? "",
       rawStatus: payload.status,
       decision: {
-        id_verification: buildIdVerif(payload.decision.id_verification),
-        ...(payload.decision.face_match !== undefined
-          ? { face_match: { status: payload.decision.face_match.status } }
+        id_verification: buildIdVerif(decision?.id_verification),
+        ...(decision?.face_match !== undefined
+          ? { face_match: { status: decision.face_match.status } }
           : {}),
-        ...(payload.decision.liveness !== undefined
-          ? { liveness: { status: payload.decision.liveness.status } }
+        ...(decision?.liveness !== undefined
+          ? { liveness: { status: decision.liveness.status } }
           : {}),
       },
     };
