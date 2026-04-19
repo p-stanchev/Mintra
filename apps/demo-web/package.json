@@ -12,7 +12,7 @@
     "@mintra/sdk-js": "workspace:*",
     "@mintra/sdk-types": "workspace:*",
     "lucide-react": "^1.8.0",
-    "next": "14.2.0",
+    "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18"
   },
