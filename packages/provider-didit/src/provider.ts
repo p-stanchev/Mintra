@@ -186,8 +186,9 @@ export class DiditProvider implements VerificationProvider {
   }
 
   private compareSignature(expected: string, received: string): boolean {
-    const normalizedReceived = received.replace(/^sha256=/, "");
-    const expectedBuf = Buffer.from(expected, "utf8");
+    const normalizedExpected = expected.trim().toLowerCase();
+    const normalizedReceived = received.trim().replace(/^sha256=/i, "").toLowerCase();
+    const expectedBuf = Buffer.from(normalizedExpected, "utf8");
     const receivedBuf = Buffer.from(normalizedReceived, "utf8");
     return expectedBuf.length === receivedBuf.length &&
       expectedBuf.length > 0 &&

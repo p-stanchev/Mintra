@@ -27,6 +27,12 @@ function signSimple(payload: {
   return createHmac("sha256", TEST_SECRET).update(canonical).digest("hex");
 }
 
+function signV2(payload: unknown): string {
+  return createHmac("sha256", TEST_SECRET)
+    .update(JSON.stringify(sortKeys(shortenFloats(payload))), "utf8")
+    .digest("hex");
+}
+
 describe("Mintra API", () => {
   let app: FastifyInstance;
 
@@ -143,6 +149,38 @@ describe("Mintra API", () => {
     expect(claims?.ageOver18).toBe(true);
   });
 
+  it("webhook with valid v2 signature is accepted", async () => {
+    const sessionId = "sess-v2-123";
+    const timestamp = Math.floor(Date.now() / 1000);
+    await app.store.createVerification("user-v2", sessionId);
+
+    const payload = {
+      session_id: sessionId,
+      status: "Approved",
+      webhook_type: "status.updated",
+      vendor_data: "user-v2",
+      timestamp,
+      decision: { id_verification: { status: "APPROVED", country: "DE" } },
+    };
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/providers/didit/webhook",
+      headers: {
+        "content-type": "application/json",
+        "x-signature-v2": signV2(payload),
+        "x-timestamp": String(timestamp),
+      },
+      payload: JSON.stringify(payload),
+    });
+
+    expect(res.statusCode).toBe(200);
+
+    const claims = await app.store.getClaims("user-v2");
+    expect(claims?.kycPassed).toBe(true);
+    expect(claims?.countryCode).toBe("DE");
+  });
+
   it("webhook with unmapped interim status stays pending instead of error", async () => {
     const sessionId = "sess-pending-123";
     const timestamp = Math.floor(Date.now() / 1000);
@@ -176,3 +214,38 @@ describe("Mintra API", () => {
     expect(updated?.status).toBe("pending");
   });
 });
+
+function shortenFloats(data: unknown): unknown {
+  if (Array.isArray(data)) {
+    return data.map(shortenFloats);
+  }
+
+  if (data !== null && typeof data === "object") {
+    return Object.fromEntries(
+      Object.entries(data).map(([key, value]) => [key, shortenFloats(value)])
+    );
+  }
+
+  if (typeof data === "number" && !Number.isInteger(data) && data % 1 === 0) {
+    return Math.trunc(data);
+  }
+
+  return data;
+}
+
+function sortKeys(data: unknown): unknown {
+  if (Array.isArray(data)) {
+    return data.map(sortKeys);
+  }
+
+  if (data !== null && typeof data === "object") {
+    return Object.keys(data as Record<string, unknown>)
+      .sort()
+      .reduce<Record<string, unknown>>((result, key) => {
+        result[key] = sortKeys((data as Record<string, unknown>)[key]);
+        return result;
+      }, {});
+  }
+
+  return data;
+}
