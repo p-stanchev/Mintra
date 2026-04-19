@@ -16,7 +16,7 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
       ...(redirectUrl !== undefined ? { redirectUrl } : {}),
     });
 
-    const record = app.store.createVerification(userId, session.sessionId);
+    const record = await app.store.createVerification(userId, session.sessionId);
 
     return reply.status(201).send({
       sessionId: record.id,
@@ -27,14 +27,14 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
 
   app.get<{ Params: { id: string } }>("/:id/status", async (request, reply) => {
     const { id } = request.params;
-    const record = app.store.getVerification(id) ?? app.store.getVerificationByProviderRef(id);
+    const record = (await app.store.getVerification(id)) ?? (await app.store.getVerificationByProviderRef(id));
     if (!record) {
       return reply.status(404).send({ error: "Verification not found" });
     }
 
     let normalizedClaims: Record<string, unknown> = {};
     if (record.status === "approved") {
-      const claim = app.store.getClaims(record.userId);
+      const claim = await app.store.getClaims(record.userId);
       if (claim) {
         if (claim.ageOver18 !== null) normalizedClaims["age_over_18"] = claim.ageOver18;
         if (claim.kycPassed !== null) normalizedClaims["kyc_passed"] = claim.kycPassed;

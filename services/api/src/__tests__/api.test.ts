@@ -74,7 +74,7 @@ describe("Mintra API", () => {
   });
 
   it("GET /api/verifications/:id/status resolves provider session ids too", async () => {
-    const verification = app.store.createVerification("user-provider-ref", "provider-session-123");
+    const verification = await app.store.createVerification("user-provider-ref", "provider-session-123");
 
     const res = await app.inject({
       method: "GET",
@@ -90,7 +90,7 @@ describe("Mintra API", () => {
   it("webhook with valid signature updates store and stores claims", async () => {
     // Seed a verification directly into the store
     const sessionId = "sess-valid-123";
-    app.store.createVerification("user-webhook", sessionId);
+    await app.store.createVerification("user-webhook", sessionId);
 
     const body = JSON.stringify({
       session_id: sessionId,
@@ -111,7 +111,7 @@ describe("Mintra API", () => {
     });
     expect(res.statusCode).toBe(200);
 
-    const claims = app.store.getClaims("user-webhook");
+    const claims = await app.store.getClaims("user-webhook");
     expect(claims?.kycPassed).toBe(true);
     expect(claims?.ageOver18).toBe(true);
   });

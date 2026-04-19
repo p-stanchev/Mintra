@@ -28,7 +28,7 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
     }
 
     const internalStatus = DIDIT_STATUS_MAP[event.rawStatus] ?? "error";
-    const verification = app.store.updateVerificationStatus(event.sessionId, internalStatus);
+    const verification = await app.store.updateVerificationStatus(event.sessionId, internalStatus);
 
     if (!verification) {
       app.log.error({ sessionId: event.sessionId }, "No verification record found for webhook");
@@ -37,7 +37,7 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
 
     if (internalStatus === "approved") {
       const normalizedClaims = app.diditProvider.mapClaims(event);
-      app.store.upsertClaims(event.userId, verification.id, {
+      await app.store.upsertClaims(event.userId, verification.id, {
         ...(normalizedClaims.age_over_18 !== undefined ? { ageOver18: normalizedClaims.age_over_18 } : {}),
         ...(normalizedClaims.kyc_passed !== undefined ? { kycPassed: normalizedClaims.kyc_passed } : {}),
         ...(normalizedClaims.country_code !== undefined ? { countryCode: normalizedClaims.country_code } : {}),

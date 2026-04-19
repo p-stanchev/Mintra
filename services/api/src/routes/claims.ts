@@ -3,7 +3,7 @@ import type { FastifyPluginAsync } from "fastify";
 export const claimsRouter: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { userId: string } }>("/:userId", async (request, reply) => {
     const { userId } = request.params;
-    const claim = app.store.getClaims(userId);
+    const claim = await app.store.getClaims(userId);
 
     const normalizedClaims: Record<string, unknown> = {};
     if (claim) {

@@ -33,7 +33,7 @@ Mintra is the **provider bridge + claim normalization + SDK layer** that makes M
 └──────────────────────┬──────────────────────────────────┘
                        │ @mintra/sdk-js
 ┌──────────────────────▼──────────────────────────────────┐
-│  @mintra/api  (Fastify + in-memory state)                │
+│  @mintra/api  (Fastify + auto-selected store)             │
 │  POST /api/verifications/start                           │
 │  GET  /api/verifications/:id/status                      │
 │  POST /api/providers/didit/webhook  ← Didit              │
@@ -89,6 +89,18 @@ CORS_ORIGIN=http://localhost:3000
 MINA_ISSUER_PRIVATE_KEY=your_base58_mina_private_key_here # only needed for credential issuance
 ```
 
+If you want persistent verification state, also set MySQL variables:
+
+```env
+MYSQLHOST=...
+MYSQLPORT=3306
+MYSQLUSER=...
+MYSQLPASSWORD=...
+MYSQLDATABASE=...
+```
+
+Without MySQL variables, the API falls back to in-memory state.
+
 ### 3. Configure the demo app
 
 ```bash
@@ -123,7 +135,12 @@ Open [http://localhost:3000](http://localhost:3000).
 
 The current frontend uses the linked wallet address as the verification user id. In production, replace local wallet-based identity with your real authentication and account model.
 
-The API keeps verification state in memory right now. Restarting the API clears active verification and claim state.
+The API now supports two store modes:
+
+- in-memory fallback for local tests and simple development
+- MySQL-backed state when `MYSQLHOST`/`MYSQLUSER`/`MYSQLPASSWORD`/`MYSQLDATABASE` are present
+
+MySQL-backed records automatically expire after a short retention window so stale verification state deletes itself.
 
 ## Getting Didit Credentials
 
@@ -174,7 +191,7 @@ packages/
   provider-didit/        Didit provider integration
   mina-bridge/           mina-attestations adapter
 services/
-  api/                   Fastify backend + in-memory state
+  api/                   Fastify backend + in-memory/MySQL state
 docs/
   architecture.md
   security.md
@@ -186,7 +203,7 @@ docs/
 
 - **Single provider**: Only Didit is integrated. Sumsub, Persona, Veriff are on the roadmap.
 - **Off-chain claims only (v1)**: Claims are stored server-side. Mina on-chain proof generation is v2.
-- **In-memory verification state**: The API does not persist verifications or claims across restarts yet.
+- **Short-lived state only**: The API stores only minimal verification linkage and claims. With MySQL enabled, records expire automatically after the retention window.
 - **Wallet address as user id**: The current demo uses the linked wallet address as the verification identifier. Production use should map verification state to real application accounts.
 - **Mina credential issuance**: Functional, but wallet issuance requires `MINA_ISSUER_PRIVATE_KEY` to be set on the API. Key management guidance is in [docs/security.md](docs/security.md).
 - **Auro storage only**: The demo supports connecting Auro and storing the credential there. Presentation/proof flows are still v2 work.

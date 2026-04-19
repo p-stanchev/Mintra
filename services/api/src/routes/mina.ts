@@ -19,7 +19,7 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
 
     const { userId, ownerPublicKey } = body;
 
-    const claim = app.store.getClaims(userId);
+    const claim = await app.store.getClaims(userId);
     if (!claim) {
       return reply.status(403).send({ error: "No approved claims found for user" });
     }

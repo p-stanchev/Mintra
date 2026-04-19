@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { createDiditProvider } from "@mintra/provider-didit";
-import { InMemoryStore } from "./store";
+import { createStore } from "./store";
 import { verificationsRouter } from "./routes/verifications";
 import { webhooksRouter } from "./routes/webhooks";
 import { claimsRouter } from "./routes/claims";
@@ -57,7 +57,11 @@ export async function buildApp(opts: AppOptions = {}) {
     done();
   });
 
-  app.decorate("store", new InMemoryStore());
+  const store = await createStore();
+  app.decorate("store", store);
+  app.addHook("onClose", async () => {
+    await store.close();
+  });
 
   const diditProvider = createDiditProvider({
     apiKey: diditApiKey,

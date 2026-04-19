@@ -1,4 +1,4 @@
-import type { InMemoryStore } from "./store";
+import type { VerificationStore } from "./store";
 import type { DiditProvider } from "@mintra/provider-didit";
 
 interface MinaBridgeLike {
@@ -11,7 +11,7 @@ interface MinaBridgeLike {
 
 declare module "fastify" {
   interface FastifyInstance {
-    store: InMemoryStore;
+    store: VerificationStore;
     diditProvider: DiditProvider;
     minaBridge: MinaBridgeLike | null;
   }
