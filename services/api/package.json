@@ -7,9 +7,7 @@
     "build": "tsup src/index.ts --format cjs --no-splitting --platform node",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "test": "vitest run"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.0",

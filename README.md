@@ -33,7 +33,7 @@ Mintra is the **provider bridge + claim normalization + SDK layer** that makes M
 └──────────────────────┬──────────────────────────────────┘
                        │ @mintra/sdk-js
 ┌──────────────────────▼──────────────────────────────────┐
-│  @mintra/api  (Fastify + in-memory store)                │
+│  @mintra/api  (Fastify + in-memory state)                │
 │  POST /api/verifications/start                           │
 │  GET  /api/verifications/:id/status                      │
 │  POST /api/providers/didit/webhook  ← Didit              │
@@ -83,19 +83,13 @@ Edit `services/api/.env`:
 ```env
 DIDIT_API_KEY=your_didit_api_key_here
 DIDIT_WEBHOOK_SECRET=your_didit_workflow_webhook_secret_here
-DATABASE_URL=./mintra.db
+DIDIT_WORKFLOW_ID=your_didit_workflow_id_here
 PORT=3001
 CORS_ORIGIN=http://localhost:3000
-MINA_ISSUER_PRIVATE_KEY=your_base58_mina_private_key_here
+MINA_ISSUER_PRIVATE_KEY=your_base58_mina_private_key_here # only needed for credential issuance
 ```
 
-### 3. Initialize the database
-
-```bash
-pnpm db:push
-```
-
-### 4. Configure the demo app
+### 3. Configure the demo app
 
 ```bash
 cp apps/demo-web/.env.example apps/demo-web/.env.local
@@ -108,7 +102,7 @@ NEXT_PUBLIC_MINTRA_API_URL=http://localhost:3001
 NEXT_PUBLIC_DEMO_USER_ID=demo-user-001
 ```
 
-### 5. Start everything
+### 4. Start everything
 
 ```bash
 # Terminal 1: API
@@ -129,6 +123,8 @@ Open [http://localhost:3000](http://localhost:3000).
 5. Return to Mintra and issue the Mina credential into Auro
 
 The demo currently uses a single demo user ID from frontend env. In production, replace that with real authentication and a real user/account mapping strategy.
+
+The API keeps verification state in memory right now. Restarting the API clears active verification and claim state.
 
 ## Getting Didit Credentials
 
@@ -179,7 +175,7 @@ packages/
   provider-didit/        Didit provider integration
   mina-bridge/           mina-attestations adapter
 services/
-  api/                   Fastify backend + in-memory store
+  api/                   Fastify backend + in-memory state
 docs/
   architecture.md
   security.md
@@ -191,8 +187,9 @@ docs/
 
 - **Single provider**: Only Didit is integrated. Sumsub, Persona, Veriff are on the roadmap.
 - **Off-chain claims only (v1)**: Claims are stored server-side. Mina on-chain proof generation is v2.
+- **In-memory verification state**: The API does not persist verifications or claims across restarts yet.
 - **Demo user model**: The demo app uses a static `userId` from env. Production use requires real authentication.
-- **Mina credential issuance**: Functional but requires `MINA_ISSUER_PRIVATE_KEY` to be set. Key management guidance is in [docs/security.md](docs/security.md).
+- **Mina credential issuance**: Functional, but wallet issuance requires `MINA_ISSUER_PRIVATE_KEY` to be set on the API. Key management guidance is in [docs/security.md](docs/security.md).
 - **Auro storage only**: The demo supports connecting Auro and storing the credential there. Presentation/proof flows are still v2 work.
 
 ## Hosting
@@ -211,21 +208,19 @@ Why this is a good fit:
   https://vercel.com/docs/monorepos
 - Railway supports monorepos and can deploy multiple services from one repo:
   https://docs.railway.com/guides/monorepo
-- Railway also supports persistent volumes, which works if you want to keep SQLite as-is:
+- Railway also supports persistent volumes if you later move verification state out of memory:
   https://docs.railway.com/guides/volumes
 
 Recommended setup:
 
 - Vercel project root: `apps/demo-web`
 - Railway service root: `services/api`
-- Railway volume mount for SQLite, for example `/data`
 - API env on Railway:
   - `DIDIT_API_KEY`
   - `DIDIT_WEBHOOK_SECRET`
   - `DIDIT_WORKFLOW_ID`
   - `MINA_ISSUER_PRIVATE_KEY`
   - `CORS_ORIGIN=https://your-frontend-domain`
-  - `DATABASE_URL=/data/mintra.db`
 - Frontend env on Vercel:
   - `NEXT_PUBLIC_MINTRA_API_URL=https://your-api-domain`
   - `NEXT_PUBLIC_DEMO_USER_ID=demo-user-001` or your own auth-backed ID strategy

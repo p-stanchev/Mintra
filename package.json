@@ -7,9 +7,7 @@
     "dev": "pnpm --parallel -r dev",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
-    "db:push": "pnpm --filter @mintra/api db:push",
-    "db:studio": "pnpm --filter @mintra/api db:studio"
+    "test": "pnpm -r test"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
