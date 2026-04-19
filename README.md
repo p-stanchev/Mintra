@@ -33,7 +33,7 @@ Mintra is the **provider bridge + claim normalization + SDK layer** that makes M
 └──────────────────────┬──────────────────────────────────┘
                        │ @mintra/sdk-js
 ┌──────────────────────▼──────────────────────────────────┐
-│  @mintra/api  (Fastify + auto-selected store)             │
+│  @mintra/api  (Fastify + in-memory store)                │
 │  POST /api/verifications/start                           │
 │  GET  /api/verifications/:id/status                      │
 │  POST /api/providers/didit/webhook  ← Didit              │
@@ -89,18 +89,6 @@ CORS_ORIGIN=http://localhost:3000
 MINA_ISSUER_PRIVATE_KEY=your_base58_mina_private_key_here # only needed for credential issuance
 ```
 
-If you want persistent verification state, also set MySQL variables:
-
-```env
-MYSQLHOST=...
-MYSQLPORT=3306
-MYSQLUSER=...
-MYSQLPASSWORD=...
-MYSQLDATABASE=...
-```
-
-Without MySQL variables, the API falls back to in-memory state.
-
 ### 3. Configure the demo app
 
 ```bash
@@ -135,12 +123,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 The current frontend uses the linked wallet address as the verification user id. In production, replace local wallet-based identity with your real authentication and account model.
 
-The API now supports two store modes:
-
-- in-memory fallback for local tests and simple development
-- MySQL-backed state when `MYSQLHOST`/`MYSQLUSER`/`MYSQLPASSWORD`/`MYSQLDATABASE` are present
-
-MySQL-backed records automatically expire after a short retention window so stale verification state deletes itself.
+The API keeps verification state in memory for a lightweight demo setup. That means you do not need a database, but an API restart will clear in-flight verification state.
 
 ## Getting Didit Credentials
 
@@ -191,7 +174,7 @@ packages/
   provider-didit/        Didit provider integration
   mina-bridge/           mina-attestations adapter
 services/
-  api/                   Fastify backend + in-memory/MySQL state
+  api/                   Fastify backend + in-memory state
 docs/
   architecture.md
   security.md
@@ -203,7 +186,7 @@ docs/
 
 - **Single provider**: Only Didit is integrated. Sumsub, Persona, Veriff are on the roadmap.
 - **Off-chain claims only (v1)**: Claims are stored server-side. Mina on-chain proof generation is v2.
-- **Short-lived state only**: The API stores only minimal verification linkage and claims. With MySQL enabled, records expire automatically after the retention window.
+- **No database required**: The demo keeps only minimal verification linkage and claims in memory. If the API restarts, in-flight verification state is lost.
 - **Wallet address as user id**: The current demo uses the linked wallet address as the verification identifier. Production use should map verification state to real application accounts.
 - **Mina credential issuance**: Functional, but wallet issuance requires `MINA_ISSUER_PRIVATE_KEY` to be set on the API. Key management guidance is in [docs/security.md](docs/security.md).
 - **Auro storage only**: The demo supports connecting Auro and storing the credential there. Presentation/proof flows are still v2 work.
@@ -224,9 +207,6 @@ Why this is a good fit:
   https://vercel.com/docs/monorepos
 - Railway supports monorepos and can deploy multiple services from one repo:
   https://docs.railway.com/guides/monorepo
-- Railway also supports persistent volumes if you later move verification state out of memory:
-  https://docs.railway.com/guides/volumes
-
 Recommended setup:
 
 - Vercel project root: `apps/demo-web`

@@ -19,6 +19,13 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
 
     const { userId, ownerPublicKey } = body;
 
+    if (ownerPublicKey !== userId) {
+      return reply.status(403).send({
+        error: "Wallet mismatch",
+        detail: "The connected wallet must match the verified wallet used for this claim",
+      });
+    }
+
     const claim = await app.store.getClaims(userId);
     if (!claim) {
       return reply.status(403).send({ error: "No approved claims found for user" });

@@ -74,11 +74,11 @@ export async function buildApp(opts: AppOptions = {}) {
   if (minaKey) {
     try {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore — optional peer package, may not be installed
+      // @ts-ignore optional workspace package loaded only when configured
       const { createMinaBridge } = await import("@mintra/mina-bridge");
       minaBridge = createMinaBridge({ issuerPrivateKey: minaKey });
-    } catch {
-      app.log.warn("@mintra/mina-bridge not available — Mina credential issuance disabled");
+    } catch (err) {
+      app.log.warn({ err }, "@mintra/mina-bridge unavailable or issuer key invalid — Mina credential issuance disabled");
     }
   }
   app.decorate("minaBridge", minaBridge);

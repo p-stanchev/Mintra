@@ -12,11 +12,11 @@
   "dependencies": {
     "@fastify/cors": "^9.0.0",
     "@fastify/rate-limit": "^9.0.0",
+    "@mintra/mina-bridge": "workspace:*",
     "@mintra/provider-didit": "workspace:*",
     "@mintra/sdk-types": "workspace:*",
     "dotenv": "^16.4.0",
     "fastify": "^4.27.0",
-    "mysql2": "^3.22.1",
     "uuid": "^9.0.0",
     "zod": "^3.23.0"
   },

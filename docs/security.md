@@ -5,25 +5,25 @@
 ### What Mintra protects
 
 - **Webhook authenticity**: Only webhook payloads with a valid HMAC-SHA256 signature from the provider's workflow secret are processed. Signature verification uses `timingSafeEqual` to prevent timing attacks.
-- **Data minimization**: Raw identity documents, selfie images, and full webhook payloads are never stored. Only normalized claim fields are persisted.
+- **Data minimization**: Raw identity documents, selfie images, and full webhook payloads are never stored. Only minimal verification linkage and normalized claim fields are kept in runtime memory.
 - **Secret isolation**: All secrets (`DIDIT_API_KEY`, `DIDIT_WEBHOOK_SECRET`, `MINA_ISSUER_PRIVATE_KEY`) live in environment variables server-side. The SDK never receives or exposes these.
 - **No PII in logs**: The webhook handler logs errors at the warning level; it does not log raw payloads or user identity data.
 
 ### What Mintra does NOT protect
 
 - **Provider trust**: Mintra trusts the identity decision made by Didit. If Didit is compromised or produces a fraudulent "Approved" result, Mintra will accept it. This is inherent to any provider-backed verification system.
-- **Database at-rest encryption**: The SQLite database is not encrypted at rest by default. In production, use filesystem-level encryption or switch to an encrypted-at-rest database.
+- **Restart persistence**: The current demo keeps verification state in memory only. If the API restarts, in-flight verification state is lost.
 - **API authentication**: The current API has no authentication layer — it relies on network-level access control in production (private VPC, ingress rules). Add bearer token auth before exposing to the public internet.
 - **Mina private key management**: The `MINA_ISSUER_PRIVATE_KEY` must be treated as a high-value secret. If compromised, an attacker can issue fraudulent Mina credentials in Mintra's name.
 
 ## Webhook Verification
 
 Didit sends webhooks with three signature headers:
-- `x-signature-v2`: HMAC-SHA256 of the raw JSON string (handles middleware re-encoding)
-- `x-signature`: HMAC-SHA256 of raw bytes
-- `x-signature-simple`: HMAC of `{session_id}|{status}|{created_at}`
+- `x-signature-v2`: HMAC-SHA256 of canonicalized JSON
+- `x-signature-simple`: HMAC of `timestamp:session_id:status:webhook_type`
+- `x-signature`: legacy/raw-body fallback
 
-Mintra reads `x-signature-v2` first, falling back to `x-signature`. The HMAC is computed against the raw `Buffer` received by Fastify before any JSON parsing.
+Mintra validates `x-signature-v2` first, then `x-signature-simple`, and finally `x-signature`. It also checks `x-timestamp` freshness before accepting a webhook.
 
 ```typescript
 // Constant-time comparison — prevents timing attacks
@@ -36,16 +36,16 @@ Fastify is configured with a custom content-type parser that captures the raw bu
 
 ## Data Handling Policy
 
-### What is stored
+### What is stored in memory
 
-| Field | Table | Purpose | Retention |
-|-------|-------|---------|-----------|
-| `user_id` | verifications, claims | User correlation | Until user deletion request |
-| `provider_reference` | verifications | Provider session ID for support | Until user deletion |
-| `status` | verifications | Verification lifecycle | Until user deletion |
-| `age_over_18`, `kyc_passed` | claims | App eligibility | Until user deletion |
-| `country_code` | claims | Optional geographic claim | Until user deletion |
-| `verified_at` | claims | Audit timestamp | Until user deletion |
+| Field | Purpose | Lifetime |
+|-------|---------|----------|
+| `user_id` | Correlate a verification to a wallet/app user | Until API restart |
+| `provider_reference` | Match incoming provider webhook to an existing verification | Until API restart |
+| `status` | Track verification lifecycle | Until API restart |
+| `age_over_18`, `kyc_passed` | App eligibility | Until API restart |
+| `country_code` | Optional geographic claim | Until API restart |
+| `verified_at` | Show when claims were issued | Until API restart |
 
 ### What is NOT stored
 
