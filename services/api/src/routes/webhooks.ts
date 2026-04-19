@@ -16,10 +16,10 @@ const DIDIT_STATUS_MAP: Record<string, "approved" | "rejected" | "needs_review" 
 export const webhooksRouter: FastifyPluginAsync = async (app) => {
   app.post("/didit/webhook", async (request, reply) => {
     const rawBody = (request as unknown as { rawBody?: Buffer }).rawBody;
-    const signature =
-      (request.headers["x-signature-v2"] as string | undefined) ??
-      (request.headers["x-signature"] as string | undefined) ??
-      "";
+    const signatureV2 = request.headers["x-signature-v2"] as string | undefined;
+    const signatureSimple = request.headers["x-signature-simple"] as string | undefined;
+    const signature = request.headers["x-signature"] as string | undefined;
+    const timestamp = request.headers["x-timestamp"] as string | undefined;
 
     if (!rawBody || rawBody.length === 0) {
       return reply.status(400).send({ error: "Empty body" });
@@ -27,7 +27,14 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
 
     let event;
     try {
-      event = await app.diditProvider.parseWebhook({ rawBody, signature });
+      event = await app.diditProvider.parseWebhook({
+        rawBody,
+        parsedBody: request.body,
+        signature,
+        signatureV2,
+        signatureSimple,
+        timestamp,
+      });
     } catch (err) {
       app.log.warn({ err }, "Webhook verification or parsing failed");
       return reply.status(401).send({ error: "Invalid signature or payload" });

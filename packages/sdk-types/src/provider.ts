@@ -23,7 +23,11 @@ export interface WebhookDecision {
 
 export interface IncomingWebhook {
   rawBody: Buffer;
-  signature: string;
+  parsedBody?: unknown;
+  signature?: string;
+  signatureV2?: string;
+  signatureSimple?: string;
+  timestamp?: string;
 }
 
 export interface NormalizedWebhookEvent {

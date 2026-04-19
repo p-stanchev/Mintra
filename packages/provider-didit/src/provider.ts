@@ -71,14 +71,25 @@ export class DiditProvider implements VerificationProvider {
   }
 
   async parseWebhook(request: IncomingWebhook): Promise<NormalizedWebhookEvent> {
-    this.verifySignature(request.rawBody, request.signature);
-
     let json: unknown;
-    try {
-      json = JSON.parse(request.rawBody.toString("utf-8"));
-    } catch {
-      throw new Error("Webhook body is not valid JSON");
+    if (request.parsedBody !== undefined) {
+      json = request.parsedBody;
+    } else {
+      try {
+        json = JSON.parse(request.rawBody.toString("utf-8"));
+      } catch {
+        throw new Error("Webhook body is not valid JSON");
+      }
     }
+
+    this.verifySignature({
+      rawBody: request.rawBody,
+      parsedBody: json,
+      signature: request.signature,
+      signatureV2: request.signatureV2,
+      signatureSimple: request.signatureSimple,
+      timestamp: request.timestamp,
+    });
 
     const payload = DiditWebhookPayloadSchema.parse(json);
 
@@ -123,30 +134,98 @@ export class DiditProvider implements VerificationProvider {
     return claims;
   }
 
-  private verifySignature(rawBody: Buffer, signature: string): void {
-    // Didit x-signature-v2: HMAC-SHA256 of the raw JSON string
-    const expected = createHmac("sha256", this.config.webhookSecret)
-      .update(rawBody)
-      .digest("hex");
+  private verifySignature(request: IncomingWebhook & { parsedBody: unknown }): void {
+    const { rawBody, parsedBody, signature, signatureV2, signatureSimple, timestamp } = request;
 
-    const normalizedSig = signature.replace(/^sha256=/, "").toLowerCase();
-
-    let expectedBuf: Buffer;
-    let receivedBuf: Buffer;
-    try {
-      expectedBuf = Buffer.from(expected, "hex");
-      receivedBuf = Buffer.from(normalizedSig, "hex");
-    } catch {
-      throw new Error("Webhook signature has invalid hex encoding");
+    if (!timestamp) {
+      throw new Error("Missing webhook timestamp");
     }
 
-    if (expectedBuf.length !== receivedBuf.length || expectedBuf.length === 0) {
-      throw new Error("Webhook signature length mismatch");
+    const currentTime = Math.floor(Date.now() / 1000);
+    const incomingTime = Number.parseInt(timestamp, 10);
+    if (!Number.isFinite(incomingTime) || Math.abs(currentTime - incomingTime) > 300) {
+      throw new Error("Webhook timestamp is stale");
     }
-    if (!timingSafeEqual(expectedBuf, receivedBuf)) {
-      throw new Error("Webhook signature verification failed");
+
+    if (signatureV2 && this.compareSignature(this.buildV2Signature(parsedBody), signatureV2)) {
+      return;
     }
+
+    if (signatureSimple && this.compareSignature(this.buildSimpleSignature(parsedBody), signatureSimple)) {
+      return;
+    }
+
+    if (signature && this.compareSignature(this.buildRawSignature(rawBody), signature)) {
+      return;
+    }
+
+    throw new Error("Webhook signature verification failed");
   }
+
+  private buildRawSignature(rawBody: Buffer): string {
+    return createHmac("sha256", this.config.webhookSecret).update(rawBody).digest("hex");
+  }
+
+  private buildV2Signature(parsedBody: unknown): string {
+    const canonicalJson = JSON.stringify(sortKeys(shortenFloats(parsedBody)));
+    return createHmac("sha256", this.config.webhookSecret).update(canonicalJson, "utf8").digest("hex");
+  }
+
+  private buildSimpleSignature(parsedBody: unknown): string {
+    const body = parsedBody as Record<string, unknown>;
+    const canonicalString = [
+      body["timestamp"] ?? "",
+      body["session_id"] ?? "",
+      body["status"] ?? "",
+      body["webhook_type"] ?? "",
+    ].join(":");
+
+    return createHmac("sha256", this.config.webhookSecret).update(canonicalString).digest("hex");
+  }
+
+  private compareSignature(expected: string, received: string): boolean {
+    const normalizedReceived = received.replace(/^sha256=/, "");
+    const expectedBuf = Buffer.from(expected, "utf8");
+    const receivedBuf = Buffer.from(normalizedReceived, "utf8");
+    return expectedBuf.length === receivedBuf.length &&
+      expectedBuf.length > 0 &&
+      timingSafeEqual(expectedBuf, receivedBuf);
+  }
+}
+
+function shortenFloats(data: unknown): unknown {
+  if (Array.isArray(data)) {
+    return data.map(shortenFloats);
+  }
+
+  if (data !== null && typeof data === "object") {
+    return Object.fromEntries(
+      Object.entries(data).map(([key, value]) => [key, shortenFloats(value)])
+    );
+  }
+
+  if (typeof data === "number" && !Number.isInteger(data) && data % 1 === 0) {
+    return Math.trunc(data);
+  }
+
+  return data;
+}
+
+function sortKeys(data: unknown): unknown {
+  if (Array.isArray(data)) {
+    return data.map(sortKeys);
+  }
+
+  if (data !== null && typeof data === "object") {
+    return Object.keys(data as Record<string, unknown>)
+      .sort()
+      .reduce<Record<string, unknown>>((result, key) => {
+        result[key] = sortKeys((data as Record<string, unknown>)[key]);
+        return result;
+      }, {});
+  }
+
+  return data;
 }
 
 export function createDiditProvider(config: DiditProviderConfig): DiditProvider {

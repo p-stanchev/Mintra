@@ -11,6 +11,22 @@ function sign(body: string): string {
   return createHmac("sha256", TEST_SECRET).update(Buffer.from(body)).digest("hex");
 }
 
+function signSimple(payload: {
+  timestamp?: number;
+  session_id?: string;
+  status?: string;
+  webhook_type?: string;
+}): string {
+  const canonical = [
+    payload.timestamp ?? "",
+    payload.session_id ?? "",
+    payload.status ?? "",
+    payload.webhook_type ?? "",
+  ].join(":");
+
+  return createHmac("sha256", TEST_SECRET).update(canonical).digest("hex");
+}
+
 describe("Mintra API", () => {
   let app: FastifyInstance;
 
@@ -36,11 +52,13 @@ describe("Mintra API", () => {
   });
 
   it("POST /api/providers/didit/webhook with bad signature returns 401", async () => {
+    const timestamp = Math.floor(Date.now() / 1000);
     const body = JSON.stringify({
       session_id: "sess-999",
       status: "Approved",
       webhook_type: "status.updated",
       vendor_data: "user-1",
+      timestamp,
       decision: { id_verification: { status: "APPROVED" } },
     });
 
@@ -49,7 +67,8 @@ describe("Mintra API", () => {
       url: "/api/providers/didit/webhook",
       headers: {
         "content-type": "application/json",
-        "x-signature-v2": "badbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadb",
+        "x-signature-simple": "badbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadb",
+        "x-timestamp": String(timestamp),
       },
       payload: body,
     });
@@ -90,6 +109,7 @@ describe("Mintra API", () => {
   it("webhook with valid signature updates store and stores claims", async () => {
     // Seed a verification directly into the store
     const sessionId = "sess-valid-123";
+    const timestamp = Math.floor(Date.now() / 1000);
     await app.store.createVerification("user-webhook", sessionId);
 
     const body = JSON.stringify({
@@ -97,6 +117,7 @@ describe("Mintra API", () => {
       status: "Approved",
       webhook_type: "status.updated",
       vendor_data: "user-webhook",
+      timestamp,
       decision: { id_verification: { status: "APPROVED", country: "US" } },
     });
 
@@ -105,7 +126,13 @@ describe("Mintra API", () => {
       url: "/api/providers/didit/webhook",
       headers: {
         "content-type": "application/json",
-        "x-signature-v2": sign(body),
+        "x-signature-simple": signSimple({
+          timestamp,
+          session_id: sessionId,
+          status: "Approved",
+          webhook_type: "status.updated",
+        }),
+        "x-timestamp": String(timestamp),
       },
       payload: body,
     });
@@ -118,12 +145,14 @@ describe("Mintra API", () => {
 
   it("webhook with unmapped interim status stays pending instead of error", async () => {
     const sessionId = "sess-pending-123";
+    const timestamp = Math.floor(Date.now() / 1000);
     const verification = await app.store.createVerification("user-pending", sessionId);
 
     const body = JSON.stringify({
       session_id: sessionId,
       status: "Not Started",
       webhook_type: "status.updated",
+      timestamp,
     });
 
     const res = await app.inject({
@@ -131,7 +160,13 @@ describe("Mintra API", () => {
       url: "/api/providers/didit/webhook",
       headers: {
         "content-type": "application/json",
-        "x-signature-v2": sign(body),
+        "x-signature-simple": signSimple({
+          timestamp,
+          session_id: sessionId,
+          status: "Not Started",
+          webhook_type: "status.updated",
+        }),
+        "x-timestamp": String(timestamp),
       },
       payload: body,
     });
