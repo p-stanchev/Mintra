@@ -4,13 +4,9 @@ import { claimsToCredentialData } from "./mapping";
 // Dynamic imports keep o1js/mina-attestations out of the initial load path.
 // Both are large and have significant startup cost from snark compilation.
 async function loadMina() {
-  const [{ Credential, createNative }, { Field, PrivateKey, PublicKey }] = await Promise.all([
+  const [{ Credential }, { Field, PrivateKey, PublicKey }] = await Promise.all([
     import("mina-attestations").then((m) => ({
       Credential: m.Credential,
-      // createNative is an internal helper — we use Credential.Native which wraps it
-      createNative: m.Credential.Native as unknown as {
-        create?: unknown;
-      } & ((dataType: unknown) => unknown),
     })),
     import("o1js"),
   ]);
@@ -35,18 +31,10 @@ export class MinaBridge {
 
   async issueCredential(request: MinaIssuanceRequest): Promise<MinaIssuanceResult> {
     // mina-attestations 0.5.x API:
-    //   createNative(issuerPrivateKey, { owner: PublicKey, data: {...Fields} })
+    //   Credential.sign(issuerPrivateKey, { owner: PublicKey, data: {...Fields} })
     //   returns a StoredCredential (native type)
     //   Credential.toJSON(storedCredential) → string
     const { Credential, Field, PrivateKey, PublicKey } = await loadMina();
-
-    // Import createNative from the credential-native module directly
-    const { createNative } = await import(
-      "mina-attestations/build/src/credential-native.js" as string
-    ).catch(() => {
-      // Fallback: re-export from credential-index
-      return { createNative: null };
-    });
 
     const issuerKey = PrivateKey.fromBase58(this.privateKeyBase58);
     const owner = PublicKey.fromBase58(request.ownerPublicKey);
@@ -62,14 +50,18 @@ export class MinaBridge {
       issuedAt: Field(credData.issuedAt),
     };
 
-    // createNative(issuerPrivateKey, credential { owner, data }, metadata?)
+    // Credential.sign(issuerPrivateKey, credential { owner, data }, metadata?)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const createFn = (createNative ?? (Credential as any).createNative) as (
+    const signFn = (Credential as any).sign as (
       key: typeof issuerKey,
       cred: { owner: typeof owner; data: typeof data }
     ) => unknown;
 
-    const storedCredential = createFn(issuerKey, { owner, data });
+    if (typeof signFn !== "function") {
+      throw new Error("mina-attestations Credential.sign API is unavailable");
+    }
+
+    const storedCredential = signFn(issuerKey, { owner, data });
 
     // Credential.toJSON serializes the StoredCredential to a JSON string
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
