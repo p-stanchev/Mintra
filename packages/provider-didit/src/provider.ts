@@ -1,4 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import countries from "i18n-iso-countries";
+import enLocale from "i18n-iso-countries/langs/en.json";
 import type {
   VerificationProvider,
   CreateSessionInput,
@@ -10,6 +12,7 @@ import type {
 import { DiditSessionResponseSchema, DiditWebhookPayloadSchema } from "./schemas";
 
 const DIDIT_API_BASE = "https://verification.didit.me";
+countries.registerLocale(enLocale);
 
 // Zod infers optional fields as `string | undefined`; this helper strips undefined values
 // to satisfy exactOptionalPropertyTypes when building the WebhookDecision shape.
@@ -20,6 +23,7 @@ function buildIdVerif(
     country?: string | undefined;
     date_of_birth?: string | undefined;
     issuing_state?: string | undefined;
+    issuing_country?: string | undefined;
   } | undefined
 ): {
   status: string;
@@ -27,6 +31,7 @@ function buildIdVerif(
   country?: string;
   date_of_birth?: string;
   issuing_state?: string;
+  issuing_country?: string;
 } {
   if (!raw) return { status: "UNKNOWN" };
   const result: {
@@ -35,6 +40,7 @@ function buildIdVerif(
     country?: string;
     date_of_birth?: string;
     issuing_state?: string;
+    issuing_country?: string;
   } = {
     status: raw.status,
   };
@@ -42,6 +48,7 @@ function buildIdVerif(
   if (raw.country !== undefined) result.country = raw.country;
   if (raw.date_of_birth !== undefined) result.date_of_birth = raw.date_of_birth;
   if (raw.issuing_state !== undefined) result.issuing_state = raw.issuing_state;
+  if (raw.issuing_country !== undefined) result.issuing_country = raw.issuing_country;
   return result;
 }
 
@@ -141,6 +148,7 @@ export class DiditProvider implements VerificationProvider {
     const idVerif = event.decision.id_verification as typeof event.decision.id_verification & {
       date_of_birth?: string;
       issuing_state?: string;
+      issuing_country?: string;
     };
     const idApproved = normalizeStatus(idVerif.status) === "approved";
     const isAdult = hasReachedAge(idVerif.date_of_birth, 18);
@@ -153,13 +161,12 @@ export class DiditProvider implements VerificationProvider {
     if (isAdult || idApproved) {
       claims.age_over_18 = true;
     }
-    const countrySource = idVerif.country ?? mapIso3ToIso2(idVerif.issuing_state);
-    if (countrySource) {
-      const code = countrySource.toUpperCase().slice(0, 2);
-      if (code.length === 2) {
-        claims.country_code = code;
-      }
-    }
+    const countryCode = normalizeCountryToIso2(
+      idVerif.country,
+      idVerif.issuing_country,
+      idVerif.issuing_state
+    );
+    if (countryCode) claims.country_code = countryCode;
 
     return claims;
   }
@@ -284,50 +291,19 @@ function hasReachedAge(dateOfBirth: string | undefined, minimumAge: number): boo
   return age >= minimumAge;
 }
 
-function mapIso3ToIso2(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  const normalized = value.trim().toUpperCase();
-  const isoMap: Record<string, string> = {
-    USA: "US",
-    GBR: "GB",
-    DEU: "DE",
-    ESP: "ES",
-    FRA: "FR",
-    ITA: "IT",
-    NLD: "NL",
-    BEL: "BE",
-    AUT: "AT",
-    CHE: "CH",
-    PRT: "PT",
-    GRC: "GR",
-    CZE: "CZ",
-    POL: "PL",
-    ROU: "RO",
-    BGR: "BG",
-    HRV: "HR",
-    HUN: "HU",
-    SVN: "SI",
-    SVK: "SK",
-    IRL: "IE",
-    DNK: "DK",
-    SWE: "SE",
-    NOR: "NO",
-    FIN: "FI",
-    CAN: "CA",
-    AUS: "AU",
-    NZL: "NZ",
-    MEX: "MX",
-    BRA: "BR",
-    ARG: "AR",
-    COL: "CO",
-    JPN: "JP",
-    KOR: "KR",
-    IND: "IN",
-    CHN: "CN",
-    TUR: "TR",
-    UKR: "UA",
-  };
+function normalizeCountryToIso2(...values: Array<string | undefined>): string | undefined {
+  for (const value of values) {
+    if (!value) continue;
+    const normalized = value.trim().toUpperCase();
+    if (!normalized) continue;
+    if (normalized.length === 2) return normalized;
 
-  if (normalized.length === 2) return normalized;
-  return isoMap[normalized];
+    const alpha3 = countries.alpha3ToAlpha2(normalized);
+    if (alpha3) return alpha3;
+
+    const byName = countries.getAlpha2Code(value, "en");
+    if (byName) return byName;
+  }
+
+  return undefined;
 }

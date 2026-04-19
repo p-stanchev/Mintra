@@ -18,6 +18,7 @@ export interface WebhookDecision {
     country?: string;
     date_of_birth?: string;
     issuing_state?: string;
+    issuing_country?: string;
   };
   face_match?: { status: string };
   liveness?: { status: string };
