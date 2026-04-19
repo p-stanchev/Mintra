@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
@@ -23,6 +24,7 @@ export async function buildApp(opts: AppOptions = {}) {
   const diditWebhookSecret = opts.diditWebhookSecret ?? requireEnv("DIDIT_WEBHOOK_SECRET");
   const diditWorkflowId = opts.diditWorkflowId ?? requireEnv("DIDIT_WORKFLOW_ID");
   const minaKey = opts.minaIssuerPrivateKey ?? process.env["MINA_ISSUER_PRIVATE_KEY"];
+  const require = createRequire(__filename);
 
   const app = Fastify({ logger: opts.logger ?? true });
 
@@ -75,7 +77,7 @@ export async function buildApp(opts: AppOptions = {}) {
     try {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore optional workspace package loaded only when configured
-      const { createMinaBridge } = await import("@mintra/mina-bridge");
+      const { createMinaBridge } = require("@mintra/mina-bridge");
       minaBridge = createMinaBridge({ issuerPrivateKey: minaKey });
     } catch (err) {
       app.log.warn({ err }, "@mintra/mina-bridge unavailable or issuer key invalid — Mina credential issuance disabled");

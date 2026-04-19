@@ -1,6 +1,6 @@
 import type { NormalizedClaims, MinaCredentialData } from "@mintra/sdk-types";
 import countries from "i18n-iso-countries";
-import enLocale from "i18n-iso-countries/langs/en.json";
+import enLocale from "i18n-iso-countries/langs/en.json" with { type: "json" };
 
 countries.registerLocale(enLocale);
 

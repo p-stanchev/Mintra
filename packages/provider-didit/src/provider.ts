@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import countries from "i18n-iso-countries";
-import enLocale from "i18n-iso-countries/langs/en.json";
+import enLocale from "i18n-iso-countries/langs/en.json" with { type: "json" };
 import type {
   VerificationProvider,
   CreateSessionInput,
