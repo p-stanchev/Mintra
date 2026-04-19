@@ -21,15 +21,31 @@ export const DiditWebhookPayloadSchema = z.object({
   workflow_id: z.string().optional(),
   decision: z
     .object({
+      status: z.string().optional(),
       id_verification: z
         .object({
           status: z.string(),
           document_type: z.string().optional(),
           country: z.string().optional(),
+          date_of_birth: z.string().optional(),
+          issuing_state: z.string().optional(),
         })
         .optional(),
+      id_verifications: z
+        .array(
+          z.object({
+            status: z.string(),
+            document_type: z.string().optional(),
+            country: z.string().optional(),
+            date_of_birth: z.string().optional(),
+            issuing_state: z.string().optional(),
+          })
+        )
+        .optional(),
       face_match: z.object({ status: z.string() }).optional(),
+      face_matches: z.array(z.object({ status: z.string() })).optional(),
       liveness: z.object({ status: z.string() }).optional(),
+      liveness_checks: z.array(z.object({ status: z.string() })).optional(),
       aml_screening: z.object({ status: z.string() }).optional(),
     })
     .optional(),

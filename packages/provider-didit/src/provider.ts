@@ -14,14 +14,34 @@ const DIDIT_API_BASE = "https://verification.didit.me";
 // Zod infers optional fields as `string | undefined`; this helper strips undefined values
 // to satisfy exactOptionalPropertyTypes when building the WebhookDecision shape.
 function buildIdVerif(
-  raw: { status: string; document_type?: string | undefined; country?: string | undefined } | undefined
-): { status: string; document_type?: string; country?: string } {
+  raw: {
+    status: string;
+    document_type?: string | undefined;
+    country?: string | undefined;
+    date_of_birth?: string | undefined;
+    issuing_state?: string | undefined;
+  } | undefined
+): {
+  status: string;
+  document_type?: string;
+  country?: string;
+  date_of_birth?: string;
+  issuing_state?: string;
+} {
   if (!raw) return { status: "UNKNOWN" };
-  const result: { status: string; document_type?: string; country?: string } = {
+  const result: {
+    status: string;
+    document_type?: string;
+    country?: string;
+    date_of_birth?: string;
+    issuing_state?: string;
+  } = {
     status: raw.status,
   };
   if (raw.document_type !== undefined) result.document_type = raw.document_type;
   if (raw.country !== undefined) result.country = raw.country;
+  if (raw.date_of_birth !== undefined) result.date_of_birth = raw.date_of_birth;
+  if (raw.issuing_state !== undefined) result.issuing_state = raw.issuing_state;
   return result;
 }
 
@@ -96,38 +116,46 @@ export class DiditProvider implements VerificationProvider {
     const payload = DiditWebhookPayloadSchema.parse(json);
 
     const decision = payload.decision;
+    const idVerification = decision?.id_verification ?? decision?.id_verifications?.[0];
+    const faceMatch = decision?.face_match ?? decision?.face_matches?.[0];
+    const liveness = decision?.liveness ?? decision?.liveness_checks?.[0];
 
     return {
       sessionId: payload.session_id,
       userId: payload.vendor_data ?? "",
       rawStatus: payload.status,
       decision: {
-        id_verification: buildIdVerif(decision?.id_verification),
-        ...(decision?.face_match !== undefined
-          ? { face_match: { status: decision.face_match.status } }
+        id_verification: buildIdVerif(idVerification),
+        ...(faceMatch !== undefined
+          ? { face_match: { status: faceMatch.status } }
           : {}),
-        ...(decision?.liveness !== undefined
-          ? { liveness: { status: decision.liveness.status } }
+        ...(liveness !== undefined
+          ? { liveness: { status: liveness.status } }
           : {}),
       },
     };
   }
 
   mapClaims(event: NormalizedWebhookEvent): NormalizedClaims {
-    const approved = event.rawStatus === "Approved";
-    const idVerif = event.decision.id_verification;
-    const idApproved = idVerif.status === "APPROVED";
+    const approved = normalizeStatus(event.rawStatus) === "approved";
+    const idVerif = event.decision.id_verification as typeof event.decision.id_verification & {
+      date_of_birth?: string;
+      issuing_state?: string;
+    };
+    const idApproved = normalizeStatus(idVerif.status) === "approved";
+    const isAdult = hasReachedAge(idVerif.date_of_birth, 18);
 
     const claims: NormalizedClaims = {};
 
     if (approved) {
       claims.kyc_passed = true;
     }
-    if (idApproved) {
+    if (isAdult || idApproved) {
       claims.age_over_18 = true;
     }
-    if (idVerif.country) {
-      const code = idVerif.country.toUpperCase().slice(0, 2);
+    const countrySource = idVerif.country ?? mapIso3ToIso2(idVerif.issuing_state);
+    if (countrySource) {
+      const code = countrySource.toUpperCase().slice(0, 2);
       if (code.length === 2) {
         claims.country_code = code;
       }
@@ -233,4 +261,73 @@ function sortKeys(data: unknown): unknown {
 
 export function createDiditProvider(config: DiditProviderConfig): DiditProvider {
   return new DiditProvider(config);
+}
+
+function normalizeStatus(status: string | undefined): string {
+  return (status ?? "").trim().toLowerCase();
+}
+
+function hasReachedAge(dateOfBirth: string | undefined, minimumAge: number): boolean {
+  if (!dateOfBirth) return false;
+  const dob = new Date(`${dateOfBirth}T00:00:00Z`);
+  if (Number.isNaN(dob.getTime())) return false;
+
+  const now = new Date();
+  let age = now.getUTCFullYear() - dob.getUTCFullYear();
+  const monthDelta = now.getUTCMonth() - dob.getUTCMonth();
+  const dayDelta = now.getUTCDate() - dob.getUTCDate();
+
+  if (monthDelta < 0 || (monthDelta === 0 && dayDelta < 0)) {
+    age -= 1;
+  }
+
+  return age >= minimumAge;
+}
+
+function mapIso3ToIso2(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toUpperCase();
+  const isoMap: Record<string, string> = {
+    USA: "US",
+    GBR: "GB",
+    DEU: "DE",
+    ESP: "ES",
+    FRA: "FR",
+    ITA: "IT",
+    NLD: "NL",
+    BEL: "BE",
+    AUT: "AT",
+    CHE: "CH",
+    PRT: "PT",
+    GRC: "GR",
+    CZE: "CZ",
+    POL: "PL",
+    ROU: "RO",
+    BGR: "BG",
+    HRV: "HR",
+    HUN: "HU",
+    SVN: "SI",
+    SVK: "SK",
+    IRL: "IE",
+    DNK: "DK",
+    SWE: "SE",
+    NOR: "NO",
+    FIN: "FI",
+    CAN: "CA",
+    AUS: "AU",
+    NZL: "NZ",
+    MEX: "MX",
+    BRA: "BR",
+    ARG: "AR",
+    COL: "CO",
+    JPN: "JP",
+    KOR: "KR",
+    IND: "IN",
+    CHN: "CN",
+    TUR: "TR",
+    UKR: "UA",
+  };
+
+  if (normalized.length === 2) return normalized;
+  return isoMap[normalized];
 }

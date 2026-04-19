@@ -149,6 +149,53 @@ describe("Mintra API", () => {
     expect(claims?.ageOver18).toBe(true);
   });
 
+  it("webhook maps Didit v3 approved payloads with date_of_birth and issuing_state", async () => {
+    const sessionId = "sess-v3-123";
+    const timestamp = Math.floor(Date.now() / 1000);
+    await app.store.createVerification("user-v3", sessionId);
+
+    const payload = {
+      session_id: sessionId,
+      status: "Approved",
+      webhook_type: "status.updated",
+      vendor_data: "user-v3",
+      timestamp,
+      decision: {
+        status: "Approved",
+        id_verification: {
+          status: "Approved",
+          document_type: "Identity Card",
+          date_of_birth: "1980-01-01",
+          issuing_state: "ESP",
+        },
+        liveness: {
+          status: "Approved",
+        },
+        face_match: {
+          status: "Approved",
+        },
+      },
+    };
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/providers/didit/webhook",
+      headers: {
+        "content-type": "application/json",
+        "x-signature-v2": signV2(payload),
+        "x-timestamp": String(timestamp),
+      },
+      payload: JSON.stringify(payload),
+    });
+
+    expect(res.statusCode).toBe(200);
+
+    const claims = await app.store.getClaims("user-v3");
+    expect(claims?.kycPassed).toBe(true);
+    expect(claims?.ageOver18).toBe(true);
+    expect(claims?.countryCode).toBe("ES");
+  });
+
   it("webhook with valid v2 signature is accepted", async () => {
     const sessionId = "sess-v2-123";
     const timestamp = Math.floor(Date.now() / 1000);
