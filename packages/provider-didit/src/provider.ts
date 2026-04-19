@@ -82,14 +82,16 @@ export class DiditProvider implements VerificationProvider {
       }
     }
 
-    this.verifySignature({
+    const signatureRequest: IncomingWebhook & { parsedBody: unknown } = {
       rawBody: request.rawBody,
       parsedBody: json,
-      signature: request.signature,
-      signatureV2: request.signatureV2,
-      signatureSimple: request.signatureSimple,
-      timestamp: request.timestamp,
-    });
+    };
+    if (request.signature !== undefined) signatureRequest.signature = request.signature;
+    if (request.signatureV2 !== undefined) signatureRequest.signatureV2 = request.signatureV2;
+    if (request.signatureSimple !== undefined) signatureRequest.signatureSimple = request.signatureSimple;
+    if (request.timestamp !== undefined) signatureRequest.timestamp = request.timestamp;
+
+    this.verifySignature(signatureRequest);
 
     const payload = DiditWebhookPayloadSchema.parse(json);
 
