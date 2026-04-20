@@ -13,25 +13,27 @@ Mintra sits between real-world KYC providers and the Mina blockchain. It handles
 │  @mintra/demo-web  (Next.js 14, App Router)                    │
 │                                                                 │
 │  /             Wallet-first onboarding + status dashboard       │
-│  /verify       Start session → redirect to Didit               │
-│  /verify/callback   Poll status → show result                  │
+│  /verify       Start session → save sessionId → redirect       │
+│  /verify/callback   Read sessionId from sessionStorage → poll  │
 │  /claims/[id]  Show normalized claims                          │
 │  /protected    Gated feature (requires age_over_18 = true)     │
 └──────────────────────────────┬─────────────────────────────────┘
-                               │ @mintra/sdk-js (fetch-based)
+                               │ @mintra/sdk-js (x-api-key header)
 ┌──────────────────────────────▼─────────────────────────────────┐
 │  @mintra/api  (Fastify 4, Node.js)                             │
 │                                                                 │
+│  Auth: x-api-key on all routes except /health + webhook        │
+│                                                                 │
 │  Routes:                                                        │
 │    POST /api/verifications/start                                │
-│    GET  /api/verifications/:id/status                          │
+│    GET  /api/verifications/:id/status   (internal UUID only)   │
 │    POST /api/providers/didit/webhook   ← Didit pushes here     │
 │    GET  /api/claims/:userId                                     │
 │    POST /api/mina/issue-credential                              │
 │    GET  /health                                                 │
 │                                                                 │
-│  State store: in-memory Maps                                    │
-│  Collections: verifications, claims                             │
+│  State store: in-memory Maps (capped at 10k records each)      │
+│  Collections: verifications, claims, processedWebhooks         │
 └────────────┬──────────────────────────────┬────────────────────┘
              │                              │
 ┌────────────▼────────────┐    ┌────────────▼────────────────────┐
@@ -41,12 +43,13 @@ Mintra sits between real-world KYC providers and the Mina blockchain. It handles
 │  • parseWebhook()       │    │  • MinaBridge.issueCredential()  │
 │  • mapClaims()          │    │  • Mina Field type mapping       │
 │  • HMAC-SHA256 verify   │    │  • (v2) PresentationSpec scaffold│
+│    (v2 only, 60s window)│    │                                  │
 └────────────┬────────────┘    └────────────┬────────────────────┘
              │                              │
 ┌────────────▼────────────┐    ┌────────────▼────────────────────┐
 │  Didit REST API          │    │  mina-attestations               │
 │  verification.didit.me  │    │  (zksecurity, npm)               │
-│  + HMAC-signed webhooks │    │  Credential.sign / toJSON        │
+│  + HMAC-signed webhooks │    │  createNative / Credential.toJSON│
 └─────────────────────────┘    └─────────────────────────────────┘
 ```
 
@@ -55,33 +58,38 @@ Mintra sits between real-world KYC providers and the Mina blockchain. It handles
 ```
 1. User links an Auro wallet on the home page
    └─ Demo app requests a Mina public key from `window.mina`
-   └─ Wallet address is stored locally so verification is wallet-first
+   └─ Wallet address is stored in localStorage (validated as B62... format)
 
 2. User clicks "Start verification"
-   └─ Demo app → POST /api/verifications/start { userId, claim: "age_over_18" }
-      └─ API → POST https://verification.didit.me/v3/session/ { vendor_data: userId }
+   └─ Demo app → POST /api/verifications/start { userId }
+      └─ API → POST https://verification.didit.me/v3/session/ { vendor_data: userId, workflow_id }
          └─ Didit responds: { session_id, verification_url }
-      └─ API stores verification record (status: "not_started")
-      └─ Returns { sessionId, verificationUrl } to demo app
+      └─ API stores verification record (status: "not_started") in memory
+      └─ Returns { sessionId (internal UUID), verificationUrl } to demo app
+   └─ Demo app saves internal sessionId to sessionStorage
+   └─ User is redirected to verificationUrl
 
-3. User is redirected to Didit's verification_url
-   └─ User completes document scan + selfie + liveness on Didit's hosted flow
+3. User completes document scan + selfie + liveness on Didit's hosted flow
+   └─ Didit redirects user back to /verify/callback
 
 4. Didit POSTs webhook to /api/providers/didit/webhook
-   └─ API receives raw buffer, reads x-signature-v2 header
-   └─ Verifies HMAC-SHA256 with timingSafeEqual (constant-time comparison)
+   └─ API reads x-timestamp — rejects if >60 seconds old
+   └─ API reads x-signature-v2 — HMAC-SHA256 of canonical JSON
+   └─ Verifies with timingSafeEqual (constant-time, 32-byte comparison)
+   └─ Checks deduplication set — ignores replayed sessionId+status pairs
    └─ Parses payload: { session_id, status, vendor_data, decision }
    └─ Maps status: "Approved" → "approved", "Declined" → "rejected", etc.
    └─ Maps claims:
         decision.id_verification.status === "APPROVED" → age_over_18: true
         rawStatus === "Approved" → kyc_passed: true
-        decision.id_verification.country → country_code: "XX"
-   └─ Updates the in-memory verification record: status = "approved"
-   └─ Upserts the in-memory claims record: { age_over_18, kyc_passed, country_code }
+        decision.id_verification.country → country_code: "XX" (ISO alpha-2)
+   └─ Updates verification record: status = "approved"
+   └─ Upserts claims record: { age_over_18, kyc_passed, country_code }
    └─ Returns 200 immediately (prevents Didit retries)
 
-5. Demo app polls GET /api/verifications/:id/status
-   └─ Returns current status (not_started | pending | approved | rejected | ...)
+5. Demo app reads internal sessionId from sessionStorage
+   └─ Polls GET /api/verifications/:id/status every 3 seconds
+   └─ Only internal UUIDs are accepted — Didit session IDs are not a lookup key
 
 6. On approval:
    └─ Demo app fetches GET /api/claims/:userId
@@ -104,6 +112,7 @@ type NormalizedClaims = {
 - Claims are provider-agnostic — a Sumsub or Veriff result maps to the same shape
 - No raw provider data is stored — only the derived boolean/string claims
 - Country code is optional — not all workflows extract it
+- Country names and alpha-3 codes are normalized to alpha-2 via `i18n-iso-countries`
 
 ## Mina Bridge Architecture
 
@@ -123,7 +132,7 @@ Mina Fields
 StoredCredential (mina-attestations native type)
           │
           ▼ Credential.toJSON()
-JSON string — stored and transmitted to the owner (dApp/wallet)
+JSON string — returned to caller (dApp/wallet holds it)
 ```
 
 **Type mapping table:**
@@ -138,13 +147,26 @@ JSON string — stored and transmitted to the owner (dApp/wallet)
 
 ## Runtime Store
 
-The current implementation uses an in-memory store:
+The current implementation uses an in-memory store (`InMemoryStore`) backed by JavaScript Maps:
 
-- `verifications`: keyed by internal UUID
-- `byProviderRef`: keyed by Didit `session_id`
-- `claims`: keyed by `userId`
+| Collection | Key | Cap |
+|---|---|---|
+| `verifications` | Internal UUID | 10,000 |
+| `byProviderRef` | Didit `session_id` | 10,000 (mirrors verifications) |
+| `claims` | `userId` | 10,000 |
+| `processedWebhooks` | `sessionId:rawStatus` | 50,000 (LRU eviction at cap) |
 
-This keeps the demo simple, but it means state is lost on restart. For deployment, move verification state to a persistent store.
+State is lost on restart. For production, replace `InMemoryStore` with a persistent backend — the `VerificationStore` interface makes this a drop-in swap.
+
+## API Authentication
+
+All routes except `/health` and `/api/providers/didit/webhook` require:
+
+```
+x-api-key: <MINTRA_API_KEY>
+```
+
+The webhook route uses HMAC-SHA256 (`x-signature-v2`) instead, since it is called by Didit's servers, not by the frontend.
 
 ## Provider Abstraction
 
@@ -173,7 +195,7 @@ No changes to `sdk-js`, `mina-bridge`, or the claim model.
     ├── @mintra/mina-bridge
     └── @mintra/api
             ├── @mintra/provider-didit
-            └── @mintra/mina-bridge (optional)
+            └── @mintra/mina-bridge (optional, loaded only if MINA_ISSUER_PRIVATE_KEY is set)
 
 @mintra/demo-web
     └── @mintra/sdk-js

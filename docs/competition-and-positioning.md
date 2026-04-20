@@ -8,7 +8,7 @@
 - Native credentials (Schnorr-signed by a Mina key)
 - Imported credentials (external credentials wrapped in ZK proofs)
 - Selective disclosure via `PresentationSpec` and `PresentationRequest`
-- Wallet-facing credential flows that Mintra can plug into
+- Wallet-facing credential flows that Mintra plugs into
 
 **Mintra builds on top of mina-attestations, not against it.**
 
@@ -45,7 +45,7 @@ What apps need:      [simple API that gives them verified claims]
 Every Mina app team that wants to add "user must be KYC'd" currently needs to:
 1. Research and select a KYC provider
 2. Build the API integration
-3. Handle webhooks securely
+3. Handle webhooks securely (HMAC verification, replay prevention, deduplication)
 4. Design a claim model
 5. Figure out how to connect it to mina-attestations
 
@@ -80,10 +80,12 @@ Mintra is **not**:
 - An identity issuer (Didit is)
 - A replacement for mina-attestations
 - A privacy-preserving KYC solution in v1 (v2 adds ZK proofs)
-- Fully on-chain in v1 (claims are off-chain and credentials are API-issued/stored in-wallet)
+- Fully on-chain in v1 (claims are off-chain; credentials are API-issued and stored in-wallet)
+- A solution where the API key is fully hidden from the browser in v1 (v2 moves calls server-side)
 
 Mintra **is**:
 - A developer tool that makes it practical to add KYC to Mina apps
 - A clean adapter between the messy real-world identity layer and Mina's cryptographic layer
 - A reusable claim normalization system that works across providers
 - The missing piece between "mina-attestations exists" and "my app has verified users"
+- A hardened webhook receiver with HMAC verification, replay prevention, and audit logging
