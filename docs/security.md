@@ -82,6 +82,10 @@ Mintra persists only minimal state:
 Default persistence location:
 - `.mintra/state.json`
 
+Retention:
+- normalized claims expire after 30 days
+- expired claims are dropped when the API hydrates state and when claims are read
+
 ### Not persisted by Mintra
 
 - document images

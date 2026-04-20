@@ -151,7 +151,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 The current frontend uses the linked wallet address as the verification user id. In production, replace local wallet-based identity with your real authentication and account model.
 
-The API keeps wallet auth sessions in memory, and persists only minimal verification metadata and normalized claims to a local state file. The verifier service is intentionally separate so Mina proof verification does not compete with Didit webhooks and wallet issuance for memory.
+The API keeps wallet auth sessions in memory, and persists only minimal verification metadata and normalized claims to a local state file. Normalized claims expire after 30 days. The verifier service is intentionally separate so Mina proof verification does not compete with Didit webhooks and wallet issuance for memory.
 
 ## Getting Didit Credentials
 
@@ -231,6 +231,7 @@ docs/
 - **Dedicated verifier required for proof gating**: The demo now uses a separate verifier service for Mina/Auro proof checks. Plan to run it separately from the main API in production.
 - **No raw KYC storage in Mintra**: Mintra does not store identity documents, selfies, or full KYC payloads. It keeps only minimal verification metadata, normalized claims, and webhook dedupe keys.
 - **Provider-side retention still applies**: In the current setup, Didit retains the underlying verification data for 1 month, which is the shortest retention window Didit currently offers.
+- **Mintra claim retention is 30 days**: normalized backend claims expire after 30 days and are removed on load/read.
 - **Wallet address as user id**: The current demo uses the linked wallet address as the verification identifier. Production use should map verification state to real application accounts.
 - **Ephemeral auth sessions**: Wallet sign-in sessions are short-lived and are cleared on API restart.
 - **Mina credential issuance**: Functional, but wallet issuance requires `MINA_ISSUER_PRIVATE_KEY` to be set on the API. Key management guidance is in [docs/security.md](docs/security.md).

@@ -5,6 +5,7 @@ import path from "node:path";
 const MAX_VERIFICATIONS = 10_000;
 const MAX_CLAIMS = 10_000;
 const MAX_PROCESSED_WEBHOOKS = 50_000;
+const CLAIM_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export type VerificationStatus =
   | "not_started"
@@ -128,7 +129,14 @@ export class InMemoryStore implements VerificationStore {
   }
 
   async getClaims(userId: string): Promise<ClaimsRecord | undefined> {
-    return this.claims.get(userId);
+    const claim = this.claims.get(userId);
+    if (!claim) return undefined;
+    if (isClaimExpired(claim)) {
+      this.claims.delete(userId);
+      this.schedulePersist();
+      return undefined;
+    }
+    return claim;
   }
 
   isWebhookProcessed(key: string): boolean {
@@ -176,10 +184,13 @@ export class InMemoryStore implements VerificationStore {
       }
 
       for (const claim of parsed.claims ?? []) {
-        this.claims.set(claim.userId, {
+        const hydratedClaim: ClaimsRecord = {
           ...claim,
           verifiedAt: new Date(claim.verifiedAt),
-        });
+        };
+        if (!isClaimExpired(hydratedClaim)) {
+          this.claims.set(hydratedClaim.userId, hydratedClaim);
+        }
       }
 
       for (const key of parsed.processedWebhooks ?? []) {
@@ -215,6 +226,10 @@ export class InMemoryStore implements VerificationStore {
     await fs.writeFile(tempFile, JSON.stringify(state), { encoding: "utf8", mode: 0o600 });
     await fs.rename(tempFile, this.stateFile);
   }
+}
+
+function isClaimExpired(claim: ClaimsRecord): boolean {
+  return Date.now() - claim.verifiedAt.getTime() > CLAIM_TTL_MS;
 }
 
 export async function createStore(stateFile?: string | false): Promise<VerificationStore> {
