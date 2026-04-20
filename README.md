@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./apps/demo-web/src/app/icon.svg" alt="Mintra logo" width="96" height="96" />
+</p>
+
 # Mintra
 
 **Reusable verification for Mina apps.**
