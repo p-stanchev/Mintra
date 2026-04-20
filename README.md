@@ -86,19 +86,23 @@ DIDIT_WEBHOOK_SECRET=your_didit_workflow_webhook_secret_here
 DIDIT_WORKFLOW_ID=your_didit_workflow_id_here
 PORT=3001
 CORS_ORIGIN=http://localhost:3000
-MINA_ISSUER_PRIVATE_KEY=your_base58_mina_private_key_here # only needed for credential issuance
+MINTRA_API_KEY=your_random_secret_here         # shared with the frontend
+MINA_ISSUER_PRIVATE_KEY=                       # optional — only for credential issuance
+```
+
+Generate a strong `MINTRA_API_KEY`:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 ### 3. Configure the demo app
 
-```bash
-cp apps/demo-web/.env.example apps/demo-web/.env.local
-```
-
-Edit `apps/demo-web/.env.local` as needed:
+Create `apps/demo-web/.env.local`:
 
 ```env
 NEXT_PUBLIC_MINTRA_API_URL=http://localhost:3001
+NEXT_PUBLIC_MINTRA_API_KEY=your_random_secret_here   # same value as MINTRA_API_KEY above
 ```
 
 ### 4. Start everything
@@ -135,9 +139,15 @@ The API keeps verification state in memory for a lightweight demo setup. That me
 4. Set the webhook URL to your API webhook endpoint:
    - local with tunnel: `https://your-tunnel-domain/api/providers/didit/webhook`
    - hosted: `https://your-api-domain/api/providers/didit/webhook`
-5. Copy the API Key and Webhook Secret into `services/api/.env`
+5. Copy the API Key, Webhook Secret, and Workflow ID into `services/api/.env`
 
 For local webhook testing, use a tunnel tool like [ngrok](https://ngrok.com) or [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/).
+
+## API Authentication
+
+All API endpoints (except `/health` and the Didit webhook receiver) require an `x-api-key` header. Set `MINTRA_API_KEY` on the API service and the matching `NEXT_PUBLIC_MINTRA_API_KEY` on the frontend. The SDK handles the header automatically.
+
+The Didit webhook endpoint uses HMAC-SHA256 (`x-signature-v2`) for authentication instead — the API key is not required there.
 
 ## SDK Usage
 
@@ -145,14 +155,12 @@ For local webhook testing, use a tunnel tool like [ngrok](https://ngrok.com) or 
 import { createMintraClient } from "@mintra/sdk-js";
 
 const mintra = createMintraClient({
-  apiBaseUrl: process.env.MINTRA_API_URL!,
+  apiBaseUrl: process.env.NEXT_PUBLIC_MINTRA_API_URL!,
+  apiKey: process.env.NEXT_PUBLIC_MINTRA_API_KEY,
 });
 
 // Start a verification session
-const session = await mintra.startVerification({
-  userId: "user_123",
-  claim: "age_over_18",
-});
+const session = await mintra.startVerification({ userId: "user_123" });
 // Redirect user to session.verificationUrl
 
 // Poll for status
@@ -194,49 +202,36 @@ docs/
 
 ## Hosting
 
-If you want to host the full monorepo with minimal restructuring, the easiest options are:
+### Railway (recommended — both services on one platform)
 
-### Option 1: Vercel + Railway
+Railway supports monorepos natively. Deploy two services from the same repo:
 
-- Host `apps/demo-web` on Vercel
-- Host `services/api` on Railway
-- Keep the repo as a monorepo and connect both services to the same GitHub repo
+- API service root: `services/api`
+- Frontend service root: `apps/demo-web`
 
-Why this is a good fit:
+**API service variables:**
 
-- Vercel supports monorepos and lets you import one project per app directory:
-  https://vercel.com/docs/monorepos
-- Railway supports monorepos and can deploy multiple services from one repo:
-  https://docs.railway.com/guides/monorepo
-Recommended setup:
+| Variable | Description |
+|---|---|
+| `DIDIT_API_KEY` | From Didit Studio |
+| `DIDIT_WEBHOOK_SECRET` | From Didit Studio |
+| `DIDIT_WORKFLOW_ID` | From Didit Studio |
+| `CORS_ORIGIN` | Your frontend Railway URL |
+| `MINTRA_API_KEY` | Random secret (shared with frontend) |
+| `MINA_ISSUER_PRIVATE_KEY` | Optional — Mina base58 private key |
 
-- Vercel project root: `apps/demo-web`
-- Railway service root: `services/api`
-- API env on Railway:
-  - `DIDIT_API_KEY`
-  - `DIDIT_WEBHOOK_SECRET`
-  - `DIDIT_WORKFLOW_ID`
-  - `MINA_ISSUER_PRIVATE_KEY`
-  - `CORS_ORIGIN=https://your-frontend-domain`
-- Frontend env on Vercel:
-  - `NEXT_PUBLIC_MINTRA_API_URL=https://your-api-domain`
+**Frontend service variables:**
 
-### Option 2: Render
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_MINTRA_API_URL` | Your API Railway URL |
+| `NEXT_PUBLIC_MINTRA_API_KEY` | Same value as `MINTRA_API_KEY` on the API |
 
-Render also supports monorepos:
-https://render.com/docs/monorepo-support
+### Vercel + Railway
 
-This works well if you want both frontend and API on one platform. You would still typically run them as two services:
-
-- frontend service from `apps/demo-web`
-- API service from `services/api`
-
-### Option 3: Full Railway
-
-You can also host both frontend and API on Railway from the same monorepo. Railway documents monorepo deployment and service separation directly:
-https://docs.railway.com/guides/monorepo
-
-This is likely the most “upload the repo as-is” option if you prefer one platform.
+- Host `apps/demo-web` on Vercel (set project root to `apps/demo-web`)
+- Host `services/api` on Railway (set service root to `services/api`)
+- Same environment variables as above
 
 ## Roadmap
 
