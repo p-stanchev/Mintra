@@ -20,7 +20,7 @@ export default function VerifyPage() {
     setState("loading");
 
     mintra
-      .startVerification({ userId: linkedWallet, claim: "age_over_18" })
+      .startVerification({ userId: linkedWallet })
       .then((session) => {
         setState("redirecting");
         window.location.href = session.verificationUrl;
