@@ -1,13 +1,15 @@
-const apiOrigin = (() => {
-  const value = process.env.NEXT_PUBLIC_MINTRA_API_URL;
+function parseOrigin(value) {
   if (!value) return "";
   try {
     return new URL(value).origin;
   } catch {
     return "";
   }
-})();
-const isProduction = process.env.NODE_ENV === "production";
+}
+
+const apiOrigin = parseOrigin(process.env.NEXT_PUBLIC_MINTRA_API_URL);
+const verifierOrigin = parseOrigin(process.env.NEXT_PUBLIC_MINTRA_VERIFIER_URL);
+const connectSrcOrigins = ["'self'", apiOrigin, verifierOrigin].filter(Boolean).join(" ");
 
 const csp = [
   "default-src 'self'",
@@ -15,7 +17,7 @@ const csp = [
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ""}`,
+  `connect-src ${connectSrcOrigins}`,
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "style-src 'self' 'unsafe-inline'",

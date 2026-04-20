@@ -93,6 +93,56 @@ Recommended deploy model:
 - `services/verifier` on a separate Railway service with more memory
 - `apps/demo-web` on Vercel or Railway
 
+### Railway setup
+
+Create a third Railway service from the same monorepo and use the repo root as the source context.
+
+Build command:
+
+```bash
+pnpm install --frozen-lockfile && pnpm run build:packages && pnpm --filter @mintra/verifier build
+```
+
+Start command:
+
+```bash
+pnpm --filter @mintra/verifier start
+```
+
+Required Railway variables:
+
+```env
+CORS_ORIGIN=https://your-frontend-domain
+```
+
+After deploy, verify the service with:
+
+```text
+https://your-verifier-domain/health
+```
+
+Expected response:
+
+```json
+{"ok":true,"service":"mintra-verifier"}
+```
+
+### Frontend wiring
+
+The frontend must know the verifier URL separately from the API URL.
+
+Set:
+
+```env
+NEXT_PUBLIC_MINTRA_VERIFIER_URL=https://your-verifier-domain
+```
+
+The demo frontend will then:
+
+1. request a presentation from Auro
+2. post that presentation to `NEXT_PUBLIC_MINTRA_VERIFIER_URL`
+3. unlock `/protected` only after the verifier accepts it
+
 ## Using the verifier from another backend
 
 If you want a third-party app to verify the same proof model, it has two choices:
