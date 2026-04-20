@@ -14,8 +14,6 @@ const csp = [
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
-  "require-trusted-types-for 'script'",
-  "trusted-types default",
   "form-action 'self'",
   `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ""}`,
   "img-src 'self' data: blob:",
