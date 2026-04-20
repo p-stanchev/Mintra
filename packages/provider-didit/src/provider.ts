@@ -19,6 +19,7 @@ countries.registerLocale(enLocale);
 function buildIdVerif(
   raw: {
     status: string;
+    age?: number | string | undefined;
     document_type?: string | undefined;
     country?: string | undefined;
     date_of_birth?: string | undefined;
@@ -27,6 +28,7 @@ function buildIdVerif(
   } | undefined
 ): {
   status: string;
+  age?: number | string;
   document_type?: string;
   country?: string;
   date_of_birth?: string;
@@ -36,6 +38,7 @@ function buildIdVerif(
   if (!raw) return { status: "UNKNOWN" };
   const result: {
     status: string;
+    age?: number | string;
     document_type?: string;
     country?: string;
     date_of_birth?: string;
@@ -44,6 +47,7 @@ function buildIdVerif(
   } = {
     status: raw.status,
   };
+  if (raw.age !== undefined) result.age = raw.age;
   if (raw.document_type !== undefined) result.document_type = raw.document_type;
   if (raw.country !== undefined) result.country = raw.country;
   if (raw.date_of_birth !== undefined) result.date_of_birth = raw.date_of_birth;
@@ -145,18 +149,19 @@ export class DiditProvider implements VerificationProvider {
   mapClaims(event: NormalizedWebhookEvent): NormalizedClaims {
     const approved = normalizeStatus(event.rawStatus) === "approved";
     const idVerif = event.decision.id_verification as typeof event.decision.id_verification & {
+      age?: number | string;
       date_of_birth?: string;
       issuing_state?: string;
       issuing_country?: string;
     };
-    const isAdult = hasReachedAge(idVerif.date_of_birth, 18);
+    const age = normalizeAge(idVerif.age);
 
     const claims: NormalizedClaims = {};
 
     if (approved) {
       claims.kyc_passed = true;
     }
-    if (isAdult) {
+    if (age !== null && age >= 18) {
       claims.age_over_18 = true;
     }
     const countryCode = normalizeCountryToIso2(
@@ -251,21 +256,15 @@ function normalizeStatus(status: string | undefined): string {
   return (status ?? "").trim().toLowerCase();
 }
 
-function hasReachedAge(dateOfBirth: string | undefined, minimumAge: number): boolean {
-  if (!dateOfBirth) return false;
-  const dob = new Date(`${dateOfBirth}T00:00:00Z`);
-  if (Number.isNaN(dob.getTime())) return false;
-
-  const now = new Date();
-  let age = now.getUTCFullYear() - dob.getUTCFullYear();
-  const monthDelta = now.getUTCMonth() - dob.getUTCMonth();
-  const dayDelta = now.getUTCDate() - dob.getUTCDate();
-
-  if (monthDelta < 0 || (monthDelta === 0 && dayDelta < 0)) {
-    age -= 1;
+function normalizeAge(age: number | string | undefined): number | null {
+  if (typeof age === "number") {
+    return Number.isFinite(age) ? age : null;
   }
-
-  return age >= minimumAge;
+  if (typeof age === "string") {
+    const parsed = Number(age);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 function normalizeCountryToIso2(...values: Array<string | undefined>): string | undefined {

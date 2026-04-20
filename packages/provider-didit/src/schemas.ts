@@ -25,6 +25,7 @@ export const DiditWebhookPayloadSchema = z.object({
       id_verification: z
         .object({
           status: z.string(),
+          age: z.union([z.number(), z.string()]).optional(),
           document_type: z.string().optional(),
           country: z.string().optional(),
           date_of_birth: z.string().optional(),
@@ -36,6 +37,7 @@ export const DiditWebhookPayloadSchema = z.object({
         .array(
           z.object({
             status: z.string(),
+            age: z.union([z.number(), z.string()]).optional(),
             document_type: z.string().optional(),
             country: z.string().optional(),
             date_of_birth: z.string().optional(),

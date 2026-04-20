@@ -142,7 +142,7 @@ describe("Mintra API", () => {
       webhook_type: "status.updated",
       vendor_data: WALLET_1,
       timestamp,
-      decision: { id_verification: { status: "APPROVED", country: "US" } },
+      decision: { id_verification: { status: "APPROVED", age: 28, country: "US" } },
     };
 
     const res = await app.inject({
@@ -162,7 +162,7 @@ describe("Mintra API", () => {
     expect(claims?.ageOver18).toBe(true);
   });
 
-  it("webhook maps Didit v3 approved payloads with date_of_birth and issuing_state", async () => {
+  it("webhook maps Didit v3 approved payloads with age and issuing_state", async () => {
     const sessionId = "sess-v3-123";
     const timestamp = Math.floor(Date.now() / 1000);
     await app.store.createVerification(WALLET_2, sessionId);
@@ -177,6 +177,7 @@ describe("Mintra API", () => {
         status: "Approved",
         id_verification: {
           status: "Approved",
+          age: 44,
           document_type: "Identity Card",
           date_of_birth: "1980-01-01",
           issuing_state: "ESP",
@@ -223,6 +224,7 @@ describe("Mintra API", () => {
       decision: {
         id_verification: {
           status: "Approved",
+          age: 39,
           country: "Spain",
           date_of_birth: "1985-04-01",
         },
@@ -258,7 +260,7 @@ describe("Mintra API", () => {
       webhook_type: "status.updated",
       vendor_data: WALLET_1,
       timestamp,
-      decision: { id_verification: { status: "APPROVED", country: "DE" } },
+      decision: { id_verification: { status: "APPROVED", age: 23, country: "DE" } },
     };
 
     const res = await app.inject({
