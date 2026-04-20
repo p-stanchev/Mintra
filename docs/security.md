@@ -11,6 +11,7 @@
   - the caller is authenticated
   - the bearer session is fresh
   - `userId === ownerPublicKey === authenticated wallet`
+- **Verifier isolation**: presentation verification runs on a separate service so proof workloads cannot starve webhook handling or issuance.
 - **Origin-bound wallet auth**: wallet auth challenges are issued only for trusted origins and verified against the same origin on completion.
 - **Data minimization**: Mintra stores only minimal verification linkage and normalized claims. It does not persist raw KYC evidence.
 - **Frontend response hardening**: the Next app serves CSP, frame, referrer, and transport security headers.
@@ -21,6 +22,7 @@
 - **Provider trust**: Mintra trusts Didit’s identity decision.
 - **Bearer token theft after frontend compromise**: bearer tokens are stored in `sessionStorage`, so an XSS on the app origin can still compromise the current browser session.
 - **Permanent persistence by default**: auth sessions are still in-memory only, and the default persisted state is a local JSON file rather than a managed encrypted datastore.
+- **Verifier memory sizing**: proof verification still needs enough RAM; isolation helps blast radius, not absolute resource usage.
 - **Issuer key compromise**: if `MINA_ISSUER_PRIVATE_KEY` leaks, an attacker can issue fraudulent credentials.
 
 ## Wallet Auth
@@ -45,7 +47,7 @@ Security properties:
 - `/api/auth/logout` revokes the current bearer token
 
 Current storage:
-- wallet address: `localStorage`
+- wallet address: `sessionStorage`
 - bearer token: `sessionStorage`
 
 That is safer than long-lived `localStorage` tokens, but it is still a browser-accessible token model.
@@ -128,6 +130,21 @@ No frontend API key is required anymore.
 - Consider shortening auth session TTL further if UX allows.
 - Add server-side analytics / monitoring on repeated auth challenge failures and webhook rejects.
 
+## Verifier Separation
+
+`services/verifier` is intentionally independent from `services/api`.
+
+Why:
+- `o1js` and `mina-attestations` verification are memory-heavy
+- proof verification is a different scaling problem than webhook handling
+- third parties should be able to run verifier logic without gaining claim-read access to the API
+
+The verifier:
+- does not issue credentials
+- does not read Mintra claims
+- does not talk to Didit
+- only validates a wallet-generated presentation against a request
+
 ## What Mintra Does and Does Not Claim
 
 | Claim | Status |
@@ -138,4 +155,4 @@ No frontend API key is required anymore.
 | Raw KYC data is stored by Mintra | No |
 | Mintra is fully anonymous | No |
 | Mintra is an identity issuer | No |
-| Verifier-side proof presentation is complete | Not yet |
+| Verifier-side proof presentation is supported via dedicated verifier service | Yes |

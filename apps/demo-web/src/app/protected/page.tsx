@@ -4,8 +4,6 @@ import {
   buildAgeOver18PresentationRequest,
   serializePresentationRequest,
 } from "@/lib/auro-presentation";
-import { authenticateWallet, resetWalletSession } from "@/lib/wallet-auth";
-import { readAuthToken } from "@/lib/wallet-session";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
 import { Lock } from "lucide-react";
 import Link from "next/link";
@@ -56,10 +54,6 @@ export default function ProtectedPage() {
         throw new Error("Reconnect the same wallet that completed verification.");
       }
 
-      if (!readAuthToken()) {
-        await authenticateWallet(provider, activeWallet);
-      }
-
       const request = await buildAgeOver18PresentationRequest();
       const presentationRequest = await serializePresentationRequest(request);
       const result = await provider.requestPresentation({
@@ -82,26 +76,21 @@ export default function ProtectedPage() {
         throw new Error(result.message || "Auro could not create the presentation.");
       }
 
-      const payload = JSON.stringify({
-        presentation: result.presentation,
-        presentationRequestJson: JSON.stringify(presentationRequest),
+      const verifierUrl =
+        process.env.NEXT_PUBLIC_MINTRA_VERIFIER_URL?.replace(/\/$/, "") ??
+        "http://localhost:3002";
+
+      const verifyResponse = await fetch(`${verifierUrl}/api/verify-presentation`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          presentation: result.presentation,
+          presentationRequestJson: JSON.stringify(presentationRequest),
+          expectedOwnerPublicKey: activeWallet,
+        }),
       });
-
-      const sendVerification = async () =>
-        fetch(`${process.env.NEXT_PUBLIC_MINTRA_API_URL?.replace(/\/$/, "")}/api/mina/verify-presentation`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(readAuthToken() ? { authorization: `Bearer ${readAuthToken()}` } : {}),
-          },
-          body: payload,
-        });
-
-      let verifyResponse = await sendVerification();
-      if (verifyResponse.status === 401) {
-        await authenticateWallet(provider, activeWallet);
-        verifyResponse = await sendVerification();
-      }
 
       if (!verifyResponse.ok) {
         const body = await verifyResponse.text();
@@ -111,9 +100,6 @@ export default function ProtectedPage() {
       setAllowed(true);
       setLoading(false);
     } catch (err) {
-      if (err instanceof Error && /authentication/i.test(err.message)) {
-        await resetWalletSession();
-      }
       setAllowed(false);
       setError(err instanceof Error ? err.message : "Could not verify the wallet credential.");
       setLoading(false);

@@ -13,7 +13,8 @@ Implemented today:
 - wallet-bound claims access
 - wallet-bound Mina credential issuance
 - Auro credential storage
-- protected-route gating from verified claims
+- dedicated verifier service for Auro/Mina presentations
+- protected-route gating from verified wallet proofs
 - minimal persisted verification state
 - frontend CSP + security headers
 
@@ -29,10 +30,10 @@ Implemented today:
 
 ### Credential and verifier flows
 
-- Verifier-side proof / presentation flow
-- Auro `requestPresentation` integration
+- additional presentation specs beyond 18+
 - selective disclosure demos
-- verifier API example for proof validation
+- verifier deployment templates
+- third-party verifier SDK wrapper
 
 ### Provider expansion
 

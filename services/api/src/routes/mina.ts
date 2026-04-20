@@ -3,68 +3,8 @@ import {
   IssueMinaCredentialRequestSchema,
 } from "@mintra/sdk-types";
 import { isValidMinaPublicKey, requireFreshWalletAuth } from "../auth";
-import { z } from "zod";
-
-const VerifyMinaPresentationRequestSchema = z.object({
-  presentation: z.string().min(1),
-  presentationRequestJson: z.string().min(1),
-});
 
 export const minaRouter: FastifyPluginAsync = async (app) => {
-  app.post("/verify-presentation", async (request, reply) => {
-    if (!app.minaPresentationVerifier) {
-      return reply.status(501).send({ error: "Mina presentation verification is not enabled" });
-    }
-
-    const authWallet = request.authWalletAddress;
-    if (!authWallet) {
-      return reply.status(401).send({ error: "Wallet authentication required" });
-    }
-
-    let body: { presentation: string; presentationRequestJson: string };
-    try {
-      body = VerifyMinaPresentationRequestSchema.parse(request.body) as typeof body;
-    } catch (err) {
-      return reply.status(400).send({ error: "Invalid request", detail: String(err) });
-    }
-
-    const verifierIdentity = request.headers.origin;
-    if (!verifierIdentity || !app.authAllowedOrigins.includes(verifierIdentity)) {
-      return reply.status(403).send({ error: "Untrusted verifier origin" });
-    }
-
-    try {
-      const requestSpec = await app.minaPresentationVerifier.parseHttpsPresentationRequest(
-        body.presentationRequestJson
-      );
-      const verified = await app.minaPresentationVerifier.verifyAgeOver18Presentation({
-        request: requestSpec,
-        presentationJson: body.presentation,
-        verifierIdentity,
-      }) as { ageOver18: { toString(): string }; owner: { toBase58(): string } };
-
-      const ownerPublicKey = verified.owner.toBase58();
-      if (ownerPublicKey !== authWallet) {
-        return reply.status(403).send({
-          error: "Presentation owner does not match the authenticated wallet",
-        });
-      }
-
-      if (verified.ageOver18.toString() !== "1") {
-        return reply.status(403).send({ error: "Presentation does not satisfy the 18+ requirement" });
-      }
-
-      return reply.send({
-        verified: true,
-        ownerPublicKey,
-        ageOver18: true,
-      });
-    } catch (err) {
-      app.log.warn({ err }, "mina.presentation_verify_failed");
-      return reply.status(403).send({ error: "Invalid wallet presentation" });
-    }
-  });
-
   app.post("/issue-credential", async (request, reply) => {
     if (!app.minaBridge) {
       return reply.status(501).send({ error: "Mina credential issuance is not enabled" });

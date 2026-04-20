@@ -45,13 +45,19 @@ Mintra is the **provider bridge + claim normalization + SDK layer** that makes M
 │  POST /api/providers/didit/webhook  ← Didit             │
 │  GET  /api/claims/:userId                               │
 │  POST /api/mina/issue-credential                        │
-└──────┬───────────────────────────────────┬──────────────┘
-       │ @mintra/provider-didit            │ @mintra/mina-bridge
-┌──────▼──────────┐              ┌─────────▼───────────────┐
-│  Didit REST API │              │  mina-attestations      │
-│  + Webhook      │              │  Credential.sign        │
-│  + HMAC verify  │              │  (v2: Presentation)     │
-└─────────────────┘              └─────────────────────────┘
+└──────┬────────────────────────────┬───────────────────────┘
+       │ @mintra/provider-didit     │
+┌──────▼──────────┐        ┌─────────▼──────────────────────┐
+│  Didit REST API │        │  @mintra/verifier             │
+│  + Webhook      │        │  POST /api/verify-presentation│
+│  + HMAC verify  │        │  GET  /health                 │
+└─────────────────┘        └─────────┬──────────────────────┘
+                                     │ @mintra/mina-bridge
+                            ┌────────▼───────────────┐
+                            │  mina-attestations     │
+                            │  Credential.sign       │
+                            │  Presentation.verify   │
+                            └────────────────────────┘
 ```
 
 See [docs/architecture.md](docs/architecture.md) for the full design.
@@ -60,6 +66,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design.
 
 - `apps/demo-web`: Next.js 14 frontend with wallet-first onboarding
 - `services/api`: Fastify API for verification sessions, webhooks, claims, and Mina credential issuance
+- `services/verifier`: dedicated proof verification service for Auro/Mina presentations
 - `packages/provider-didit`: Didit provider adapter
 - `packages/mina-bridge`: Mina credential issuance bridge
 - `packages/sdk-js` and `packages/sdk-types`: shared SDK and schemas
@@ -96,21 +103,38 @@ MINA_SIGNER_NETWORK=mainnet
 MINA_ISSUER_PRIVATE_KEY=                       # optional — only for credential issuance
 ```
 
-### 3. Configure the demo app
+### 3. Configure the verifier
+
+```bash
+cp services/verifier/.env.example services/verifier/.env
+```
+
+Edit `services/verifier/.env`:
+
+```env
+CORS_ORIGIN=http://localhost:3000
+PORT=3002
+```
+
+### 4. Configure the demo app
 
 Create `apps/demo-web/.env.local`:
 
 ```env
 NEXT_PUBLIC_MINTRA_API_URL=http://localhost:3001
+NEXT_PUBLIC_MINTRA_VERIFIER_URL=http://localhost:3002
 ```
 
-### 4. Start everything
+### 5. Start everything
 
 ```bash
 # Terminal 1: API
 pnpm --filter @mintra/api dev
 
-# Terminal 2: Demo app
+# Terminal 2: Verifier
+pnpm --filter @mintra/verifier dev
+
+# Terminal 3: Demo app
 pnpm --filter @mintra/demo-web dev
 ```
 
@@ -123,10 +147,11 @@ Open [http://localhost:3000](http://localhost:3000).
 3. Start verification
 4. Complete the hosted Didit KYC flow
 5. Return to Mintra, review claims, and issue the Mina credential into Auro
+6. Open `/protected` and prove the stored credential through the dedicated verifier service
 
 The current frontend uses the linked wallet address as the verification user id. In production, replace local wallet-based identity with your real authentication and account model.
 
-The API keeps wallet auth sessions in memory, and persists only minimal verification metadata and normalized claims to a local state file. That means you do not need a database, but true durability in hosted deployments still depends on persistent storage or a mounted volume.
+The API keeps wallet auth sessions in memory, and persists only minimal verification metadata and normalized claims to a local state file. The verifier service is intentionally separate so Mina proof verification does not compete with Didit webhooks and wallet issuance for memory.
 
 ## Getting Didit Credentials
 
@@ -156,7 +181,7 @@ Browser clients authenticate with a signed wallet challenge:
    - `POST /api/mina/issue-credential`
 5. `POST /api/auth/logout` revokes the current browser session
 
-The Didit webhook endpoint still uses HMAC-SHA256 (`x-signature-v2`) instead.
+The Didit webhook endpoint still uses HMAC-SHA256 (`x-signature-v2`) instead. Presentation verification does not query claims from Mintra; it happens through the separate verifier service.
 
 ## SDK Usage
 
@@ -191,32 +216,73 @@ packages/
   mina-bridge/           mina-attestations adapter
 services/
   api/                   Fastify backend + minimal persisted verification state
+  verifier/              Dedicated Mina presentation verifier
 docs/
   architecture.md
   security.md
   roadmap.md
   competition-and-positioning.md
+  verifier-integration.md
 ```
 
 ## Current Limitations
 
 - **Single provider**: Only Didit is integrated. Sumsub, Persona, Veriff are on the roadmap.
-- **Off-chain claims only (v1)**: Claims are enforced by the API today. Verifier-side proof flows are still future work.
+- **Dedicated verifier required for proof gating**: The demo now uses a separate verifier service for Mina/Auro proof checks. Plan to run it separately from the main API in production.
 - **No raw KYC storage in Mintra**: Mintra does not store identity documents, selfies, or full KYC payloads. It keeps only minimal verification metadata, normalized claims, and webhook dedupe keys.
 - **Provider-side retention still applies**: In the current setup, Didit retains the underlying verification data for 1 month, which is the shortest retention window Didit currently offers.
 - **Wallet address as user id**: The current demo uses the linked wallet address as the verification identifier. Production use should map verification state to real application accounts.
 - **Ephemeral auth sessions**: Wallet sign-in sessions are short-lived and are cleared on API restart.
 - **Mina credential issuance**: Functional, but wallet issuance requires `MINA_ISSUER_PRIVATE_KEY` to be set on the API. Key management guidance is in [docs/security.md](docs/security.md).
-- **Auro storage only**: The demo supports connecting Auro and storing the credential there. Presentation/proof flows are still v2 work.
+- **Verifier sizing matters**: `o1js` and `mina-attestations` proof verification are memory-heavy. Give `services/verifier` enough RAM or isolate it behind autoscaling.
 
 ## Hosting
 
-### Railway (recommended — both services on one platform)
+### Railway (recommended — three services on one platform)
 
-Railway supports monorepos natively. Deploy two services from the same repo:
+Railway supports monorepos natively. Deploy three services from the same repo:
 
-- API service root: `services/api`
-- Frontend service root: `apps/demo-web`
+- API service: build from the repo root
+- Verifier service: build from the repo root
+- Frontend service: build from the repo root
+
+Recommended commands:
+
+**API**
+
+```bash
+pnpm install --frozen-lockfile && pnpm run build:packages && pnpm --filter @mintra/api build
+```
+
+Start:
+
+```bash
+pnpm --filter @mintra/api start
+```
+
+**Verifier**
+
+```bash
+pnpm install --frozen-lockfile && pnpm run build:packages && pnpm --filter @mintra/verifier build
+```
+
+Start:
+
+```bash
+pnpm --filter @mintra/verifier start
+```
+
+**Frontend**
+
+```bash
+pnpm install --frozen-lockfile && pnpm run build:packages && pnpm --filter @mintra/demo-web build
+```
+
+Start:
+
+```bash
+pnpm --filter @mintra/demo-web start
+```
 
 **API service variables:**
 
@@ -229,17 +295,29 @@ Railway supports monorepos natively. Deploy two services from the same repo:
 | `MINA_SIGNER_NETWORK` | `mainnet` or `testnet` for wallet signature verification |
 | `MINA_ISSUER_PRIVATE_KEY` | Optional — Mina base58 private key |
 
+**Verifier service variables:**
+
+| Variable | Description |
+|---|---|
+| `CORS_ORIGIN` | Your frontend Railway URL |
+
 **Frontend service variables:**
 
 | Variable | Description |
 |---|---|
 | `NEXT_PUBLIC_MINTRA_API_URL` | Your API Railway URL |
+| `NEXT_PUBLIC_MINTRA_VERIFIER_URL` | Your verifier Railway URL |
 
 ### Vercel + Railway
 
 - Host `apps/demo-web` on Vercel (set project root to `apps/demo-web`)
-- Host `services/api` on Railway (set service root to `services/api`)
+- Host `services/api` on Railway with repo-root build commands
+- Host `services/verifier` on Railway with repo-root build commands
 - Same environment variables as above
+
+## Verifier Integration
+
+If another app wants to verify Mina presentations on its own backend instead of calling Mintra claims directly, see [docs/verifier-integration.md](docs/verifier-integration.md).
 
 ## Roadmap
 

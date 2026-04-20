@@ -66,14 +66,14 @@ export async function buildAgeOver18PresentationRequest(
 }
 
 export async function verifyAgeOver18Presentation(params: {
-  request: Awaited<ReturnType<typeof buildAgeOver18PresentationRequest>>;
+  request: unknown;
   presentationJson: string;
   verifierIdentity: string;
 }) {
   const { Presentation } = await loadPresentationTools();
   const presentation = Presentation.fromJSON(params.presentationJson);
 
-  return Presentation.verify(params.request, presentation, {
+  return Presentation.verify(params.request as Awaited<ReturnType<typeof buildAgeOver18PresentationRequest>>, presentation, {
     verifierIdentity: params.verifierIdentity,
   });
 }

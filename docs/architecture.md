@@ -8,6 +8,7 @@ Mintra sits between a real-world KYC provider and the Mina credential layer. It 
 - normalized claim extraction
 - wallet-bound API auth
 - Mina credential issuance into Auro
+- separate verifier-side proof validation
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
@@ -21,7 +22,7 @@ Mintra sits between a real-world KYC provider and the Mina credential layer. It 
 │  /verify            Starts Didit session                     │
 │  /verify/callback   Polls verification status                │
 │  /claims/[userId]   Shows normalized claims                  │
-│  /protected         Checks age_over_18                       │
+│  /protected         Requests Auro proof, forwards to verifier│
 │                                                              │
 │  Browser auth flow:                                          │
 │    POST /api/auth/challenge                                  │
@@ -56,16 +57,22 @@ Mintra sits between a real-world KYC provider and the Mina credential layer. It 
 └────────────┬──────────────────────────────┬──────────────────┘
              │                              │
 ┌────────────▼────────────┐    ┌────────────▼──────────────────┐
-│ @mintra/provider-didit  │    │ @mintra/mina-bridge           │
-│ • createSession()       │    │ • claimsToCredentialData()    │
-│ • parseWebhook()        │    │ • issueCredential()           │
-│ • mapClaims()           │    │ • Credential.sign(...)        │
-│ • HMAC v2 verification  │    │ • ISO country numeric mapping │
-└────────────┬────────────┘    └────────────┬──────────────────┘
-             │                              │
-┌────────────▼────────────┐    ┌────────────▼──────────────────┐
-│ Didit REST + webhooks   │    │ mina-attestations             │
-└─────────────────────────┘    └───────────────────────────────┘
+│ @mintra/provider-didit  │    │ @mintra/verifier              │
+│ • createSession()       │    │ • parseHttpsPresentation...   │
+│ • parseWebhook()        │    │ • verifyAgeOver18Presentation │
+│ • mapClaims()           │    │ • POST /api/verify-presentation│
+│ • HMAC v2 verification  │    └────────────┬──────────────────┘
+└────────────┬────────────┘                 │
+             │                   ┌──────────▼──────────────────┐
+┌────────────▼────────────┐      │ @mintra/mina-bridge         │
+│ Didit REST + webhooks   │      │ • claimsToCredentialData()  │
+└─────────────────────────┘      │ • issueCredential()         │
+                                 │ • Presentation.verify(...)  │
+                                 └──────────┬──────────────────┘
+                                            │
+                                 ┌──────────▼──────────────────┐
+                                 │ mina-attestations / o1js    │
+                                 └─────────────────────────────┘
 ```
 
 ## Verification Flow
@@ -110,6 +117,16 @@ Mintra sits between a real-world KYC provider and the Mina credential layer. It 
      - `userId === ownerPublicKey === authenticated wallet`
    - The signed credential is stored in Auro
 
+7. User proves the credential on `/protected`.
+   - Frontend builds a presentation request
+   - Auro returns a wallet presentation
+   - Frontend forwards presentation + request JSON to `services/verifier`
+   - Verifier checks:
+     - origin allowlist
+     - proof validity
+     - owner public key match
+     - 18+ assertions
+
 ## Auth Model
 
 ### Browser → API
@@ -126,6 +143,8 @@ Protected API routes require bearer auth:
 - `/api/verifications/:id/status`
 - `/api/claims/:userId`
 - `/api/mina/issue-credential`
+
+Proof verification does not depend on bearer auth. It is a separate verifier concern.
 
 ### Provider → API
 
@@ -183,6 +202,6 @@ The bridge uses `Credential.sign(...)` from `mina-attestations`.
 ## Current Constraints
 
 - Didit is the only provider integrated
-- selective disclosure / verifier-side proof requests are still future work
 - auth sessions are ephemeral and are not restored after API restart
 - minimal verification state persists locally unless you replace the state file path with a platform-backed volume
+- verifier-side proof validation is memory-intensive and should run on a separate service tier

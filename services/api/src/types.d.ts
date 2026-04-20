@@ -10,23 +10,12 @@ interface MinaBridgeLike {
   }): Promise<{ credentialJson: string; issuerPublicKey: string }>;
 }
 
-interface MinaPresentationVerifierLike {
-  buildAgeOver18PresentationRequest(action?: string): Promise<unknown>;
-  parseHttpsPresentationRequest(presentationRequestJson: string): Promise<unknown>;
-  verifyAgeOver18Presentation(params: {
-    request: unknown;
-    presentationJson: string;
-    verifierIdentity: string;
-  }): Promise<unknown>;
-}
-
 declare module "fastify" {
   interface FastifyInstance {
     store: VerificationStore;
     authStore: WalletAuthStore;
     diditProvider: DiditProvider;
     minaBridge: MinaBridgeLike | null;
-    minaPresentationVerifier: MinaPresentationVerifierLike | null;
     allowedCallbackOrigins: string[];
     authAllowedOrigins: string[];
   }

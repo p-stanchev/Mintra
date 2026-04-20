@@ -87,4 +87,4 @@ Mintra **is**:
 - A clean adapter between the messy real-world identity layer and Mina's cryptographic layer
 - A reusable claim normalization system that works across providers
 - The missing piece between "mina-attestations exists" and "my app has verified users"
-- A hardened provider bridge with webhook verification, wallet-bound API auth, and audit-minded minimization
+- A hardened provider bridge with webhook verification, wallet-bound API auth, verifier-service proof checks, and audit-minded minimization
