@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, KeyRound, Link as LinkIcon, Loader2, ShieldCheck, Wallet } from "lucide-react";
 import { mintra } from "@/lib/mintra";
 import { readAuthToken, readLinkedWalletAddress } from "@/lib/wallet-session";
-import { authenticateWallet, resetWalletSession } from "@/lib/wallet-auth";
+import { authenticateWallet, extractErrorMessage, resetWalletSession } from "@/lib/wallet-auth";
 
 type WalletState = "idle" | "connecting" | "connected" | "issuing" | "storing" | "done" | "error";
 
@@ -67,7 +67,7 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
       await resetWalletSession();
       setWalletAddress(null);
       setState("error");
-      setMessage(err instanceof Error ? err.message : "Wallet connection failed");
+      setMessage(extractErrorMessage(err));
     }
   }
 
@@ -133,7 +133,7 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
         setWalletAddress(null);
       }
       setState("error");
-      setMessage(err instanceof Error ? err.message : "Wallet flow failed");
+      setMessage(extractErrorMessage(err));
     }
   }
 

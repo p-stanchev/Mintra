@@ -23,7 +23,9 @@ export interface AppOptions {
 
 export async function buildApp(opts: AppOptions = {}) {
   const corsOrigin = opts.corsOrigin ?? process.env["CORS_ORIGIN"] ?? "http://localhost:3000";
-  const authAllowedOrigins = corsOrigin === "*" ? [] : [corsOrigin];
+  const authAllowedOrigins = corsOrigin === "*"
+    ? []
+    : corsOrigin.split(",").map((s) => s.trim()).filter(Boolean);
   const allowedCallbackOrigins = opts.allowedCallbackOrigins ??
     (process.env["ALLOWED_CALLBACK_ORIGINS"] ?? corsOrigin)
       .split(",")

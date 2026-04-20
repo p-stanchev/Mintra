@@ -3,8 +3,9 @@
 import { mintra } from "@/lib/mintra";
 import { clearWalletSession, writeAuthToken, writeLinkedWalletAddress } from "./wallet-session";
 
-type ProviderError = Error & {
+type ProviderError = {
   code?: number;
+  message?: string;
   data?: unknown;
 };
 
@@ -23,18 +24,23 @@ function isProviderError(value: unknown): value is ProviderError {
   return Boolean(
     value &&
       typeof value === "object" &&
-      "message" in value &&
-      typeof (value as { message?: unknown }).message === "string" &&
-      "code" in value
+      ("message" in value || "code" in value)
   );
+}
+
+export function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (isProviderError(err) && err.message) return err.message;
+  if (typeof err === "string") return err;
+  return "Wallet connection failed";
 }
 
 export async function authenticateWallet(provider: MinaProvider, walletAddress: string): Promise<void> {
   const challenge = await mintra.createWalletAuthChallenge({ walletAddress });
   const signed = await provider.signMessage({ message: challenge.message }).catch((err: unknown) => err);
 
-  if (isProviderError(signed)) {
-    throw new Error(signed.message);
+  if (isProviderError(signed) || signed instanceof Error) {
+    throw new Error(extractErrorMessage(signed));
   }
 
   if (!signed || typeof signed !== "object") {
