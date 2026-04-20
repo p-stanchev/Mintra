@@ -5,7 +5,7 @@ import {
   VerifyWalletAuthRequestSchema,
   VerifyWalletAuthResponseSchema,
 } from "@mintra/sdk-types";
-import { readBearerToken, readTrustedOrigin, requireWalletAuth } from "../auth";
+import { readBearerToken, readTrustedOrigin } from "../auth";
 
 export const authRouter: FastifyPluginAsync = async (app) => {
   app.post("/challenge", {
@@ -77,15 +77,10 @@ export const authRouter: FastifyPluginAsync = async (app) => {
   app.post("/logout", {
     config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
   }, async (request, reply) => {
-    const authWallet = requireWalletAuth(request, reply);
-    if (!authWallet) return;
-
     const token = readBearerToken(request);
-    if (!token) {
-      return reply.status(400).send({ error: "Missing bearer token" });
+    if (token) {
+      app.authStore.revokeSession(token);
     }
-
-    app.authStore.revokeSession(token);
     return reply.status(204).send();
   });
 };
