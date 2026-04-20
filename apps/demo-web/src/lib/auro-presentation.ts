@@ -62,6 +62,13 @@ export async function buildAgeOver18PresentationRequest(
   return PresentationRequest.https(spec, {}, { action });
 }
 
+export async function serializePresentationRequest(
+  request: Awaited<ReturnType<typeof buildAgeOver18PresentationRequest>>
+) {
+  const { PresentationRequest } = await loadPresentationTools();
+  return JSON.parse(PresentationRequest.toJSON(request));
+}
+
 export async function verifyAgeOver18Presentation(params: {
   request: Awaited<ReturnType<typeof buildAgeOver18PresentationRequest>>;
   presentationJson: string;

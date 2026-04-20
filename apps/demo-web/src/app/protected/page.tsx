@@ -2,6 +2,7 @@
 
 import {
   buildAgeOver18PresentationRequest,
+  serializePresentationRequest,
   verifyAgeOver18Presentation,
 } from "@/lib/auro-presentation";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
@@ -55,9 +56,10 @@ export default function ProtectedPage() {
       }
 
       const request = await buildAgeOver18PresentationRequest();
+      const presentationRequest = await serializePresentationRequest(request);
       const result = await provider.requestPresentation({
         presentation: {
-          presentationRequest: request,
+          presentationRequest,
         },
       });
 
