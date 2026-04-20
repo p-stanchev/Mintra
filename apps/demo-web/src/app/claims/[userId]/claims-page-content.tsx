@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { mintra } from "@/lib/mintra";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
+import { warmUpPresentationTools } from "@/lib/auro-presentation";
 import { WalletCredentialCard } from "@/components/wallet-credential-card";
 
 type ClaimsResponse = Awaited<ReturnType<typeof mintra.getClaims>>;
@@ -16,6 +17,9 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Pre-load mina-attestations WASM so /protected page is faster
+    warmUpPresentationTools();
+
     const linkedWallet = readLinkedWalletAddress();
     setWalletAddress(linkedWallet);
 

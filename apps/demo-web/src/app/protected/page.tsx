@@ -18,6 +18,7 @@ function isProviderError(
 export default function ProtectedPage() {
   const [allowed, setAllowed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingStep, setLoadingStep] = useState<"requesting" | "proving" | "verifying">("requesting");
   const [error, setError] = useState<string | null>(null);
 
   const requestProof = useCallback(async () => {
@@ -39,6 +40,7 @@ export default function ProtectedPage() {
 
     try {
       setLoading(true);
+      setLoadingStep("requesting");
       setError(null);
 
       const accounts = provider.getAccounts
@@ -56,6 +58,8 @@ export default function ProtectedPage() {
 
       const request = await buildAgeOver18PresentationRequest();
       const presentationRequest = await serializePresentationRequest(request);
+
+      setLoadingStep("proving");
       const result = await provider.requestPresentation({
         presentation: {
           presentationRequest,
@@ -80,6 +84,7 @@ export default function ProtectedPage() {
         process.env.NEXT_PUBLIC_MINTRA_VERIFIER_URL?.replace(/\/$/, "") ??
         "http://localhost:3002";
 
+      setLoadingStep("verifying");
       const verifyResponse = await fetch(`${verifierUrl}/api/verify-presentation`, {
         method: "POST",
         headers: {
@@ -137,11 +142,25 @@ export default function ProtectedPage() {
   }
 
   if (loading) {
+    const steps: Record<typeof loadingStep, { label: string; detail: string }> = {
+      requesting: {
+        label: "Sending proof request to Auro…",
+        detail: "Check Auro and approve the credential request.",
+      },
+      proving: {
+        label: "Auro is generating the ZK proof…",
+        detail: "This takes 30–90 seconds. Auro is computing the proof — don't close the wallet.",
+      },
+      verifying: {
+        label: "Verifying proof on server…",
+        detail: "Almost done.",
+      },
+    };
+    const { label, detail } = steps[loadingStep];
     return (
-      <div className="card">
-        <p style={{ color: "var(--muted)", fontSize: 14 }}>
-          Requesting an age proof from Auro…
-        </p>
+      <div className="card" style={{ maxWidth: 480 }}>
+        <p style={{ fontWeight: 600, marginBottom: 6 }}>{label}</p>
+        <p style={{ color: "var(--muted)", fontSize: 13 }}>{detail}</p>
       </div>
     );
   }

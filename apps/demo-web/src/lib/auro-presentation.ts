@@ -9,6 +9,12 @@ let cachedPresentationTools:
     }>
   | undefined;
 
+/** Call this early (e.g. on the claims page) to pre-load the heavy WASM modules
+ *  so they are cached by the time the user reaches /protected. */
+export function warmUpPresentationTools() {
+  void loadPresentationTools();
+}
+
 async function loadPresentationTools() {
   cachedPresentationTools ??= Promise.all([
     import("mina-attestations"),
