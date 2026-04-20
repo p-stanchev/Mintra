@@ -6,7 +6,8 @@ import { ArrowRight, BadgeCheck, CheckCheck, Lock, Shield, Wallet } from "lucide
 import { WalletCredentialCard } from "@/components/wallet-credential-card";
 import { HomeVerificationCard } from "@/components/home-verification-card";
 import { readAuthToken, readLinkedWalletAddress } from "@/lib/wallet-session";
-import { useEffect, useState } from "react";
+import { authenticateWallet, resetWalletSession } from "@/lib/wallet-auth";
+import { useCallback, useEffect, useState } from "react";
 
 type ClaimsResponse = Awaited<ReturnType<typeof mintra.getClaims>>;
 
@@ -34,6 +35,8 @@ export default function Home() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [claims, setClaims] = useState<ClaimsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
   const [loadingClaims, setLoadingClaims] = useState(true);
 
   useEffect(() => {
@@ -64,7 +67,14 @@ export default function Home() {
         })
         .catch((err: unknown) => {
           setClaims(null);
-          setError(classifyClaimsError(err));
+          const msg = err instanceof Error ? err.message : "";
+          if (msg.includes("401")) {
+            setSessionExpired(true);
+            setError(null);
+          } else {
+            setSessionExpired(false);
+            setError(classifyClaimsError(err));
+          }
         })
         .finally(() => {
           setLoadingClaims(false);
@@ -80,6 +90,24 @@ export default function Home() {
       window.removeEventListener("mintra:wallet-linked", syncWallet as EventListener);
       window.removeEventListener("mintra:auth-updated", syncWallet as EventListener);
     };
+  }, []);
+
+  const handleReconnect = useCallback(async () => {
+    const provider = typeof window !== "undefined" ? window.mina ?? null : null;
+    if (!provider) return;
+    try {
+      setReconnecting(true);
+      const accounts = await provider.requestAccounts();
+      const address = Array.isArray(accounts) ? accounts[0] : null;
+      if (!address) throw new Error("No account returned");
+      await authenticateWallet(provider, address);
+      setSessionExpired(false);
+    } catch (err) {
+      await resetWalletSession();
+      setError(err instanceof Error ? err.message : "Reconnect failed");
+    } finally {
+      setReconnecting(false);
+    }
   }, []);
 
   const isVerified = claims?.claims.age_over_18 === true || claims?.claims.kyc_passed === true;
@@ -165,7 +193,22 @@ export default function Home() {
         </div>
       </section>
 
-      {error && (
+      {sessionExpired && (
+        <section className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm">
+          <p className="font-medium text-amber-800 mb-2">Wallet session expired</p>
+          <p className="text-amber-700 mb-3">Reconnect Auro to reload your claims and resume the flow.</p>
+          <button
+            type="button"
+            onClick={() => void handleReconnect()}
+            disabled={reconnecting}
+            className="inline-flex items-center gap-2 rounded-full bg-amber-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-900 disabled:opacity-50"
+          >
+            {reconnecting ? "Reconnecting…" : "Reconnect Auro"}
+          </button>
+        </section>
+      )}
+
+      {error && !sessionExpired && (
         <section className="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">
           {error}
         </section>

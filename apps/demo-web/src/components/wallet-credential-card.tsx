@@ -24,8 +24,23 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
 
   useEffect(() => {
     setMounted(true);
-    setWalletInstalled(Boolean(getWalletProvider()));
     setWalletAddress(readLinkedWalletAddress());
+
+    // Auro injects window.mina asynchronously — poll until it appears
+    if (getWalletProvider()) {
+      setWalletInstalled(true);
+      return;
+    }
+    let attempts = 0;
+    const timer = setInterval(() => {
+      if (getWalletProvider()) {
+        setWalletInstalled(true);
+        clearInterval(timer);
+      } else if (++attempts >= 20) {
+        clearInterval(timer);
+      }
+    }, 250);
+    return () => clearInterval(timer);
   }, []);
 
   async function handleConnectWallet() {

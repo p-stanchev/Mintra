@@ -6,6 +6,7 @@ import Link from "next/link";
 import { mintra } from "@/lib/mintra";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
 import { warmUpPresentationTools } from "@/lib/auro-presentation";
+import { authenticateWallet, resetWalletSession } from "@/lib/wallet-auth";
 import { WalletCredentialCard } from "@/components/wallet-credential-card";
 
 type ClaimsResponse = Awaited<ReturnType<typeof mintra.getClaims>>;
@@ -14,7 +15,9 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [data, setData] = useState<ClaimsResponse | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [reconnecting, setReconnecting] = useState(false);
 
   useEffect(() => {
     // Pre-load mina-attestations WASM so /protected page is faster
@@ -36,10 +39,17 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
         if (!cancelled) {
           setData(result);
           setFetchError(null);
+          setSessionExpired(false);
         }
       } catch (err) {
         if (!cancelled) {
-          setFetchError(err instanceof Error ? err.message : "Unknown error");
+          const msg = err instanceof Error ? err.message : "Unknown error";
+          if (msg.includes("401")) {
+            setSessionExpired(true);
+            setFetchError(null);
+          } else {
+            setFetchError(msg);
+          }
         }
       } finally {
         if (!cancelled) {
@@ -54,6 +64,29 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
       cancelled = true;
     };
   }, [userId]);
+
+  async function handleReconnect() {
+    const provider = typeof window !== "undefined" ? window.mina ?? null : null;
+    if (!provider) return;
+    try {
+      setReconnecting(true);
+      const accounts = await provider.requestAccounts();
+      const address = Array.isArray(accounts) ? accounts[0] : null;
+      if (!address) throw new Error("No account returned");
+      await authenticateWallet(provider, address);
+      setSessionExpired(false);
+      setLoading(true);
+      const result = await mintra.getClaims(userId);
+      setData(result);
+      setFetchError(null);
+    } catch (err) {
+      await resetWalletSession();
+      setFetchError(err instanceof Error ? err.message : "Reconnect failed");
+    } finally {
+      setReconnecting(false);
+      setLoading(false);
+    }
+  }
 
   const ownsRoute = walletAddress === userId;
   const hasClaims = data && Object.keys(data.claims).length > 0;
@@ -87,6 +120,23 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
       {loading && (
         <div className="card">
           <p style={{ color: "var(--muted)", fontSize: 14 }}>Loading claims…</p>
+        </div>
+      )}
+
+      {ownsRoute && sessionExpired && (
+        <div className="card" style={{ borderColor: "var(--warning, #f59e0b)" }}>
+          <p style={{ fontWeight: 600, marginBottom: 6 }}>Session expired</p>
+          <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 16 }}>
+            Your wallet session has expired. Reconnect Auro to reload your claims.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => void handleReconnect()}
+            disabled={reconnecting}
+          >
+            {reconnecting ? "Reconnecting…" : "Reconnect Auro"}
+          </button>
         </div>
       )}
 
