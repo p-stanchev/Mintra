@@ -5,10 +5,30 @@ import Link from "next/link";
 import { ArrowRight, BadgeCheck, CheckCheck, Lock, Shield, Wallet } from "lucide-react";
 import { WalletCredentialCard } from "@/components/wallet-credential-card";
 import { HomeVerificationCard } from "@/components/home-verification-card";
-import { readLinkedWalletAddress } from "@/lib/wallet-session";
+import { readAuthToken, readLinkedWalletAddress } from "@/lib/wallet-session";
 import { useEffect, useState } from "react";
 
 type ClaimsResponse = Awaited<ReturnType<typeof mintra.getClaims>>;
+
+function classifyClaimsError(err: unknown): string {
+  if (!(err instanceof Error)) {
+    return "Unable to load claims right now.";
+  }
+
+  if (err.message.includes("Mintra API error 401")) {
+    return "Reconnect Auro to refresh your wallet session.";
+  }
+
+  if (err.message.includes("Mintra API error 403")) {
+    return "This browser session is not authorized for the linked wallet.";
+  }
+
+  if (err.message.includes("Failed to fetch")) {
+    return "The Mintra API is not reachable right now.";
+  }
+
+  return "Unable to load claims right now.";
+}
 
 export default function Home() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -28,6 +48,13 @@ export default function Home() {
         return;
       }
 
+      if (!readAuthToken()) {
+        setClaims(null);
+        setError(null);
+        setLoadingClaims(false);
+        return;
+      }
+
       setLoadingClaims(true);
       mintra
         .getClaims(linkedWallet)
@@ -35,9 +62,9 @@ export default function Home() {
           setClaims(result);
           setError(null);
         })
-        .catch(() => {
+        .catch((err: unknown) => {
           setClaims(null);
-          setError("API unavailable");
+          setError(classifyClaimsError(err));
         })
         .finally(() => {
           setLoadingClaims(false);
@@ -140,7 +167,7 @@ export default function Home() {
 
       {error && (
         <section className="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">
-          API unreachable. Start the API with <code>pnpm --filter @mintra/api dev</code>.
+          {error}
         </section>
       )}
 
