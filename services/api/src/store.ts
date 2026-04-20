@@ -211,7 +211,9 @@ export class InMemoryStore implements VerificationStore {
       processedWebhooks: Array.from(this.processedWebhooks.values()),
     };
 
-    await fs.writeFile(this.stateFile, JSON.stringify(state), "utf8");
+    const tempFile = `${this.stateFile}.tmp`;
+    await fs.writeFile(tempFile, JSON.stringify(state), { encoding: "utf8", mode: 0o600 });
+    await fs.rename(tempFile, this.stateFile);
   }
 }
 

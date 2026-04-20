@@ -10,7 +10,7 @@ export function isValidMinaPublicKey(address: string): boolean {
 
 export function readLinkedWalletAddress(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(LINKED_WALLET_STORAGE_KEY);
+  return window.sessionStorage.getItem(LINKED_WALLET_STORAGE_KEY);
 }
 
 export function writeLinkedWalletAddress(address: string): void {
@@ -19,7 +19,7 @@ export function writeLinkedWalletAddress(address: string): void {
     console.warn("[mintra] Rejected invalid Mina public key:", address.slice(0, 10) + "…");
     return;
   }
-  window.localStorage.setItem(LINKED_WALLET_STORAGE_KEY, address);
+  window.sessionStorage.setItem(LINKED_WALLET_STORAGE_KEY, address);
   window.dispatchEvent(new CustomEvent("mintra:wallet-linked", { detail: address }));
 }
 
@@ -36,7 +36,7 @@ export function writeAuthToken(token: string): void {
 
 export function clearWalletSession(): void {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(LINKED_WALLET_STORAGE_KEY);
+  window.sessionStorage.removeItem(LINKED_WALLET_STORAGE_KEY);
   window.sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   window.dispatchEvent(new CustomEvent("mintra:auth-updated", { detail: null }));
   window.dispatchEvent(new CustomEvent("mintra:wallet-linked", { detail: null }));

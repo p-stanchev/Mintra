@@ -20,7 +20,7 @@ export const authRouter: FastifyPluginAsync = async (app) => {
 
     const origin = readTrustedOrigin(request, app.authAllowedOrigins);
     if (!origin) {
-      return reply.status(403).send({ error: "Untrusted origin" });
+      return reply.status(403).send({ error: "Wallet authentication failed" });
     }
 
     const challenge = app.authStore.createChallenge(
@@ -54,7 +54,7 @@ export const authRouter: FastifyPluginAsync = async (app) => {
 
     const origin = readTrustedOrigin(request, app.authAllowedOrigins);
     if (!origin) {
-      return reply.status(403).send({ error: "Untrusted origin" });
+      return reply.status(403).send({ error: "Wallet authentication failed" });
     }
 
     try {
