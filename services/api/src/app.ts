@@ -39,9 +39,7 @@ export async function buildApp(opts: AppOptions = {}) {
   const nodeRequire = createRequire(__filename);
 
   const app = Fastify({ logger: opts.logger ?? true });
-  const authStore = new WalletAuthStore(
-    (process.env["MINA_SIGNER_NETWORK"] as "mainnet" | "testnet" | undefined) ?? "mainnet"
-  );
+  const authStore = new WalletAuthStore();
 
   // Security headers (subset of helmet defaults, compatible with Fastify 4)
   app.addHook("onSend", (_request, reply, _payload, done) => {

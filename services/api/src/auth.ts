@@ -41,12 +41,15 @@ const nodeRequire = createRequire(__filename);
 const MinaSigner = nodeRequire("mina-signer");
 
 export class WalletAuthStore {
-  private readonly signer: MinaSignerClient;
+  private readonly signers: MinaSignerClient[];
   private readonly challenges = new Map<string, ChallengeRecord>();
   private readonly sessions = new Map<string, SessionRecord>();
 
-  constructor(network: "mainnet" | "testnet" = "mainnet") {
-    this.signer = new MinaSigner({ network });
+  constructor() {
+    this.signers = [
+      new MinaSigner({ network: "mainnet" }),
+      new MinaSigner({ network: "testnet" }),
+    ];
   }
 
   createChallenge(walletAddress: string, origin: string): ChallengeRecord {
@@ -109,11 +112,13 @@ export class WalletAuthStore {
       throw new Error("Signed origin does not match the issued challenge");
     }
 
-    const verified = this.signer.verifyMessage({
-      data: input.data,
-      publicKey: input.publicKey,
-      signature: input.signature,
-    });
+    const verified = this.signers.some((signer) =>
+      signer.verifyMessage({
+        data: input.data,
+        publicKey: input.publicKey,
+        signature: input.signature,
+      })
+    );
 
     if (!verified) {
       throw new Error("Wallet signature verification failed");

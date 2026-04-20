@@ -130,7 +130,6 @@ Server-side secrets:
 - `DIDIT_WEBHOOK_SECRET`
 - `DIDIT_WORKFLOW_ID`
 - `MINA_ISSUER_PRIVATE_KEY`
-- `MINA_SIGNER_NETWORK`
 
 No frontend API key is required anymore.
 

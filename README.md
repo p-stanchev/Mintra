@@ -99,7 +99,6 @@ DIDIT_WEBHOOK_SECRET=your_didit_workflow_webhook_secret_here
 DIDIT_WORKFLOW_ID=your_didit_workflow_id_here
 PORT=3001
 CORS_ORIGIN=http://localhost:3000
-MINA_SIGNER_NETWORK=mainnet
 MINA_ISSUER_PRIVATE_KEY=                       # optional — only for credential issuance
 ```
 
@@ -298,7 +297,6 @@ pnpm --filter @mintra/demo-web start
 | `DIDIT_WEBHOOK_SECRET` | From Didit Studio |
 | `DIDIT_WORKFLOW_ID` | From Didit Studio |
 | `CORS_ORIGIN` | Your frontend Railway URL |
-| `MINA_SIGNER_NETWORK` | `mainnet` or `testnet` for wallet signature verification |
 | `MINA_ISSUER_PRIVATE_KEY` | Optional — Mina base58 private key |
 
 **Verifier service variables:**
