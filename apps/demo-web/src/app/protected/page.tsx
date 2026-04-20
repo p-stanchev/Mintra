@@ -3,8 +3,8 @@
 import {
   buildAgeOver18PresentationRequest,
   serializePresentationRequest,
-  verifyAgeOver18Presentation,
 } from "@/lib/auro-presentation";
+import { readAuthToken } from "@/lib/wallet-session";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
 import { Lock } from "lucide-react";
 import Link from "next/link";
@@ -77,11 +77,25 @@ export default function ProtectedPage() {
         throw new Error(result.message || "Auro could not create the presentation.");
       }
 
-      await verifyAgeOver18Presentation({
-        request,
-        presentationJson: result.presentation,
-        verifierIdentity: window.location.origin,
-      });
+      const verifyResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_MINTRA_API_URL?.replace(/\/$/, "")}/api/mina/verify-presentation`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(readAuthToken() ? { authorization: `Bearer ${readAuthToken()}` } : {}),
+          },
+          body: JSON.stringify({
+            presentation: result.presentation,
+            presentationRequestJson: JSON.stringify(presentationRequest),
+          }),
+        }
+      );
+
+      if (!verifyResponse.ok) {
+        const body = await verifyResponse.text();
+        throw new Error(`Proof verification failed: ${body}`);
+      }
 
       setAllowed(true);
       setLoading(false);

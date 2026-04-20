@@ -4,5 +4,6 @@ export { claimsToCredentialData } from "./mapping";
 export {
   DEFAULT_AGE_PROOF_ACTION,
   buildAgeOver18PresentationRequest,
+  parseHttpsPresentationRequest,
   verifyAgeOver18Presentation,
 } from "./presentation-spec";

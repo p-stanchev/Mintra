@@ -126,16 +126,38 @@ export async function buildApp(opts: AppOptions = {}) {
   app.decorate("diditProvider", diditProvider);
 
   let minaBridge: { issueCredential(req: { userId: string; claims: Record<string, unknown>; ownerPublicKey: string }): Promise<{ credentialJson: string; issuerPublicKey: string }> } | null = null;
-  if (minaKey) {
-    try {
-      // @ts-ignore optional workspace package loaded only when configured
-      const { createMinaBridge } = require("@mintra/mina-bridge");
+  let minaPresentationVerifier: {
+    buildAgeOver18PresentationRequest(action?: string): Promise<unknown>;
+    parseHttpsPresentationRequest(presentationRequestJson: string): Promise<unknown>;
+    verifyAgeOver18Presentation(params: {
+      request: unknown;
+      presentationJson: string;
+      verifierIdentity: string;
+    }): Promise<unknown>;
+  } | null = null;
+  try {
+    // @ts-ignore optional workspace package loaded only when configured
+    const {
+      createMinaBridge,
+      buildAgeOver18PresentationRequest,
+      parseHttpsPresentationRequest,
+      verifyAgeOver18Presentation,
+    } = require("@mintra/mina-bridge");
+
+    minaPresentationVerifier = {
+      buildAgeOver18PresentationRequest,
+      parseHttpsPresentationRequest,
+      verifyAgeOver18Presentation,
+    };
+
+    if (minaKey) {
       minaBridge = createMinaBridge({ issuerPrivateKey: minaKey });
-    } catch (err) {
-      app.log.warn({ err }, "@mintra/mina-bridge unavailable — Mina credential issuance disabled");
     }
+  } catch (err) {
+    app.log.warn({ err }, "@mintra/mina-bridge unavailable — Mina proof features disabled");
   }
   app.decorate("minaBridge", minaBridge);
+  app.decorate("minaPresentationVerifier", minaPresentationVerifier);
 
   await app.register(authRouter, { prefix: "/api/auth" });
   await app.register(verificationsRouter, { prefix: "/api/verifications" });

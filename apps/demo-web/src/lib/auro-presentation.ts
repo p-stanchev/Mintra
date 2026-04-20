@@ -56,7 +56,10 @@ export async function buildAgeOver18PresentationRequest(
         Operation.constant(Field(1))
       ),
     ],
-    outputClaim: Operation.property(credential, "ageOver18"),
+    outputClaim: Operation.record({
+      ageOver18: Operation.property(credential, "ageOver18"),
+      owner: Operation.owner,
+    }),
   }));
 
   return PresentationRequest.https(spec, {}, { action });
@@ -67,19 +70,4 @@ export async function serializePresentationRequest(
 ) {
   const { PresentationRequest } = await loadPresentationTools();
   return JSON.parse(PresentationRequest.toJSON(request));
-}
-
-export async function verifyAgeOver18Presentation(params: {
-  request: Awaited<ReturnType<typeof buildAgeOver18PresentationRequest>>;
-  presentationJson: string;
-  verifierIdentity: string;
-}) {
-  const { Presentation } = await loadPresentationTools();
-  const presentation = Presentation.fromJSON(params.presentationJson);
-
-  await Presentation.verify(params.request, presentation, {
-    verifierIdentity: params.verifierIdentity,
-  });
-
-  return true;
 }

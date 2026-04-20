@@ -56,7 +56,10 @@ export async function buildAgeOver18PresentationRequest(
         Operation.constant(Field(1))
       ),
     ],
-    outputClaim: Operation.property(credential, "ageOver18"),
+    outputClaim: Operation.record({
+      ageOver18: Operation.property(credential, "ageOver18"),
+      owner: Operation.owner,
+    }),
   }));
 
   return PresentationRequest.https(spec, {}, { action });
@@ -70,9 +73,12 @@ export async function verifyAgeOver18Presentation(params: {
   const { Presentation } = await loadPresentationTools();
   const presentation = Presentation.fromJSON(params.presentationJson);
 
-  await Presentation.verify(params.request, presentation, {
+  return Presentation.verify(params.request, presentation, {
     verifierIdentity: params.verifierIdentity,
   });
+}
 
-  return true;
+export async function parseHttpsPresentationRequest(presentationRequestJson: string) {
+  const { PresentationRequest } = await loadPresentationTools();
+  return PresentationRequest.fromJSON("https", presentationRequestJson);
 }
