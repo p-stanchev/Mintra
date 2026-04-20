@@ -5,7 +5,7 @@ import { z } from "zod";
 import {
   parseHttpsPresentationRequest,
   verifyAgeOver18Presentation,
-} from "@mintra/mina-bridge";
+} from "@mintra/verifier-core";
 
 const MinaPublicKeySchema = z
   .string()

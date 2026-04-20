@@ -23,6 +23,21 @@ That work is independent of Didit session management and wallet-authenticated cl
 
 It does **not** read Mintra claims or query Didit. It only verifies a wallet-generated presentation against the request your app sent to Auro.
 
+## Reusable package
+
+The reusable proof helpers live in `@mintra/verifier-core`.
+
+Like `@mintra/sdk-js`, this package exists in the monorepo today and is not published to npm yet. Until it is published, another team should either vendor the package code or copy the `services/verifier` reference service into its own repo.
+
+That package contains the public building blocks another app needs:
+
+- `buildAgeOver18PresentationRequest()`
+- `serializePresentationRequest()`
+- `parsePresentationRequest()`
+- `verifyAgeOver18Presentation()`
+
+`services/verifier` is just a reference Fastify wrapper around those helpers. Another team can run that service as-is, or call `@mintra/verifier-core` directly from their own backend.
+
 ## Request contract
 
 `POST /api/verify-presentation`
@@ -56,7 +71,7 @@ Success response:
 
 The demo app does this on `/protected`:
 
-1. build a presentation request with `@mintra/mina-bridge`
+1. build a presentation request with `@mintra/verifier-core`
 2. send it to Auro with `window.mina.requestPresentation(...)`
 3. forward the returned presentation to `services/verifier`
 4. unlock the page only if the verifier accepts it
@@ -77,6 +92,45 @@ Another app should follow the same model on its own server:
 5. verify server-side before granting access
 
 Do **not** treat “wallet returned something” as equivalent to proof verification in production.
+
+### Minimal backend flow
+
+On another backend, the flow is:
+
+1. install or vendor the verifier helpers
+2. build the request the frontend will ask Auro to satisfy
+3. serialize that request and send it to the frontend
+4. receive `presentation` and `presentationRequestJson` back from the frontend
+5. verify the presentation on your own server
+6. compare the verified owner to the wallet your app expects
+
+Example:
+
+```ts
+import {
+  buildAgeOver18PresentationRequest,
+  serializePresentationRequest,
+  parsePresentationRequest,
+  verifyAgeOver18Presentation,
+} from "@mintra/verifier-core";
+
+const request = await buildAgeOver18PresentationRequest();
+const presentationRequestJson = JSON.stringify(
+  await serializePresentationRequest(request)
+);
+
+// send presentationRequestJson to the frontend, then receive it back with the wallet presentation
+const parsedRequest = await parsePresentationRequest(presentationRequestJson);
+const verified = await verifyAgeOver18Presentation({
+  request: parsedRequest,
+  presentationJson,
+});
+
+const ownerPublicKey = verified.owner.toBase58();
+const ageOver18 = verified.ageOver18.toString() === "1";
+```
+
+If `ownerPublicKey` matches the wallet your app expects and `ageOver18` is true, the verifier can grant access without querying Mintra.
 
 ## Example verifier service deployment
 
@@ -152,7 +206,7 @@ If you want a third-party app to verify the same proof model, it has two choices
 Reuse the code in:
 
 - [`../services/verifier`](../services/verifier)
-- [`../packages/mina-bridge/src/presentation-spec.ts`](../packages/mina-bridge/src/presentation-spec.ts)
+- [`../packages/verifier-core`](../packages/verifier-core)
 
 This is the preferred option if they want full control.
 

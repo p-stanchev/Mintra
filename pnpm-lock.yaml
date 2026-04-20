@@ -29,6 +29,9 @@ importers:
       '@mintra/sdk-types':
         specifier: workspace:*
         version: link:../../packages/sdk-types
+      '@mintra/verifier-core':
+        specifier: workspace:*
+        version: link:../../packages/verifier-core
       lucide-react:
         specifier: ^1.8.0
         version: 1.8.0(react@18.3.1)
@@ -75,6 +78,9 @@ importers:
       '@mintra/sdk-types':
         specifier: workspace:*
         version: link:../sdk-types
+      '@mintra/verifier-core':
+        specifier: workspace:*
+        version: link:../verifier-core
       i18n-iso-countries:
         specifier: ^7.14.0
         version: 7.14.0
@@ -146,6 +152,22 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  packages/verifier-core:
+    dependencies:
+      mina-attestations:
+        specifier: ^0.5.3
+        version: 0.5.3(o1js@2.14.0)
+      o1js:
+        specifier: ^2.3.0
+        version: 2.14.0
+    devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.10)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   services/api:
     dependencies:
       '@fastify/cors':
@@ -203,9 +225,9 @@ importers:
       '@fastify/rate-limit':
         specifier: ^9.0.0
         version: 9.1.0
-      '@mintra/mina-bridge':
+      '@mintra/verifier-core':
         specifier: workspace:*
-        version: link:../../packages/mina-bridge
+        version: link:../../packages/verifier-core
       dotenv:
         specifier: ^16.4.0
         version: 16.6.1

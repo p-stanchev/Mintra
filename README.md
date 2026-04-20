@@ -68,6 +68,7 @@ See [docs/architecture.md](docs/architecture.md) for the full design.
 - `services/api`: Fastify API for verification sessions, webhooks, claims, and Mina credential issuance
 - `services/verifier`: dedicated proof verification service for Auro/Mina presentations
 - `packages/provider-didit`: Didit provider adapter
+- `packages/verifier-core`: reusable presentation-request and proof-verification helpers for third-party backends
 - `packages/mina-bridge`: Mina credential issuance bridge
 - `packages/sdk-js` and `packages/sdk-types`: shared SDK and schemas
 
@@ -216,6 +217,7 @@ packages/
   sdk-types/             Zod schemas + TypeScript types (shared)
   sdk-js/                App-facing Mintra SDK (fetch-based, browser+Node)
   provider-didit/        Didit provider integration
+  verifier-core/         Reusable proof request + verification helpers
   mina-bridge/           mina-attestations adapter
 services/
   api/                   Fastify backend + minimal persisted verification state
@@ -322,6 +324,15 @@ pnpm --filter @mintra/demo-web start
 ## Verifier Integration
 
 If another app wants to verify Mina presentations on its own backend instead of calling Mintra claims directly, see [docs/verifier-integration.md](docs/verifier-integration.md).
+
+The short version:
+
+1. issue the credential once through Mintra
+2. ask Auro for a presentation in the verifier app's frontend
+3. send that presentation to the verifier app's own backend
+4. verify it there with `@mintra/verifier-core`
+
+That means third-party apps do not need to call Mintra's hosted verifier or Mintra's claims API to prove `age_over_18`.
 
 ## Roadmap
 

@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@mintra/verifier-core": "workspace:*",
     "@mintra/sdk-js": "workspace:*",
     "@mintra/sdk-types": "workspace:*",
     "lucide-react": "^1.8.0",

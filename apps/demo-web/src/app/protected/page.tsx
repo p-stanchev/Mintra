@@ -3,7 +3,7 @@
 import {
   buildAgeOver18PresentationRequest,
   serializePresentationRequest,
-} from "@/lib/auro-presentation";
+} from "@mintra/verifier-core";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
 import { Lock } from "lucide-react";
 import Link from "next/link";
