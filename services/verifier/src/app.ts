@@ -20,7 +20,6 @@ const VerifyPresentationRequestSchema = z.object({
 const verifyPresentation = verifyAgeOver18Presentation as (params: {
   request: unknown;
   presentationJson: string;
-  verifierIdentity: string;
 }) => Promise<{ ageOver18: { toString(): string }; owner: { toBase58(): string } }>;
 
 export interface VerifierAppOptions {
@@ -65,7 +64,6 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
       const verified = await verifyPresentation({
         request: requestSpec,
         presentationJson: body.presentation,
-        verifierIdentity,
       });
 
       const ownerPublicKey = verified.owner.toBase58();

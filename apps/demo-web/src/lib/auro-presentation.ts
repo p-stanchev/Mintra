@@ -25,11 +25,7 @@ async function loadPresentationTools() {
   return cachedPresentationTools;
 }
 
-export const DEFAULT_AGE_PROOF_ACTION = "mintra:protected-access";
-
-export async function buildAgeOver18PresentationRequest(
-  action = DEFAULT_AGE_PROOF_ACTION
-) {
+export async function buildAgeOver18PresentationRequest() {
   const {
     Credential,
     Operation,
@@ -62,7 +58,7 @@ export async function buildAgeOver18PresentationRequest(
     }),
   }));
 
-  return PresentationRequest.https(spec, {}, { action });
+  return PresentationRequest.noContext(spec, {});
 }
 
 export async function serializePresentationRequest(

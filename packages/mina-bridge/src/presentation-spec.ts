@@ -25,11 +25,7 @@ async function loadPresentationTools() {
   return cachedPresentationTools;
 }
 
-export const DEFAULT_AGE_PROOF_ACTION = "mintra:protected-access";
-
-export async function buildAgeOver18PresentationRequest(
-  action = DEFAULT_AGE_PROOF_ACTION
-) {
+export async function buildAgeOver18PresentationRequest() {
   const {
     Credential,
     Operation,
@@ -62,23 +58,27 @@ export async function buildAgeOver18PresentationRequest(
     }),
   }));
 
-  return PresentationRequest.https(spec, {}, { action });
+  return PresentationRequest.noContext(spec, {});
 }
 
 export async function verifyAgeOver18Presentation(params: {
   request: unknown;
   presentationJson: string;
-  verifierIdentity: string;
 }) {
   const { Presentation } = await loadPresentationTools();
   const presentation = Presentation.fromJSON(params.presentationJson);
 
-  return Presentation.verify(params.request as Awaited<ReturnType<typeof buildAgeOver18PresentationRequest>>, presentation, {
-    verifierIdentity: params.verifierIdentity,
-  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (Presentation.verify as any)(
+    params.request,
+    presentation
+  );
 }
 
-export async function parseHttpsPresentationRequest(presentationRequestJson: string) {
+export async function parsePresentationRequest(presentationRequestJson: string) {
   const { PresentationRequest } = await loadPresentationTools();
-  return PresentationRequest.fromJSON("https", presentationRequestJson);
+  return PresentationRequest.fromJSON("no-context", presentationRequestJson);
 }
+
+/** @deprecated Use parsePresentationRequest */
+export const parseHttpsPresentationRequest = parsePresentationRequest;

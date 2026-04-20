@@ -2,8 +2,8 @@ export { MinaBridge, createMinaBridge } from "./bridge";
 export type { MinaBridgeConfig } from "./bridge";
 export { claimsToCredentialData } from "./mapping";
 export {
-  DEFAULT_AGE_PROOF_ACTION,
   buildAgeOver18PresentationRequest,
+  parsePresentationRequest,
   parseHttpsPresentationRequest,
   verifyAgeOver18Presentation,
 } from "./presentation-spec";
