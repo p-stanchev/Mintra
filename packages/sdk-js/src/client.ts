@@ -121,6 +121,21 @@ export function createMintraClient(config: MintraClientConfig) {
       );
     },
 
+    async logout(): Promise<void> {
+      const response = await fetch(`${baseUrl}/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          ...(config.apiKey ? { "x-api-key": config.apiKey } : {}),
+          ...(readAuthToken() ? { authorization: `Bearer ${readAuthToken()}` } : {}),
+        },
+      });
+
+      if (!response.ok && response.status !== 204) {
+        const body = await response.text();
+        throw new Error(`Mintra API error ${response.status}: ${body}`);
+      }
+    },
+
     async issueMinaCredential(
       input: IssueMinaCredentialRequest
     ): Promise<IssueMinaCredentialResponse> {

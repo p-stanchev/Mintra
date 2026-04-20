@@ -63,7 +63,7 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
         ...(normalizedClaims.kyc_passed !== undefined ? { kycPassed: normalizedClaims.kyc_passed } : {}),
         ...(normalizedClaims.country_code !== undefined ? { countryCode: normalizedClaims.country_code } : {}),
       });
-      app.log.info({ userId: verification.userId, verificationId: verification.id }, "webhook.claims_stored");
+      app.log.info({ verificationId: verification.id }, "webhook.claims_stored");
     }
 
     app.store.markWebhookProcessed(dedupeKey);

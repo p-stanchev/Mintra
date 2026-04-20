@@ -49,7 +49,7 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
       setState("connected");
       setMessage("Wallet connected and authenticated.");
     } catch (err) {
-      resetWalletSession();
+      await resetWalletSession();
       setWalletAddress(null);
       setState("error");
       setMessage(err instanceof Error ? err.message : "Wallet connection failed");
@@ -85,7 +85,18 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
 
       setState("issuing");
       setMessage("Issuing Mina credential...");
-      const issued = await mintra.issueMinaCredential({ userId: effectiveUserId, ownerPublicKey });
+      let issued;
+      try {
+        issued = await mintra.issueMinaCredential({ userId: effectiveUserId, ownerPublicKey });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "";
+        if (/Reauthenticate wallet/i.test(message)) {
+          await authenticateWallet(provider, ownerPublicKey);
+          issued = await mintra.issueMinaCredential({ userId: effectiveUserId, ownerPublicKey });
+        } else {
+          throw err;
+        }
+      }
 
       setState("storing");
       setMessage("Saving credential to Auro...");
@@ -103,7 +114,7 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
       setMessage("Credential saved to Auro Wallet.");
     } catch (err) {
       if (err instanceof Error && /authentication/i.test(err.message)) {
-        resetWalletSession();
+        await resetWalletSession();
         setWalletAddress(null);
       }
       setState("error");

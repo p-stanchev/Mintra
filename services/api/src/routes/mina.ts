@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { IssueMinaCredentialRequestSchema } from "@mintra/sdk-types";
-import { isValidMinaPublicKey, requireWalletAuth } from "../auth";
+import { isValidMinaPublicKey, requireFreshWalletAuth } from "../auth";
 
 export const minaRouter: FastifyPluginAsync = async (app) => {
   app.post("/issue-credential", async (request, reply) => {
@@ -16,7 +16,7 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
     }
 
     const { userId, ownerPublicKey } = body;
-    const authWallet = requireWalletAuth(request, reply);
+    const authWallet = requireFreshWalletAuth(request, reply);
     if (!authWallet) return;
 
     if (!isValidMinaPublicKey(ownerPublicKey)) {

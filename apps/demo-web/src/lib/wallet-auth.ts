@@ -57,6 +57,11 @@ export async function authenticateWallet(provider: MinaProvider, walletAddress: 
   writeAuthToken(verified.token);
 }
 
-export function resetWalletSession(): void {
+export async function resetWalletSession(): Promise<void> {
+  try {
+    await mintra.logout();
+  } catch {
+    // best-effort revoke; client storage is still cleared below
+  }
   clearWalletSession();
 }

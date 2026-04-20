@@ -25,6 +25,7 @@ export interface AppOptions {
 export async function buildApp(opts: AppOptions = {}) {
   const corsOrigin = opts.corsOrigin ?? process.env["CORS_ORIGIN"] ?? "http://localhost:3000";
   const apiKey = opts.apiKey ?? process.env["MINTRA_API_KEY"] ?? "";
+  const authAllowedOrigins = corsOrigin === "*" ? [] : [corsOrigin];
   const allowedCallbackOrigins = opts.allowedCallbackOrigins ??
     (process.env["ALLOWED_CALLBACK_ORIGINS"] ?? corsOrigin)
       .split(",")
@@ -91,9 +92,10 @@ export async function buildApp(opts: AppOptions = {}) {
     const url = request.url.split("?")[0] ?? "";
     const token = readBearerToken(request);
     if (token) {
-      const walletAddress = authStore.getWalletForToken(token);
-      if (walletAddress) {
-        request.authWalletAddress = walletAddress;
+      const session = authStore.getSession(token);
+      if (session) {
+        request.authWalletAddress = session.walletAddress;
+        request.authWalletIsFresh = authStore.isFreshSession(token);
       }
     }
 
@@ -117,6 +119,7 @@ export async function buildApp(opts: AppOptions = {}) {
   const store = await createStore();
   app.decorate("store", store);
   app.decorate("authStore", authStore);
+  app.decorate("authAllowedOrigins", authAllowedOrigins);
   app.decorate("allowedCallbackOrigins", allowedCallbackOrigins);
   app.addHook("onClose", async () => {
     await store.close();

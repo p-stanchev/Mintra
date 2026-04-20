@@ -17,9 +17,11 @@ declare module "fastify" {
     diditProvider: DiditProvider;
     minaBridge: MinaBridgeLike | null;
     allowedCallbackOrigins: string[];
+    authAllowedOrigins: string[];
   }
 
   interface FastifyRequest {
     authWalletAddress?: string;
+    authWalletIsFresh?: boolean;
   }
 }

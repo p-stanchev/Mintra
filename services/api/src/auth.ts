@@ -3,7 +3,8 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { createRequire } from "node:module";
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 30 * 60 * 1000;
+const FRESH_AUTH_WINDOW_MS = 10 * 60 * 1000;
 const MAX_CHALLENGES = 1_000;
 const MAX_SESSIONS = 5_000;
 const MINA_PUBKEY_RE = /^B62[1-9A-HJ-NP-Za-km-z]{50,54}$/;
@@ -21,12 +22,14 @@ type ChallengeRecord = {
   id: string;
   walletAddress: string;
   message: string;
+  origin: string;
   expiresAt: number;
 };
 
 type SessionRecord = {
   token: string;
   walletAddress: string;
+  createdAt: number;
   expiresAt: number;
 };
 
@@ -34,8 +37,8 @@ type MinaSignerClient = {
   verifyMessage(input: SignedMessageInput): boolean;
 };
 
-const require = createRequire(__filename);
-const MinaSigner = require("mina-signer");
+const nodeRequire = createRequire(__filename);
+const MinaSigner = nodeRequire("mina-signer");
 
 export class WalletAuthStore {
   private readonly signer: MinaSignerClient;
@@ -46,7 +49,7 @@ export class WalletAuthStore {
     this.signer = new MinaSigner({ network });
   }
 
-  createChallenge(walletAddress: string, origin?: string): ChallengeRecord {
+  createChallenge(walletAddress: string, origin: string): ChallengeRecord {
     if (!MINA_PUBKEY_RE.test(walletAddress)) {
       throw new Error("Invalid Mina public key");
     }
@@ -58,7 +61,7 @@ export class WalletAuthStore {
     const nonce = randomBytes(16).toString("hex");
     const issuedAt = Date.now();
     const expiresAt = issuedAt + CHALLENGE_TTL_MS;
-    const normalizedOrigin = origin?.trim() || "unknown-origin";
+    const normalizedOrigin = origin.trim();
     const message = [
       "Mintra wallet sign-in",
       "",
@@ -73,7 +76,7 @@ export class WalletAuthStore {
       `exp: ${expiresAt}`,
     ].join("\n");
 
-    const record: ChallengeRecord = { id, walletAddress, message, expiresAt };
+    const record: ChallengeRecord = { id, walletAddress, message, origin: normalizedOrigin, expiresAt };
     this.challenges.set(id, record);
     return record;
   }
@@ -83,6 +86,7 @@ export class WalletAuthStore {
     publicKey: string;
     data: string;
     signature: { field: string; scalar: string };
+    origin: string;
   }): { token: string; walletAddress: string; expiresAt: number } {
     this.evictExpired();
 
@@ -101,6 +105,10 @@ export class WalletAuthStore {
       throw new Error("Signed message does not match the issued challenge");
     }
 
+    if (challenge.origin !== input.origin) {
+      throw new Error("Signed origin does not match the issued challenge");
+    }
+
     const verified = this.signer.verifyMessage({
       data: input.data,
       publicKey: input.publicKey,
@@ -115,10 +123,25 @@ export class WalletAuthStore {
   }
 
   getWalletForToken(token: string): string | null {
+    const session = this.getSession(token);
+    return session?.walletAddress ?? null;
+  }
+
+  getSession(token: string): SessionRecord | null {
     this.evictExpired();
     const session = this.sessions.get(token);
     if (!session) return null;
-    return session.walletAddress;
+    return session;
+  }
+
+  isFreshSession(token: string): boolean {
+    const session = this.getSession(token);
+    if (!session) return false;
+    return Date.now() - session.createdAt <= FRESH_AUTH_WINDOW_MS;
+  }
+
+  revokeSession(token: string): void {
+    this.sessions.delete(token);
   }
 
   close(): void {
@@ -134,8 +157,9 @@ export class WalletAuthStore {
     this.evictExpired();
     this.evictOverflow(this.sessions, MAX_SESSIONS);
     const token = randomBytes(32).toString("base64url");
+    const createdAt = Date.now();
     const expiresAt = Date.now() + SESSION_TTL_MS;
-    this.sessions.set(token, { token, walletAddress, expiresAt });
+    this.sessions.set(token, { token, walletAddress, createdAt, expiresAt });
     return { token, walletAddress, expiresAt };
   }
 
@@ -174,6 +198,19 @@ export function readBearerToken(request: FastifyRequest): string | undefined {
   return match?.[1]?.trim();
 }
 
+export function requireFreshWalletAuth(
+  request: FastifyRequest,
+  reply: FastifyReply
+): string | null {
+  const authWallet = requireWalletAuth(request, reply);
+  if (!authWallet) return null;
+  if (!request.authWalletIsFresh) {
+    reply.status(401).send({ error: "Reauthenticate wallet before credential issuance" });
+    return null;
+  }
+  return authWallet;
+}
+
 export function requireWalletAuth(
   request: FastifyRequest,
   reply: FastifyReply
@@ -187,4 +224,13 @@ export function requireWalletAuth(
 
 export function isValidMinaPublicKey(value: string): boolean {
   return MINA_PUBKEY_RE.test(value);
+}
+
+export function readTrustedOrigin(request: FastifyRequest, allowedOrigins: string[]): string | null {
+  const origin = request.headers.origin;
+  if (typeof origin !== "string") return null;
+  const normalizedOrigin = origin.trim();
+  if (!normalizedOrigin) return null;
+  if (!allowedOrigins.includes(normalizedOrigin)) return null;
+  return normalizedOrigin;
 }

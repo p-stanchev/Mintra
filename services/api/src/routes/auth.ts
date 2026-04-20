@@ -5,9 +5,12 @@ import {
   VerifyWalletAuthRequestSchema,
   VerifyWalletAuthResponseSchema,
 } from "@mintra/sdk-types";
+import { readBearerToken, readTrustedOrigin, requireWalletAuth } from "../auth";
 
 export const authRouter: FastifyPluginAsync = async (app) => {
-  app.post("/challenge", async (request, reply) => {
+  app.post("/challenge", {
+    config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+  }, async (request, reply) => {
     let body: { walletAddress: string };
     try {
       body = CreateWalletAuthChallengeRequestSchema.parse(request.body) as typeof body;
@@ -15,9 +18,14 @@ export const authRouter: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid request", detail: String(err) });
     }
 
+    const origin = readTrustedOrigin(request, app.authAllowedOrigins);
+    if (!origin) {
+      return reply.status(403).send({ error: "Untrusted origin" });
+    }
+
     const challenge = app.authStore.createChallenge(
       body.walletAddress,
-      typeof request.headers.origin === "string" ? request.headers.origin : undefined
+      origin
     );
 
     return reply.send(
@@ -29,7 +37,9 @@ export const authRouter: FastifyPluginAsync = async (app) => {
     );
   });
 
-  app.post("/verify", async (request, reply) => {
+  app.post("/verify", {
+    config: { rateLimit: { max: 20, timeWindow: "1 minute" } },
+  }, async (request, reply) => {
     let body: {
       challengeId: string;
       publicKey: string;
@@ -42,8 +52,13 @@ export const authRouter: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid request", detail: String(err) });
     }
 
+    const origin = readTrustedOrigin(request, app.authAllowedOrigins);
+    if (!origin) {
+      return reply.status(403).send({ error: "Untrusted origin" });
+    }
+
     try {
-      const session = app.authStore.verifySignedChallenge(body);
+      const session = app.authStore.verifySignedChallenge({ ...body, origin });
       return reply.send(
         VerifyWalletAuthResponseSchema.parse({
           token: session.token,
@@ -57,5 +72,20 @@ export const authRouter: FastifyPluginAsync = async (app) => {
         detail: err instanceof Error ? err.message : "Unknown error",
       });
     }
+  });
+
+  app.post("/logout", {
+    config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+  }, async (request, reply) => {
+    const authWallet = requireWalletAuth(request, reply);
+    if (!authWallet) return;
+
+    const token = readBearerToken(request);
+    if (!token) {
+      return reply.status(400).send({ error: "Missing bearer token" });
+    }
+
+    app.authStore.revokeSession(token);
+    return reply.status(204).send();
   });
 };
