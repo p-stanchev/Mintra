@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { StartVerificationRequestSchema } from "@mintra/sdk-types";
+import { requireWalletAuth } from "../auth";
 
 const USER_ID_RE = /^[a-zA-Z0-9_\-.@:]{1,128}$/;
 
@@ -7,6 +8,9 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
   app.post("/start", {
     config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
   }, async (request, reply) => {
+    const authWallet = requireWalletAuth(request, reply);
+    if (!authWallet) return;
+
     let body: { userId: string; redirectUrl?: string };
     try {
       body = StartVerificationRequestSchema.parse(request.body) as typeof body;
@@ -15,6 +19,9 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
     }
 
     const { userId, redirectUrl } = body;
+    if (authWallet !== userId) {
+      return reply.status(403).send({ error: "Verification can only be started for the authenticated wallet" });
+    }
 
     if (!USER_ID_RE.test(userId)) {
       return reply.status(400).send({ error: "Invalid userId format" });
@@ -34,7 +41,7 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
     });
 
     const record = await app.store.createVerification(userId, session.sessionId);
-    app.log.info({ userId, verificationId: record.id }, "verification.created");
+    app.log.info({ verificationId: record.id }, "verification.created");
 
     return reply.status(201).send({
       sessionId: record.id,
@@ -46,12 +53,18 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string } }>("/:id/status", {
     config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
   }, async (request, reply) => {
+    const authWallet = requireWalletAuth(request, reply);
+    if (!authWallet) return;
+
     const { id } = request.params;
 
     // Only resolve by internal UUID — never expose provider session ID as a lookup key
     const record = await app.store.getVerification(id);
     if (!record) {
       return reply.status(404).send({ error: "Verification not found" });
+    }
+    if (record.userId !== authWallet) {
+      return reply.status(403).send({ error: "Forbidden" });
     }
 
     let normalizedClaims: Record<string, unknown> = {};

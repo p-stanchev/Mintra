@@ -86,14 +86,8 @@ DIDIT_WEBHOOK_SECRET=your_didit_workflow_webhook_secret_here
 DIDIT_WORKFLOW_ID=your_didit_workflow_id_here
 PORT=3001
 CORS_ORIGIN=http://localhost:3000
-MINTRA_API_KEY=your_random_secret_here         # shared with the frontend
+MINA_SIGNER_NETWORK=mainnet
 MINA_ISSUER_PRIVATE_KEY=                       # optional — only for credential issuance
-```
-
-Generate a strong `MINTRA_API_KEY`:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 ### 3. Configure the demo app
@@ -102,7 +96,6 @@ Create `apps/demo-web/.env.local`:
 
 ```env
 NEXT_PUBLIC_MINTRA_API_URL=http://localhost:3001
-NEXT_PUBLIC_MINTRA_API_KEY=your_random_secret_here   # same value as MINTRA_API_KEY above
 ```
 
 ### 4. Start everything
@@ -127,7 +120,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 The current frontend uses the linked wallet address as the verification user id. In production, replace local wallet-based identity with your real authentication and account model.
 
-The API keeps verification state in memory for a lightweight demo setup. That means you do not need a database, but an API restart will clear in-flight verification state.
+The API keeps verification state and short-lived wallet auth sessions in memory for a lightweight demo setup. That means you do not need a database, but an API restart will clear in-flight verification state and sign-in sessions.
 
 ## Getting Didit Credentials
 
@@ -145,9 +138,18 @@ For local webhook testing, use a tunnel tool like [ngrok](https://ngrok.com) or 
 
 ## API Authentication
 
-All API endpoints (except `/health` and the Didit webhook receiver) require an `x-api-key` header. Set `MINTRA_API_KEY` on the API service and the matching `NEXT_PUBLIC_MINTRA_API_KEY` on the frontend. The SDK handles the header automatically.
+Browser clients authenticate with a signed wallet challenge:
 
-The Didit webhook endpoint uses HMAC-SHA256 (`x-signature-v2`) for authentication instead — the API key is not required there.
+1. `POST /api/auth/challenge`
+2. Sign the returned message with `window.mina.signMessage(...)`
+3. `POST /api/auth/verify`
+4. Reuse the returned bearer token for:
+   - `POST /api/verifications/start`
+   - `GET /api/verifications/:id/status`
+   - `GET /api/claims/:userId`
+   - `POST /api/mina/issue-credential`
+
+The Didit webhook endpoint still uses HMAC-SHA256 (`x-signature-v2`) instead.
 
 ## SDK Usage
 
@@ -156,11 +158,10 @@ import { createMintraClient } from "@mintra/sdk-js";
 
 const mintra = createMintraClient({
   apiBaseUrl: process.env.NEXT_PUBLIC_MINTRA_API_URL!,
-  apiKey: process.env.NEXT_PUBLIC_MINTRA_API_KEY,
 });
 
-// Start a verification session
-const session = await mintra.startVerification({ userId: "user_123" });
+// Start a verification session after a wallet auth challenge has been verified
+const session = await mintra.startVerification({ userId: "B62..." });
 // Redirect user to session.verificationUrl
 
 // Poll for status
@@ -197,6 +198,7 @@ docs/
 - **No raw KYC storage in Mintra**: Mintra does not store identity documents, selfies, or full KYC payloads. It keeps only minimal in-memory verification linkage and normalized claims, so an API restart clears in-flight verification state.
 - **Provider-side retention still applies**: In the current setup, Didit retains the underlying verification data for 1 month, which is the shortest retention window Didit currently offers.
 - **Wallet address as user id**: The current demo uses the linked wallet address as the verification identifier. Production use should map verification state to real application accounts.
+- **In-memory auth sessions**: Wallet sign-in sessions are ephemeral and are cleared on API restart.
 - **Mina credential issuance**: Functional, but wallet issuance requires `MINA_ISSUER_PRIVATE_KEY` to be set on the API. Key management guidance is in [docs/security.md](docs/security.md).
 - **Auro storage only**: The demo supports connecting Auro and storing the credential there. Presentation/proof flows are still v2 work.
 
@@ -217,7 +219,7 @@ Railway supports monorepos natively. Deploy two services from the same repo:
 | `DIDIT_WEBHOOK_SECRET` | From Didit Studio |
 | `DIDIT_WORKFLOW_ID` | From Didit Studio |
 | `CORS_ORIGIN` | Your frontend Railway URL |
-| `MINTRA_API_KEY` | Random secret (shared with frontend) |
+| `MINA_SIGNER_NETWORK` | `mainnet` or `testnet` for wallet signature verification |
 | `MINA_ISSUER_PRIVATE_KEY` | Optional — Mina base58 private key |
 
 **Frontend service variables:**
@@ -225,7 +227,6 @@ Railway supports monorepos natively. Deploy two services from the same repo:
 | Variable | Description |
 |---|---|
 | `NEXT_PUBLIC_MINTRA_API_URL` | Your API Railway URL |
-| `NEXT_PUBLIC_MINTRA_API_KEY` | Same value as `MINTRA_API_KEY` on the API |
 
 ### Vercel + Railway
 

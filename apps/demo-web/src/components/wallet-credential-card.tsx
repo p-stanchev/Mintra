@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Check, KeyRound, Link as LinkIcon, Loader2, ShieldCheck, Wallet } from "lucide-react";
 import { mintra } from "@/lib/mintra";
-import { readLinkedWalletAddress, writeLinkedWalletAddress } from "@/lib/wallet-session";
+import { readAuthToken, readLinkedWalletAddress } from "@/lib/wallet-session";
+import { authenticateWallet, resetWalletSession } from "@/lib/wallet-auth";
 
 type WalletState = "idle" | "connecting" | "connected" | "issuing" | "storing" | "done" | "error";
 
@@ -43,11 +44,13 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
       const ownerPublicKey = Array.isArray(accounts) ? accounts[0] : null;
       if (!ownerPublicKey) throw new Error("No Mina account returned by the wallet");
 
+      await authenticateWallet(provider, ownerPublicKey);
       setWalletAddress(ownerPublicKey);
-      writeLinkedWalletAddress(ownerPublicKey);
       setState("connected");
-      setMessage("Wallet connected.");
+      setMessage("Wallet connected and authenticated.");
     } catch (err) {
+      resetWalletSession();
+      setWalletAddress(null);
       setState("error");
       setMessage(err instanceof Error ? err.message : "Wallet connection failed");
     }
@@ -69,8 +72,10 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
         const accounts = await provider.requestAccounts();
         ownerPublicKey = Array.isArray(accounts) ? accounts[0] : null;
         if (!ownerPublicKey) throw new Error("No Mina account returned by the wallet");
+        await authenticateWallet(provider, ownerPublicKey);
         setWalletAddress(ownerPublicKey);
-        writeLinkedWalletAddress(ownerPublicKey);
+      } else if (!readAuthToken()) {
+        await authenticateWallet(provider, ownerPublicKey);
       }
 
       const effectiveUserId = userId || ownerPublicKey;
@@ -97,6 +102,10 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
       setState("done");
       setMessage("Credential saved to Auro Wallet.");
     } catch (err) {
+      if (err instanceof Error && /authentication/i.test(err.message)) {
+        resetWalletSession();
+        setWalletAddress(null);
+      }
       setState("error");
       setMessage(err instanceof Error ? err.message : "Wallet flow failed");
     }

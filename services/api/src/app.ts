@@ -3,7 +3,9 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { createDiditProvider } from "@mintra/provider-didit";
+import { WalletAuthStore, readBearerToken } from "./auth";
 import { createStore } from "./store";
+import { authRouter } from "./routes/auth";
 import { verificationsRouter } from "./routes/verifications";
 import { webhooksRouter } from "./routes/webhooks";
 import { claimsRouter } from "./routes/claims";
@@ -36,6 +38,9 @@ export async function buildApp(opts: AppOptions = {}) {
   const require = createRequire(__filename);
 
   const app = Fastify({ logger: opts.logger ?? true });
+  const authStore = new WalletAuthStore(
+    (process.env["MINA_SIGNER_NETWORK"] as "mainnet" | "testnet" | undefined) ?? "mainnet"
+  );
 
   // Security headers (subset of helmet defaults, compatible with Fastify 4)
   app.addHook("onSend", (_request, reply, _payload, done) => {
@@ -83,10 +88,19 @@ export async function buildApp(opts: AppOptions = {}) {
 
   // API key auth — skips /health and the Didit webhook (which uses HMAC)
   app.addHook("onRequest", (request, reply, done) => {
-    const url = request.url.split("?")[0];
-    if (url === "/health" || url === "/api/providers/didit/webhook") {
+    const url = request.url.split("?")[0] ?? "";
+    const token = readBearerToken(request);
+    if (token) {
+      const walletAddress = authStore.getWalletForToken(token);
+      if (walletAddress) {
+        request.authWalletAddress = walletAddress;
+      }
+    }
+
+    if (url === "/health" || url === "/api/providers/didit/webhook" || url.startsWith("/api/auth/")) {
       return done();
     }
+
     if (!apiKey) return done(); // no key configured = open (dev only)
     const provided = readHeader(request.headers["x-api-key"]);
     if (!provided || provided !== apiKey) {
@@ -98,9 +112,11 @@ export async function buildApp(opts: AppOptions = {}) {
 
   const store = await createStore();
   app.decorate("store", store);
+  app.decorate("authStore", authStore);
   app.decorate("allowedCallbackOrigins", allowedCallbackOrigins);
   app.addHook("onClose", async () => {
     await store.close();
+    authStore.close();
   });
 
   const diditProvider = createDiditProvider({
@@ -122,6 +138,7 @@ export async function buildApp(opts: AppOptions = {}) {
   }
   app.decorate("minaBridge", minaBridge);
 
+  await app.register(authRouter, { prefix: "/api/auth" });
   await app.register(verificationsRouter, { prefix: "/api/verifications" });
   await app.register(webhooksRouter, { prefix: "/api/providers" });
   await app.register(claimsRouter, { prefix: "/api/claims" });

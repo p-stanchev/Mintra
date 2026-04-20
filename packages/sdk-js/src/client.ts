@@ -3,6 +3,10 @@ import type {
   StartVerificationResponse,
   GetStatusResponse,
   GetClaimsResponse,
+  CreateWalletAuthChallengeRequest,
+  CreateWalletAuthChallengeResponse,
+  VerifyWalletAuthRequest,
+  VerifyWalletAuthResponse,
   IssueMinaCredentialRequest,
   IssueMinaCredentialResponse,
 } from "@mintra/sdk-types";
@@ -10,6 +14,8 @@ import {
   StartVerificationResponseSchema,
   GetStatusResponseSchema,
   GetClaimsResponseSchema,
+  CreateWalletAuthChallengeResponseSchema,
+  VerifyWalletAuthResponseSchema,
   IssueMinaCredentialResponseSchema,
 } from "@mintra/sdk-types";
 import type { ZodSchema } from "./types";
@@ -17,6 +23,8 @@ import type { ZodSchema } from "./types";
 export interface MintraClientConfig {
   apiBaseUrl: string;
   apiKey?: string;
+  authToken?: string;
+  authTokenProvider?: () => string | null | undefined;
 }
 
 async function request<T>(
@@ -24,12 +32,14 @@ async function request<T>(
   path: string,
   options: RequestInit,
   schema: ZodSchema<T>,
-  apiKey?: string
+  apiKey?: string,
+  authToken?: string
 ): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
   if (apiKey) headers["x-api-key"] = apiKey;
+  if (authToken) headers.authorization = `Bearer ${authToken}`;
 
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
@@ -47,6 +57,7 @@ async function request<T>(
 
 export function createMintraClient(config: MintraClientConfig) {
   const baseUrl = config.apiBaseUrl.replace(/\/$/, "");
+  const readAuthToken = () => config.authTokenProvider?.() ?? config.authToken ?? undefined;
 
   return {
     async startVerification(
@@ -57,7 +68,8 @@ export function createMintraClient(config: MintraClientConfig) {
         "/api/verifications/start",
         { method: "POST", body: JSON.stringify(input) },
         StartVerificationResponseSchema,
-        config.apiKey
+        config.apiKey,
+        readAuthToken()
       );
     },
 
@@ -67,7 +79,8 @@ export function createMintraClient(config: MintraClientConfig) {
         `/api/verifications/${sessionId}/status`,
         { method: "GET" },
         GetStatusResponseSchema,
-        config.apiKey
+        config.apiKey,
+        readAuthToken()
       );
     },
 
@@ -77,7 +90,34 @@ export function createMintraClient(config: MintraClientConfig) {
         `/api/claims/${userId}`,
         { method: "GET" },
         GetClaimsResponseSchema,
-        config.apiKey
+        config.apiKey,
+        readAuthToken()
+      );
+    },
+
+    async createWalletAuthChallenge(
+      input: CreateWalletAuthChallengeRequest
+    ): Promise<CreateWalletAuthChallengeResponse> {
+      return request(
+        baseUrl,
+        "/api/auth/challenge",
+        { method: "POST", body: JSON.stringify(input) },
+        CreateWalletAuthChallengeResponseSchema,
+        config.apiKey,
+        readAuthToken()
+      );
+    },
+
+    async verifyWalletAuth(
+      input: VerifyWalletAuthRequest
+    ): Promise<VerifyWalletAuthResponse> {
+      return request(
+        baseUrl,
+        "/api/auth/verify",
+        { method: "POST", body: JSON.stringify(input) },
+        VerifyWalletAuthResponseSchema,
+        config.apiKey,
+        readAuthToken()
       );
     },
 
@@ -89,7 +129,8 @@ export function createMintraClient(config: MintraClientConfig) {
         "/api/mina/issue-credential",
         { method: "POST", body: JSON.stringify(input) },
         IssueMinaCredentialResponseSchema,
-        config.apiKey
+        config.apiKey,
+        readAuthToken()
       );
     },
   };

@@ -47,9 +47,11 @@ export default function Home() {
     syncWallet();
     window.addEventListener("storage", syncWallet);
     window.addEventListener("mintra:wallet-linked", syncWallet as EventListener);
+    window.addEventListener("mintra:auth-updated", syncWallet as EventListener);
     return () => {
       window.removeEventListener("storage", syncWallet);
       window.removeEventListener("mintra:wallet-linked", syncWallet as EventListener);
+      window.removeEventListener("mintra:auth-updated", syncWallet as EventListener);
     };
   }, []);
 

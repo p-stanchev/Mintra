@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { IssueMinaCredentialRequestSchema } from "@mintra/sdk-types";
+import { isValidMinaPublicKey, requireWalletAuth } from "../auth";
 
 export const minaRouter: FastifyPluginAsync = async (app) => {
   app.post("/issue-credential", async (request, reply) => {
@@ -15,10 +16,20 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
     }
 
     const { userId, ownerPublicKey } = body;
+    const authWallet = requireWalletAuth(request, reply);
+    if (!authWallet) return;
+
+    if (!isValidMinaPublicKey(ownerPublicKey)) {
+      return reply.status(400).send({ error: "Invalid owner public key" });
+    }
+
+    if (authWallet !== userId || authWallet !== ownerPublicKey) {
+      return reply.status(403).send({ error: "Credential issuance is only allowed for the authenticated wallet" });
+    }
 
     const claim = await app.store.getClaims(userId);
     if (!claim) {
-      app.log.warn({ userId }, "mina.issue_denied: no approved claims");
+      app.log.warn("mina.issue_denied: no approved claims");
       return reply.status(403).send({ error: "No approved verification found for this user" });
     }
 
@@ -34,7 +45,7 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
       ownerPublicKey,
     });
 
-    app.log.info({ userId, ownerPublicKey }, "mina.credential_issued");
+    app.log.info("mina.credential_issued");
     return reply.send(result);
   });
 };

@@ -17,6 +17,7 @@
     "@mintra/sdk-types": "workspace:*",
     "dotenv": "^16.4.0",
     "fastify": "^4.27.0",
+    "mina-signer": "^3.0.7",
     "uuid": "^9.0.0",
     "zod": "^3.23.0"
   },
