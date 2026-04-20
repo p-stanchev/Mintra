@@ -17,11 +17,6 @@ const VerifyPresentationRequestSchema = z.object({
   expectedOwnerPublicKey: MinaPublicKeySchema,
 });
 
-const verifyPresentation = verifyAgeOver18Presentation as (params: {
-  request: unknown;
-  presentationJson: string;
-}) => Promise<{ ageOver18: { toString(): string }; owner: { toBase58(): string } }>;
-
 export interface VerifierAppOptions {
   corsOrigin?: string;
   logger?: boolean;
@@ -61,19 +56,20 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
 
     try {
       const requestSpec = await parseHttpsPresentationRequest(body.presentationRequestJson);
-      const verified = await verifyPresentation({
+      const verified = await verifyAgeOver18Presentation({
         request: requestSpec,
         presentationJson: body.presentation,
+        verifierIdentity,
       });
 
-      const ownerPublicKey = verified.owner.toBase58();
+      const ownerPublicKey = verified.ownerPublicKey;
       if (ownerPublicKey !== body.expectedOwnerPublicKey) {
         return reply.status(403).send({
           error: "Presentation owner does not match the requested wallet",
         });
       }
 
-      if (verified.ageOver18.toString() !== "1") {
+      if (!verified.ageOver18) {
         return reply.status(403).send({
           error: "Presentation does not satisfy the 18+ requirement",
         });
