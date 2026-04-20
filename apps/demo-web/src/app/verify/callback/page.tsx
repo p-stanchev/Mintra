@@ -34,10 +34,12 @@ function CallbackInner() {
     poll();
     const terminal = ["approved", "rejected", "error"];
     if (status && terminal.includes(status)) return;
+    // Poll slowly when under manual review — no point hammering every 3s
+    const interval = status === "needs_review" ? 10 * 60 * 1000 : 3000;
     const timer = setInterval(() => {
       setPolls((p) => p + 1);
       poll();
-    }, 3000);
+    }, interval);
     return () => clearInterval(timer);
   }, [poll, status]);
 
@@ -85,9 +87,23 @@ function CallbackInner() {
                   View my claims
                 </Link>
               </div>
+            ) : status === "needs_review" ? (
+              <div className="stack" style={{ gap: 10, alignItems: "center" }}>
+                <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.7 }}>
+                  Your submission is being reviewed manually by the identity provider.
+                  This can take <strong>up to 24 hours</strong> and is outside our control.
+                </p>
+                <p style={{ color: "var(--muted)", fontSize: 13 }}>
+                  You can close this page — we'll check back automatically every 10 minutes.
+                  Come back later and your claims will be ready once approved.
+                </p>
+                <Link href="/" className="btn btn-secondary">
+                  Go to home
+                </Link>
+              </div>
             ) : status !== "rejected" && status !== "error" ? (
               <p style={{ color: "var(--muted)", fontSize: 13 }}>
-                Checked {polls + 1} time{polls !== 0 ? "s" : ""} — still waiting…
+                Checking status…
               </p>
             ) : (
               <div className="stack" style={{ alignItems: "center" }}>

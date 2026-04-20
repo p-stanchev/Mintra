@@ -58,6 +58,12 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
 
     if (internalStatus === "approved") {
       const normalizedClaims = app.diditProvider.mapClaims(event);
+      app.log.info({
+        verificationId: verification.id,
+        hasDateOfBirth: !!event.decision.id_verification?.date_of_birth,
+        ageOver18Granted: normalizedClaims.age_over_18 === true,
+        kycPassed: normalizedClaims.kyc_passed === true,
+      }, "webhook.claims_computed");
       await app.store.upsertClaims(verification.userId, verification.id, {
         ...(normalizedClaims.age_over_18 !== undefined ? { ageOver18: normalizedClaims.age_over_18 } : {}),
         ...(normalizedClaims.kyc_passed !== undefined ? { kycPassed: normalizedClaims.kyc_passed } : {}),

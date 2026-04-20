@@ -142,6 +142,50 @@ describe("DiditProvider.mapClaims", () => {
     expect(claims.country_code).toBeUndefined();
   });
 
+  it("does not grant age_over_18 to an underage user even if ID is approved", async () => {
+    const provider = makeProvider();
+    const ts = nowTs();
+    const payload = {
+      ...makeApprovedPayload(ts),
+      decision: {
+        id_verification: {
+          status: "APPROVED",
+          document_type: "IDENTITY_CARD",
+          country: "BGR",
+          date_of_birth: "2008-10-30", // 17 years old as of 2026
+        },
+        face_match: { status: "APPROVED" },
+        liveness: { status: "APPROVED" },
+      },
+    };
+    const rawBody = Buffer.from(JSON.stringify(payload));
+    const sig = signV2(payload);
+    const event = await provider.parseWebhook({ rawBody, parsedBody: payload, signatureV2: sig, timestamp: ts });
+    const claims = provider.mapClaims(event);
+
+    expect(claims.kyc_passed).toBe(true);
+    expect(claims.age_over_18).toBeUndefined();
+  });
+
+  it("does not grant age_over_18 when date_of_birth is absent from webhook", async () => {
+    const provider = makeProvider();
+    const ts = nowTs();
+    const payload = {
+      ...makeApprovedPayload(ts),
+      decision: {
+        id_verification: { status: "APPROVED", country: "AT" }, // no date_of_birth
+        face_match: { status: "APPROVED" },
+      },
+    };
+    const rawBody = Buffer.from(JSON.stringify(payload));
+    const sig = signV2(payload);
+    const event = await provider.parseWebhook({ rawBody, parsedBody: payload, signatureV2: sig, timestamp: ts });
+    const claims = provider.mapClaims(event);
+
+    expect(claims.kyc_passed).toBe(true);
+    expect(claims.age_over_18).toBeUndefined();
+  });
+
   it("produces no claims for In Review status", () => {
     const provider = makeProvider();
     const claims = provider.mapClaims({
