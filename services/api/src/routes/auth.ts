@@ -67,9 +67,9 @@ export const authRouter: FastifyPluginAsync = async (app) => {
         })
       );
     } catch (err) {
+      app.log.warn({ err }, "wallet_auth.verify_failed");
       return reply.status(401).send({
         error: "Wallet authentication failed",
-        detail: err instanceof Error ? err.message : "Unknown error",
       });
     }
   });

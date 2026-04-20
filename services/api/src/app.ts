@@ -13,7 +13,6 @@ import { minaRouter } from "./routes/mina";
 
 export interface AppOptions {
   corsOrigin?: string;
-  apiKey?: string;
   allowedCallbackOrigins?: string[];
   diditApiKey?: string;
   diditWebhookSecret?: string;
@@ -24,7 +23,6 @@ export interface AppOptions {
 
 export async function buildApp(opts: AppOptions = {}) {
   const corsOrigin = opts.corsOrigin ?? process.env["CORS_ORIGIN"] ?? "http://localhost:3000";
-  const apiKey = opts.apiKey ?? process.env["MINTRA_API_KEY"] ?? "";
   const authAllowedOrigins = corsOrigin === "*" ? [] : [corsOrigin];
   const allowedCallbackOrigins = opts.allowedCallbackOrigins ??
     (process.env["ALLOWED_CALLBACK_ORIGINS"] ?? corsOrigin)
@@ -87,7 +85,7 @@ export async function buildApp(opts: AppOptions = {}) {
     done();
   });
 
-  // API key auth — skips /health and the Didit webhook (which uses HMAC)
+  // Wallet bearer auth — skips /health, auth bootstrap, and the Didit webhook (which uses HMAC)
   app.addHook("onRequest", (request, reply, done) => {
     const url = request.url.split("?")[0] ?? "";
     const token = readBearerToken(request);
@@ -106,14 +104,8 @@ export async function buildApp(opts: AppOptions = {}) {
     if (request.authWalletAddress) {
       return done();
     }
-
-    if (!apiKey) return done(); // no key configured = open (dev only)
-    const provided = readHeader(request.headers["x-api-key"]);
-    if (!provided || provided !== apiKey) {
-      reply.status(401).send({ error: "Unauthorized" });
-      return;
-    }
-    done();
+    reply.status(401).send({ error: "Wallet authentication required" });
+    return;
   });
 
   const store = await createStore();
@@ -160,9 +152,4 @@ function requireEnv(key: string): string {
   const val = process.env[key];
   if (!val) throw new Error(`Missing required environment variable: ${key}`);
   return val;
-}
-
-function readHeader(value: string | string[] | undefined): string | undefined {
-  if (Array.isArray(value)) return value[0]?.trim();
-  return value?.trim();
 }

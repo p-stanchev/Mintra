@@ -2,203 +2,187 @@
 
 ## System Overview
 
-Mintra sits between real-world KYC providers and the Mina blockchain. It handles the messy real-world side (HTTP APIs, webhooks, PII minimization) and presents a clean interface to the Mina side (typed claims → `mina-attestations` credentials).
+Mintra sits between a real-world KYC provider and the Mina credential layer. It handles:
+- provider session creation
+- webhook verification
+- normalized claim extraction
+- wallet-bound API auth
+- Mina credential issuance into Auro
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│  User / Browser                                                 │
-└──────────────────────────────┬─────────────────────────────────┘
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  User / Browser                                              │
+└──────────────────────────────┬───────────────────────────────┘
                                │
-┌──────────────────────────────▼─────────────────────────────────┐
-│  @mintra/demo-web  (Next.js 14, App Router)                    │
-│                                                                 │
-│  /             Wallet-first onboarding + status dashboard       │
-│  /verify       Start session → save sessionId → redirect       │
-│  /verify/callback   Read sessionId from sessionStorage → poll  │
-│  /claims/[id]  Show normalized claims                          │
-│  /protected    Gated feature (requires age_over_18 = true)     │
-└──────────────────────────────┬─────────────────────────────────┘
-                               │ @mintra/sdk-js (x-api-key header)
-┌──────────────────────────────▼─────────────────────────────────┐
-│  @mintra/api  (Fastify 4, Node.js)                             │
-│                                                                 │
-│  Auth: x-api-key on all routes except /health + webhook        │
-│                                                                 │
-│  Routes:                                                        │
-│    POST /api/verifications/start                                │
-│    GET  /api/verifications/:id/status   (internal UUID only)   │
-│    POST /api/providers/didit/webhook   ← Didit pushes here     │
-│    GET  /api/claims/:userId                                     │
-│    POST /api/mina/issue-credential                              │
-│    GET  /health                                                 │
-│                                                                 │
-│  State store: in-memory Maps (capped at 10k records each)      │
-│  Collections: verifications, claims, processedWebhooks         │
-└────────────┬──────────────────────────────┬────────────────────┘
+┌──────────────────────────────▼───────────────────────────────┐
+│  @mintra/demo-web  (Next.js 14)                              │
+│                                                               │
+│  /                  Wallet-first landing page                 │
+│  /verify            Starts Didit session                      │
+│  /verify/callback   Polls verification status                 │
+│  /claims/[userId]   Shows normalized claims                   │
+│  /protected         Checks age_over_18                        │
+│                                                               │
+│  Browser auth flow:                                           │
+│    POST /api/auth/challenge                                   │
+│    window.mina.signMessage(...)                               │
+│    POST /api/auth/verify                                      │
+│    Bearer token kept in sessionStorage                        │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ @mintra/sdk-js
+┌──────────────────────────────▼───────────────────────────────┐
+│  @mintra/api  (Fastify 4)                                     │
+│                                                               │
+│  Routes:                                                      │
+│    POST /api/auth/challenge                                   │
+│    POST /api/auth/verify                                      │
+│    POST /api/auth/logout                                      │
+│    POST /api/verifications/start                              │
+│    GET  /api/verifications/:id/status                         │
+│    POST /api/providers/didit/webhook                          │
+│    GET  /api/claims/:userId                                   │
+│    POST /api/mina/issue-credential                            │
+│    GET  /health                                               │
+│                                                               │
+│  Minimal persisted state:                                     │
+│    .mintra/state.json                                         │
+│    - verifications                                            │
+│    - normalized claims                                        │
+│    - processed webhook dedupe keys                            │
+│                                                               │
+│  Ephemeral auth state:                                        │
+│    - wallet challenges                                        │
+│    - short-lived bearer sessions                              │
+└────────────┬──────────────────────────────┬──────────────────┘
              │                              │
-┌────────────▼────────────┐    ┌────────────▼────────────────────┐
-│  @mintra/provider-didit │    │  @mintra/mina-bridge             │
-│                         │    │                                  │
-│  • createSession()      │    │  • claimsToCredentialData()      │
-│  • parseWebhook()       │    │  • MinaBridge.issueCredential()  │
-│  • mapClaims()          │    │  • Mina Field type mapping       │
-│  • HMAC-SHA256 verify   │    │  • (v2) PresentationSpec scaffold│
-│    (v2 only, 60s window)│    │                                  │
-└────────────┬────────────┘    └────────────┬────────────────────┘
+┌────────────▼────────────┐    ┌────────────▼──────────────────┐
+│ @mintra/provider-didit  │    │ @mintra/mina-bridge           │
+│ • createSession()       │    │ • claimsToCredentialData()    │
+│ • parseWebhook()        │    │ • issueCredential()           │
+│ • mapClaims()           │    │ • Credential.sign(...)        │
+│ • HMAC v2 verification  │    │ • ISO country numeric mapping │
+└────────────┬────────────┘    └────────────┬──────────────────┘
              │                              │
-┌────────────▼────────────┐    ┌────────────▼────────────────────┐
-│  Didit REST API          │    │  mina-attestations               │
-│  verification.didit.me  │    │  (zksecurity, npm)               │
-│  + HMAC-signed webhooks │    │  createNative / Credential.toJSON│
-└─────────────────────────┘    └─────────────────────────────────┘
+┌────────────▼────────────┐    ┌────────────▼──────────────────┐
+│ Didit REST + webhooks   │    │ mina-attestations             │
+└─────────────────────────┘    └───────────────────────────────┘
 ```
 
 ## Verification Flow
 
-```
-1. User links an Auro wallet on the home page
-   └─ Demo app requests a Mina public key from `window.mina`
-   └─ Wallet address is stored in localStorage (validated as B62... format)
+1. User connects Auro on the home page.
+   - The frontend requests a Mina public key from `window.mina`.
+   - The frontend requests a wallet challenge from `/api/auth/challenge`.
+   - The wallet signs the challenge message.
+   - The frontend exchanges the signature at `/api/auth/verify`.
+   - The API returns a short-lived bearer token tied to that wallet.
 
-2. User clicks "Start verification"
-   └─ Demo app → POST /api/verifications/start { userId }
-      └─ API → POST https://verification.didit.me/v3/session/ { vendor_data: userId, workflow_id }
-         └─ Didit responds: { session_id, verification_url }
-      └─ API stores verification record (status: "not_started") in memory
-      └─ Returns { sessionId (internal UUID), verificationUrl } to demo app
-   └─ Demo app saves internal sessionId to sessionStorage
-   └─ User is redirected to verificationUrl
+2. User starts verification.
+   - Frontend calls `POST /api/verifications/start`.
+   - The API requires a valid wallet bearer token.
+   - `userId` must equal the authenticated wallet address.
+   - The API creates a Didit session and stores an internal verification record.
 
-3. User completes document scan + selfie + liveness on Didit's hosted flow
-   └─ Didit redirects user back to /verify/callback
+3. User completes the hosted Didit flow.
+   - Didit redirects the user to `/verify/callback`.
+   - Didit separately POSTs a webhook to `/api/providers/didit/webhook`.
 
-4. Didit POSTs webhook to /api/providers/didit/webhook
-   └─ API reads x-timestamp — rejects if >60 seconds old
-   └─ API reads x-signature-v2 — HMAC-SHA256 of canonical JSON
-   └─ Verifies with timingSafeEqual (constant-time, 32-byte comparison)
-   └─ Checks deduplication set — ignores replayed sessionId+status pairs
-   └─ Parses payload: { session_id, status, vendor_data, decision }
-   └─ Maps status: "Approved" → "approved", "Declined" → "rejected", etc.
-   └─ Maps claims:
-        decision.id_verification.status === "APPROVED" → age_over_18: true
-        rawStatus === "Approved" → kyc_passed: true
-        decision.id_verification.country → country_code: "XX" (ISO alpha-2)
-   └─ Updates verification record: status = "approved"
-   └─ Upserts claims record: { age_over_18, kyc_passed, country_code }
-   └─ Returns 200 immediately (prevents Didit retries)
+4. API processes the webhook.
+   - Verifies `x-signature-v2`
+   - Rejects stale timestamps
+   - Deduplicates `sessionId:rawStatus`
+   - Maps provider status to internal status
+   - Derives normalized claims:
+     - `age_over_18`
+     - `kyc_passed`
+     - `country_code`
+   - Persists only normalized verification state
 
-5. Demo app reads internal sessionId from sessionStorage
-   └─ Polls GET /api/verifications/:id/status every 3 seconds
-   └─ Only internal UUIDs are accepted — Didit session IDs are not a lookup key
+5. Frontend polls status.
+   - `/verify/callback` polls `GET /api/verifications/:id/status`
+   - Only the authenticated wallet that owns the verification can read it
 
-6. On approval:
-   └─ Demo app fetches GET /api/claims/:userId
-   └─ Shows normalized claims
-   └─ Allows the user to issue a Mina credential into Auro Wallet
-   └─ Unlocks /protected feature
-```
+6. User views claims and issues a credential.
+   - `GET /api/claims/:userId` requires the authenticated wallet to match `:userId`
+   - `POST /api/mina/issue-credential` requires:
+     - wallet bearer auth
+     - fresh auth session
+     - `userId === ownerPublicKey === authenticated wallet`
+   - The signed credential is stored in Auro
 
-## Normalized Claim Model
+## Auth Model
 
-```typescript
+### Browser → API
+
+Mintra no longer relies on a browser-shared API key.
+
+The browser authenticates with:
+- signed wallet challenge
+- short-lived bearer token
+- wallet-bound route authorization
+
+Protected API routes require bearer auth:
+- `/api/verifications/start`
+- `/api/verifications/:id/status`
+- `/api/claims/:userId`
+- `/api/mina/issue-credential`
+
+### Provider → API
+
+Didit authenticates with:
+- `x-signature-v2`
+- timestamp freshness check
+- constant-time HMAC comparison
+
+## Data Model
+
+### Persisted minimal state
+
+Mintra persists only:
+- verification id
+- wallet/user id
+- provider reference
+- status
+- normalized claims
+- timestamps
+- webhook dedupe keys
+
+It does not persist:
+- raw documents
+- selfies
+- full webhook payloads
+- names
+- dates of birth
+- document numbers
+
+## Mina Credential Mapping
+
+Normalized claims:
+
+```ts
 type NormalizedClaims = {
-  age_over_18?: boolean;   // derived from id_verification.status === "APPROVED"
-  kyc_passed?:  boolean;   // derived from top-level status === "Approved"
-  country_code?: string;   // ISO 3166-1 alpha-2, from id_verification.country
+  age_over_18?: boolean;
+  kyc_passed?: boolean;
+  country_code?: string;
 };
 ```
 
-**Design principles:**
-- Claims are provider-agnostic — a Sumsub or Veriff result maps to the same shape
-- No raw provider data is stored — only the derived boolean/string claims
-- Country code is optional — not all workflows extract it
-- Country names and alpha-3 codes are normalized to alpha-2 via `i18n-iso-countries`
+Credential data:
 
-## Mina Bridge Architecture
-
-```
-NormalizedClaims
-  { age_over_18: true, kyc_passed: true, country_code: "AT" }
-          │
-          ▼ claimsToCredentialData()
-MinaCredentialData
-  { ageOver18: 1, kycPassed: 1, countryCode: 40, issuedAt: 1700000000 }
-          │
-          ▼ Field() conversions
-Mina Fields
-  { ageOver18: Field(1), kycPassed: Field(1), countryCode: Field(40), issuedAt: Field(ts) }
-          │
-          ▼ createNative(issuerPrivateKey, { owner, data })
-StoredCredential (mina-attestations native type)
-          │
-          ▼ Credential.toJSON()
-JSON string — returned to caller (dApp/wallet holds it)
-```
-
-**Type mapping table:**
-
-| Claim field | Mina Field | Encoding |
-|---|---|---|
-| `age_over_18: true` | `Field(1)` | 1 = yes, 0 = no |
-| `kyc_passed: true` | `Field(1)` | 1 = yes, 0 = no |
-| `country_code: "AT"` | `Field(40)` | ISO 3166-1 numeric |
-| `country_code: undefined` | `Field(0)` | sentinel for "not provided" |
-| `issuedAt` | `Field(unixSeconds)` | Unix timestamp |
-
-## Runtime Store
-
-The current implementation uses an in-memory store (`InMemoryStore`) backed by JavaScript Maps:
-
-| Collection | Key | Cap |
-|---|---|---|
-| `verifications` | Internal UUID | 10,000 |
-| `byProviderRef` | Didit `session_id` | 10,000 (mirrors verifications) |
-| `claims` | `userId` | 10,000 |
-| `processedWebhooks` | `sessionId:rawStatus` | 50,000 (LRU eviction at cap) |
-
-State is lost on restart. For production, replace `InMemoryStore` with a persistent backend — the `VerificationStore` interface makes this a drop-in swap.
-
-## API Authentication
-
-All routes except `/health` and `/api/providers/didit/webhook` require:
-
-```
-x-api-key: <MINTRA_API_KEY>
-```
-
-The webhook route uses HMAC-SHA256 (`x-signature-v2`) instead, since it is called by Didit's servers, not by the frontend.
-
-## Provider Abstraction
-
-```typescript
-interface VerificationProvider {
-  createSession(input: CreateSessionInput): Promise<CreateSessionResult>;
-  parseWebhook(request: IncomingWebhook): Promise<NormalizedWebhookEvent>;
-  mapClaims(event: NormalizedWebhookEvent): NormalizedClaims;
+```ts
+{
+  ageOver18: Field(0 | 1),
+  kycPassed: Field(0 | 1),
+  countryCode: Field(iso3166NumericOrZero),
+  issuedAt: Field(unixSeconds)
 }
 ```
 
-Adding a new provider (e.g. Sumsub) means:
-1. Create `packages/provider-sumsub/`
-2. Implement `VerificationProvider`
-3. Register it in the API's `buildApp()`
-4. Add a new webhook route `/api/providers/sumsub/webhook`
+The bridge uses `Credential.sign(...)` from `mina-attestations`.
 
-No changes to `sdk-js`, `mina-bridge`, or the claim model.
+## Current Constraints
 
-## Package Dependency Graph
-
-```
-@mintra/sdk-types
-    ├── @mintra/sdk-js
-    ├── @mintra/provider-didit
-    ├── @mintra/mina-bridge
-    └── @mintra/api
-            ├── @mintra/provider-didit
-            └── @mintra/mina-bridge (optional, loaded only if MINA_ISSUER_PRIVATE_KEY is set)
-
-@mintra/demo-web
-    └── @mintra/sdk-js
-```
-
-`mina-attestations` + `o1js` are only in `@mintra/mina-bridge` — their large dependency tree does not affect the SDK or API unless the Mina bridge is explicitly imported.
+- Didit is the only provider integrated
+- selective disclosure / verifier-side proof requests are still future work
+- auth sessions are ephemeral and are not restored after API restart
+- minimal verification state persists locally unless you replace the state file path with a platform-backed volume

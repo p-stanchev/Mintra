@@ -81,11 +81,10 @@ Mintra is **not**:
 - A replacement for mina-attestations
 - A privacy-preserving KYC solution in v1 (v2 adds ZK proofs)
 - Fully on-chain in v1 (claims are off-chain; credentials are API-issued and stored in-wallet)
-- A solution where the API key is fully hidden from the browser in v1 (v2 moves calls server-side)
 
 Mintra **is**:
 - A developer tool that makes it practical to add KYC to Mina apps
 - A clean adapter between the messy real-world identity layer and Mina's cryptographic layer
 - A reusable claim normalization system that works across providers
 - The missing piece between "mina-attestations exists" and "my app has verified users"
-- A hardened webhook receiver with HMAC verification, replay prevention, and audit logging
+- A hardened provider bridge with webhook verification, wallet-bound API auth, and audit-minded minimization

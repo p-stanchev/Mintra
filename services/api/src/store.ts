@@ -1,4 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
 const MAX_VERIFICATIONS = 10_000;
 const MAX_CLAIMS = 10_000;
@@ -47,11 +49,23 @@ export interface VerificationStore {
   close(): Promise<void>;
 }
 
+interface PersistedState {
+  verifications: Array<VerificationRecord>;
+  claims: Array<ClaimsRecord>;
+  processedWebhooks: string[];
+}
+
 export class InMemoryStore implements VerificationStore {
   private verifications = new Map<string, VerificationRecord>();
   private byProviderRef = new Map<string, string>();
   private claims = new Map<string, ClaimsRecord>();
   private processedWebhooks = new Set<string>();
+  private readonly stateFile: string | null;
+  private flushPromise: Promise<void> = Promise.resolve();
+
+  constructor(stateFile: string | null = null) {
+    this.stateFile = stateFile;
+  }
 
   async createVerification(userId: string, sessionId: string): Promise<VerificationRecord> {
     if (this.verifications.size >= MAX_VERIFICATIONS) {
@@ -70,6 +84,7 @@ export class InMemoryStore implements VerificationStore {
     };
     this.verifications.set(id, record);
     this.byProviderRef.set(sessionId, id);
+    this.schedulePersist();
     return record;
   }
 
@@ -89,6 +104,7 @@ export class InMemoryStore implements VerificationStore {
     if (!record) return undefined;
     record.status = status;
     record.updatedAt = new Date();
+    this.schedulePersist();
     return record;
   }
 
@@ -108,6 +124,7 @@ export class InMemoryStore implements VerificationStore {
       countryCode: data.countryCode ?? null,
       verifiedAt: new Date(),
     });
+    this.schedulePersist();
   }
 
   async getClaims(userId: string): Promise<ClaimsRecord | undefined> {
@@ -129,13 +146,85 @@ export class InMemoryStore implements VerificationStore {
       }
     }
     this.processedWebhooks.add(key);
+    this.schedulePersist();
   }
 
   async close(): Promise<void> {
-    return;
+    await this.flushPromise;
+  }
+
+  async hydrate(): Promise<void> {
+    if (!this.stateFile) return;
+
+    try {
+      const raw = await fs.readFile(this.stateFile, "utf8");
+      const parsed = JSON.parse(raw) as PersistedState;
+
+      this.verifications.clear();
+      this.byProviderRef.clear();
+      this.claims.clear();
+      this.processedWebhooks.clear();
+
+      for (const record of parsed.verifications ?? []) {
+        const hydrated: VerificationRecord = {
+          ...record,
+          createdAt: new Date(record.createdAt),
+          updatedAt: new Date(record.updatedAt),
+        };
+        this.verifications.set(hydrated.id, hydrated);
+        this.byProviderRef.set(hydrated.providerReference, hydrated.id);
+      }
+
+      for (const claim of parsed.claims ?? []) {
+        this.claims.set(claim.userId, {
+          ...claim,
+          verifiedAt: new Date(claim.verifiedAt),
+        });
+      }
+
+      for (const key of parsed.processedWebhooks ?? []) {
+        this.processedWebhooks.add(key);
+      }
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw err;
+    }
+  }
+
+  private schedulePersist(): void {
+    if (!this.stateFile) return;
+
+    this.flushPromise = this.flushPromise
+      .then(() => this.persist())
+      .catch(() => this.persist());
+  }
+
+  private async persist(): Promise<void> {
+    if (!this.stateFile) return;
+
+    const dir = path.dirname(this.stateFile);
+    await fs.mkdir(dir, { recursive: true });
+
+    const state: PersistedState = {
+      verifications: Array.from(this.verifications.values()),
+      claims: Array.from(this.claims.values()),
+      processedWebhooks: Array.from(this.processedWebhooks.values()),
+    };
+
+    await fs.writeFile(this.stateFile, JSON.stringify(state), "utf8");
   }
 }
 
-export async function createStore(): Promise<VerificationStore> {
-  return new InMemoryStore();
+export async function createStore(stateFile?: string | false): Promise<VerificationStore> {
+  const resolvedStateFile =
+    stateFile === false
+      ? null
+      : stateFile ??
+        (process.env["NODE_ENV"] === "test"
+          ? null
+          : path.resolve(process.cwd(), process.env["MINTRA_STATE_FILE"] ?? ".mintra", "state.json"));
+
+  const store = new InMemoryStore(resolvedStateFile);
+  await store.hydrate();
+  return store;
 }

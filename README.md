@@ -37,7 +37,9 @@ Mintra is the **provider bridge + claim normalization + SDK layer** that makes M
 └──────────────────────┬──────────────────────────────────┘
                        │ @mintra/sdk-js
 ┌──────────────────────▼──────────────────────────────────┐
-│  @mintra/api  (Fastify + in-memory store)               │
+│  @mintra/api  (Fastify + minimal persisted state)       │
+│  POST /api/auth/challenge                               │
+│  POST /api/auth/verify                                  │
 │  POST /api/verifications/start                          │
 │  GET  /api/verifications/:id/status                     │
 │  POST /api/providers/didit/webhook  ← Didit             │
@@ -120,11 +122,11 @@ Open [http://localhost:3000](http://localhost:3000).
 2. Connect an Auro wallet
 3. Start verification
 4. Complete the hosted Didit KYC flow
-5. Return to Mintra and issue the Mina credential into Auro
+5. Return to Mintra, review claims, and issue the Mina credential into Auro
 
 The current frontend uses the linked wallet address as the verification user id. In production, replace local wallet-based identity with your real authentication and account model.
 
-The API keeps verification state and short-lived wallet auth sessions in memory for a lightweight demo setup. That means you do not need a database, but an API restart will clear in-flight verification state and sign-in sessions.
+The API keeps wallet auth sessions in memory, and persists only minimal verification metadata and normalized claims to a local state file. That means you do not need a database, but true durability in hosted deployments still depends on persistent storage or a mounted volume.
 
 ## Getting Didit Credentials
 
@@ -152,6 +154,7 @@ Browser clients authenticate with a signed wallet challenge:
    - `GET /api/verifications/:id/status`
    - `GET /api/claims/:userId`
    - `POST /api/mina/issue-credential`
+5. `POST /api/auth/logout` revokes the current browser session
 
 The Didit webhook endpoint still uses HMAC-SHA256 (`x-signature-v2`) instead.
 
@@ -172,7 +175,7 @@ const session = await mintra.startVerification({ userId: "B62..." });
 const status = await mintra.getVerificationStatus(session.sessionId);
 
 // Fetch normalized claims after approval
-const { claims } = await mintra.getClaims("user_123");
+const { claims } = await mintra.getClaims("B62...");
 // { age_over_18: true, kyc_passed: true, country_code: "AT" }
 ```
 
@@ -187,7 +190,7 @@ packages/
   provider-didit/        Didit provider integration
   mina-bridge/           mina-attestations adapter
 services/
-  api/                   Fastify backend + in-memory state
+  api/                   Fastify backend + minimal persisted verification state
 docs/
   architecture.md
   security.md
@@ -198,11 +201,11 @@ docs/
 ## Current Limitations
 
 - **Single provider**: Only Didit is integrated. Sumsub, Persona, Veriff are on the roadmap.
-- **Off-chain claims only (v1)**: Claims are stored server-side. Mina on-chain proof generation is v2.
-- **No raw KYC storage in Mintra**: Mintra does not store identity documents, selfies, or full KYC payloads. It keeps only minimal in-memory verification linkage and normalized claims, so an API restart clears in-flight verification state.
+- **Off-chain claims only (v1)**: Claims are enforced by the API today. Verifier-side proof flows are still future work.
+- **No raw KYC storage in Mintra**: Mintra does not store identity documents, selfies, or full KYC payloads. It keeps only minimal verification metadata, normalized claims, and webhook dedupe keys.
 - **Provider-side retention still applies**: In the current setup, Didit retains the underlying verification data for 1 month, which is the shortest retention window Didit currently offers.
 - **Wallet address as user id**: The current demo uses the linked wallet address as the verification identifier. Production use should map verification state to real application accounts.
-- **In-memory auth sessions**: Wallet sign-in sessions are ephemeral and are cleared on API restart.
+- **Ephemeral auth sessions**: Wallet sign-in sessions are short-lived and are cleared on API restart.
 - **Mina credential issuance**: Functional, but wallet issuance requires `MINA_ISSUER_PRIVATE_KEY` to be set on the API. Key management guidance is in [docs/security.md](docs/security.md).
 - **Auro storage only**: The demo supports connecting Auro and storing the credential there. Presentation/proof flows are still v2 work.
 
