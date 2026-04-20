@@ -6,6 +6,7 @@ import type { VerificationStatus } from "@mintra/sdk-types";
 import Link from "next/link";
 import { Suspense } from "react";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
+import { extractUiErrorMessage } from "@/lib/errors";
 
 function CallbackInner() {
   const sessionId =
@@ -26,7 +27,7 @@ function CallbackInner() {
       setStatus(result.status);
       setUserId(result.userId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(extractUiErrorMessage(err, "Unknown error"));
     }
   }, [sessionId]);
 

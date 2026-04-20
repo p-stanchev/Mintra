@@ -1,8 +1,10 @@
 "use client";
 
+import { mintra } from "@/lib/mintra";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
+import { normalizeVerifierPolicy } from "@mintra/verifier-core";
 import { AlertTriangle, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type PlaygroundPolicy = {
   minAge?: 18 | 21;
@@ -23,6 +25,8 @@ type VerificationResult = {
     issuedAt: number;
   };
 };
+
+type ClaimsResponse = Awaited<ReturnType<typeof mintra.getClaims>>;
 
 function isProviderError(
   value: { presentation: string } | AuroProviderError
@@ -59,6 +63,7 @@ export default function PlaygroundPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [requestJson, setRequestJson] = useState<string | null>(null);
+  const [claimsData, setClaimsData] = useState<ClaimsResponse | null>(null);
 
   const loading = loadingStep !== "idle";
 
@@ -79,6 +84,59 @@ export default function PlaygroundPage() {
         : {}),
     };
   }, [countryAllowlist, countryBlocklist, maxCredentialAgeDays, minAge, requireKycPassed]);
+
+  const normalizedPolicy = useMemo(() => normalizeVerifierPolicy(policy), [policy]);
+
+  useEffect(() => {
+    const walletAddress = readLinkedWalletAddress();
+    if (!walletAddress) {
+      setClaimsData(null);
+      return;
+    }
+
+    let cancelled = false;
+    void mintra
+      .getClaims(walletAddress)
+      .then((data) => {
+        if (!cancelled) setClaimsData(data);
+      })
+      .catch(() => {
+        if (!cancelled) setClaimsData(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const likelyBlockers = useMemo(() => {
+    if (!claimsData) return [];
+
+    const blockers: string[] = [];
+    const claims = claimsData.claims;
+    const countryCode = typeof claims.country_code === "string" ? claims.country_code.toUpperCase() : null;
+
+    if (normalizedPolicy.minAge === 18 && claims.age_over_18 !== true) {
+      blockers.push("The current claim set does not show `age_over_18 = true`.");
+    }
+    if (normalizedPolicy.minAge === 21 && claims.age_over_21 !== true) {
+      blockers.push("The current claim set does not show `age_over_21 = true`. Reissue a fresh credential after verifying 21+ support.");
+    }
+    if (normalizedPolicy.requireKycPassed && claims.kyc_passed !== true) {
+      blockers.push("The current claim set does not show `kyc_passed = true`.");
+    }
+    if (normalizedPolicy.countryAllowlist.length > 0 && countryCode && !normalizedPolicy.countryAllowlist.includes(countryCode)) {
+      blockers.push(`The current claim country \`${countryCode}\` is not in the allow list.`);
+    }
+    if (normalizedPolicy.countryBlocklist.length > 0 && countryCode && normalizedPolicy.countryBlocklist.includes(countryCode)) {
+      blockers.push(`The current claim country \`${countryCode}\` is in the block list.`);
+    }
+    if (normalizedPolicy.maxCredentialAgeDays !== null) {
+      blockers.push("Freshness is checked against the wallet credential `issuedAt` value at proof time, so this rule may still fail even if backend claims look fresh.");
+    }
+
+    return blockers;
+  }, [claimsData, normalizedPolicy]);
 
   async function handleProve() {
     const walletAddress = readLinkedWalletAddress();
@@ -280,6 +338,20 @@ export default function PlaygroundPage() {
               {JSON.stringify(policy, null, 2)}
             </pre>
           </div>
+
+          {likelyBlockers.length > 0 && (
+            <div className="rounded-[32px] border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+              <div className="mb-2 flex items-center gap-2 font-medium">
+                <AlertTriangle className="h-4 w-4" />
+                Likely blockers
+              </div>
+              <ul className="list-disc space-y-2 pl-5">
+                {likelyBlockers.map((blocker) => (
+                  <li key={blocker}>{blocker}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {requestJson && (
             <div className="rounded-[32px] border border-line bg-white p-8 shadow-card">

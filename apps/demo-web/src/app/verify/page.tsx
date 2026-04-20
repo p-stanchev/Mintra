@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { mintra } from "@/lib/mintra";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
+import { extractUiErrorMessage } from "@/lib/errors";
 
 export default function VerifyPage() {
   const [state, setState] = useState<"idle" | "blocked" | "loading" | "redirecting" | "error">("idle");
@@ -28,7 +29,7 @@ export default function VerifyPage() {
       })
       .catch((err: unknown) => {
         setState("error");
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(extractUiErrorMessage(err, "Unknown error"));
       });
   }, [state]);
 

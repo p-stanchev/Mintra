@@ -262,14 +262,20 @@ function normalizeCountryList(values: string[] | undefined): string[] {
 
 function normalizeCountryToIso2(value: string | undefined): string | undefined {
   if (!value) return undefined;
-  const normalized = value.trim().toUpperCase();
+  const trimmed = value.trim();
+  const normalized = trimmed.toUpperCase();
   if (!normalized) return undefined;
   if (normalized.length === 2) return normalized;
+
+  if (/^\d+$/.test(normalized)) {
+    const byNumeric = countries.numericToAlpha2(normalized.padStart(3, "0"));
+    if (byNumeric) return byNumeric;
+  }
 
   const alpha3 = countries.alpha3ToAlpha2(normalized);
   if (alpha3) return alpha3;
 
-  const byName = countries.getAlpha2Code(value, "en");
+  const byName = countries.getAlpha2Code(trimmed, "en");
   if (byName) return byName;
 
   return undefined;
