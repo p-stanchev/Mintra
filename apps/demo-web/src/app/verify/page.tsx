@@ -22,6 +22,7 @@ export default function VerifyPage() {
     mintra
       .startVerification({ userId: linkedWallet })
       .then((session) => {
+        sessionStorage.setItem("mintra.sessionId", session.sessionId);
         setState("redirecting");
         window.location.href = session.verificationUrl;
       })

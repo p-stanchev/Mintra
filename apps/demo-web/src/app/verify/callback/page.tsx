@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
 import { mintra } from "@/lib/mintra";
 import type { VerificationStatus } from "@mintra/sdk-types";
 import Link from "next/link";
@@ -9,12 +8,8 @@ import { Suspense } from "react";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
 
 function CallbackInner() {
-  const params = useSearchParams();
   const sessionId =
-    params.get("verificationSessionId") ??
-    params.get("sessionId") ??
-    params.get("session_id") ??
-    "";
+    (typeof window !== "undefined" ? sessionStorage.getItem("mintra.sessionId") : null) ?? "";
 
   const [status, setStatus] = useState<VerificationStatus | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
