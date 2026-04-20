@@ -39,7 +39,7 @@ function makeApprovedPayload(ts: string) {
     vendor_data: "user-001",
     timestamp: Number(ts),
     decision: {
-      id_verification: { status: "APPROVED", document_type: "PASSPORT", country: "AT" },
+      id_verification: { status: "APPROVED", document_type: "PASSPORT", country: "AT", date_of_birth: "1990-06-15" },
       face_match: { status: "APPROVED" },
       liveness: { status: "APPROVED" },
     },

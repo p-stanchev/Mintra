@@ -149,7 +149,6 @@ export class DiditProvider implements VerificationProvider {
       issuing_state?: string;
       issuing_country?: string;
     };
-    const idApproved = normalizeStatus(idVerif.status) === "approved";
     const isAdult = hasReachedAge(idVerif.date_of_birth, 18);
 
     const claims: NormalizedClaims = {};
@@ -157,7 +156,7 @@ export class DiditProvider implements VerificationProvider {
     if (approved) {
       claims.kyc_passed = true;
     }
-    if (isAdult || idApproved) {
+    if (isAdult) {
       claims.age_over_18 = true;
     }
     const countryCode = normalizeCountryToIso2(
