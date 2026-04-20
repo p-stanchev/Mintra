@@ -25,6 +25,8 @@ export const GetClaimsResponseSchema = z.object({
   userId: z.string(),
   claims: NormalizedClaimsSchema,
   verifiedAt: z.string().datetime().nullable(),
+  expiresAt: z.string().datetime().nullable(),
+  freshnessStatus: z.enum(["verified", "expiring_soon", "expired", "unverified"]),
 });
 export type GetClaimsResponse = z.infer<typeof GetClaimsResponseSchema>;
 

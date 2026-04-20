@@ -110,7 +110,16 @@ export default function Home() {
     }
   }, []);
 
-  const isVerified = claims?.claims.age_over_18 === true || claims?.claims.kyc_passed === true;
+  const freshnessStatus = claims?.freshnessStatus ?? "unverified";
+  const isFresh = freshnessStatus === "verified" || freshnessStatus === "expiring_soon";
+  const isVerified = isFresh && (claims?.claims.age_over_18 === true || claims?.claims.kyc_passed === true);
+  const primaryActionLabel = !walletAddress
+    ? "Connect wallet first"
+    : isVerified
+      ? "Open claims"
+      : freshnessStatus === "expired"
+        ? "Refresh KYC"
+        : "Start verification";
 
   return (
     <div className="space-y-8">
@@ -135,7 +144,7 @@ export default function Home() {
                 href={isVerified ? `/claims/${walletAddress}` : "/verify"}
                 className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
               >
-                {isVerified ? "Open claims" : "Start verification"}
+                {primaryActionLabel}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             ) : (
@@ -162,16 +171,22 @@ export default function Home() {
             The homepage now drives a single sequence: connect wallet, return to the top, then verify.
           </p>
 
-          <div className={`mt-8 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${isVerified ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-600"}`}>
+          <div className={`mt-8 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${freshnessStatus === "verified" ? "bg-emerald-50 text-emerald-700" : freshnessStatus === "expiring_soon" ? "bg-amber-50 text-amber-700" : freshnessStatus === "expired" ? "bg-rose-50 text-rose-700" : "bg-stone-100 text-stone-600"}`}>
             {isVerified ? <BadgeCheck className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-            {isVerified ? "Verified" : "Not verified"}
+            {freshnessStatus === "verified"
+              ? "Verified"
+              : freshnessStatus === "expiring_soon"
+                ? "Expiring soon"
+                : freshnessStatus === "expired"
+                  ? "Expired — verify again"
+                  : "Not verified"}
           </div>
 
           <div className="mt-8 space-y-4">
             <MetricRow
               icon={<CheckCheck className="h-4 w-4" />}
               label="KYC status"
-              value={loadingClaims ? "Loading" : claims?.claims.kyc_passed ? "Approved" : "Waiting"}
+              value={loadingClaims ? "Loading" : claims?.claims.kyc_passed ? "Approved" : freshnessStatus === "expired" ? "Expired" : "Waiting"}
             />
             <MetricRow
               icon={<Shield className="h-4 w-4" />}
@@ -183,12 +198,28 @@ export default function Home() {
               label="Wallet flow"
               value={walletAddress ? "Linked" : "Not linked"}
             />
+            <MetricRow
+              icon={<Shield className="h-4 w-4" />}
+              label="Claim freshness"
+              value={
+                loadingClaims
+                  ? "Loading"
+                  : freshnessStatus === "verified"
+                    ? "Fresh"
+                    : freshnessStatus === "expiring_soon"
+                      ? "Expiring soon"
+                      : freshnessStatus === "expired"
+                        ? "Expired"
+                        : "Not issued"
+              }
+            />
           </div>
 
           {claims?.verifiedAt && (
-            <p className="mt-8 text-sm text-slate">
-              Verified at {new Date(claims.verifiedAt).toLocaleString()}
-            </p>
+            <div className="mt-8 space-y-1 text-sm text-slate">
+              <p>Verified at {new Date(claims.verifiedAt).toLocaleString()}</p>
+              {claims.expiresAt && <p>Fresh until {new Date(claims.expiresAt).toLocaleString()}</p>}
+            </div>
           )}
         </div>
       </section>
@@ -214,7 +245,7 @@ export default function Home() {
         </section>
       )}
 
-      <HomeVerificationCard isVerified={isVerified} />
+      <HomeVerificationCard freshnessStatus={freshnessStatus} />
       <WalletCredentialCard userId={walletAddress ?? ""} isVerified={isVerified} />
 
       <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
@@ -256,7 +287,9 @@ export default function Home() {
             <div className="rounded-3xl border border-dashed border-line bg-fog px-6 py-8">
               <p className="text-sm text-slate">
                 {walletAddress
-                  ? "No verified claims yet. Complete the verification flow first."
+                  ? freshnessStatus === "expired"
+                    ? "Your stored claim has expired for product use. Start a new verification to refresh it."
+                    : "No verified claims yet. Complete the verification flow first."
                   : "Connect a wallet to start verification and load claims."}
               </p>
             </div>

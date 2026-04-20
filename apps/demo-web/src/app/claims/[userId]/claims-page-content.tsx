@@ -90,6 +90,13 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
 
   const ownsRoute = walletAddress === userId;
   const hasClaims = data && Object.keys(data.claims).length > 0;
+  const freshnessStatus = data?.freshnessStatus ?? "unverified";
+  const refreshLabel =
+    freshnessStatus === "verified"
+      ? "Start new verification"
+      : freshnessStatus === "expiring_soon"
+        ? "Refresh KYC"
+        : "Verify again";
 
   return (
     <div className="stack">
@@ -149,10 +156,12 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
       {ownsRoute && !loading && !fetchError && !hasClaims && (
         <div className="card">
           <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
-            No verified claims found. Complete a verification first.
+            {freshnessStatus === "expired"
+              ? "Your last verified claim expired. Start a new verification to refresh KYC."
+              : "No verified claims found. Complete a verification first."}
           </p>
           <Link href="/verify" className="btn btn-primary" style={{ width: "fit-content" }}>
-            Start verification
+            {refreshLabel}
           </Link>
         </div>
       )}
@@ -203,10 +212,27 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
             </div>
 
             {data.verifiedAt && (
-              <p style={{ marginTop: 16, fontSize: 12, color: "var(--muted)" }}>
-                Verified at: {new Date(data.verifiedAt).toLocaleString()}
-              </p>
+              <div style={{ marginTop: 16, fontSize: 12, color: "var(--muted)" }}>
+                <p>Verified at: {new Date(data.verifiedAt).toLocaleString()}</p>
+                {data.expiresAt && <p>Fresh until: {new Date(data.expiresAt).toLocaleString()}</p>}
+              </div>
             )}
+          </div>
+
+          <div className="card">
+            <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Freshness</h2>
+            <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 16 }}>
+              {freshnessStatus === "verified"
+                ? "This verification is current."
+                : freshnessStatus === "expiring_soon"
+                  ? "This verification is still valid, but it is close to expiring."
+                  : freshnessStatus === "expired"
+                    ? "This verification is retained for audit and wallet history, but it is expired for product access."
+                    : "No active verification freshness window exists yet."}
+            </p>
+            <Link href="/verify" className="btn btn-primary" style={{ width: "fit-content" }}>
+              {refreshLabel}
+            </Link>
           </div>
 
           <div

@@ -1,10 +1,16 @@
 "use client";
 
-import { BadgeCheck, Shield } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
 
-export function HomeVerificationCard({ isVerified }: { isVerified: boolean }) {
+type FreshnessStatus = "verified" | "expiring_soon" | "expired" | "unverified";
+
+export function HomeVerificationCard({
+  freshnessStatus,
+}: {
+  freshnessStatus: FreshnessStatus;
+}) {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   useEffect(() => {
@@ -18,6 +24,23 @@ export function HomeVerificationCard({ isVerified }: { isVerified: boolean }) {
       window.removeEventListener("mintra:wallet-linked", sync as EventListener);
     };
   }, []);
+
+  const badgeClass =
+    freshnessStatus === "verified"
+      ? "bg-emerald-50 text-emerald-700"
+      : freshnessStatus === "expiring_soon"
+        ? "bg-amber-50 text-amber-700"
+        : freshnessStatus === "expired"
+          ? "bg-rose-50 text-rose-700"
+          : "bg-stone-100 text-stone-600";
+  const badgeLabel =
+    freshnessStatus === "verified"
+      ? "Verified"
+      : freshnessStatus === "expiring_soon"
+        ? "Expiring soon"
+        : freshnessStatus === "expired"
+          ? "Expired — verify again"
+          : "Awaiting verification";
 
   return (
     <div className="rounded-[32px] border border-line bg-white p-8 shadow-card sm:p-10">
@@ -33,9 +56,13 @@ export function HomeVerificationCard({ isVerified }: { isVerified: boolean }) {
             Users must link a Mina wallet before starting verification so the resulting credential already has a destination.
           </p>
         </div>
-        <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${isVerified ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-600"}`}>
-          <BadgeCheck className="h-3.5 w-3.5" />
-          {isVerified ? "Verified" : "Awaiting verification"}
+        <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${badgeClass}`}>
+          {freshnessStatus === "expiring_soon" || freshnessStatus === "expired" ? (
+            <AlertTriangle className="h-3.5 w-3.5" />
+          ) : (
+            <BadgeCheck className="h-3.5 w-3.5" />
+          )}
+          {badgeLabel}
         </div>
       </div>
 
@@ -47,11 +74,15 @@ export function HomeVerificationCard({ isVerified }: { isVerified: boolean }) {
       </div>
 
       <p className="mt-6 text-sm leading-6 text-slate">
-        {isVerified
-          ? "Verification is complete. Your credential can now be issued into Auro below."
-          : walletAddress
-            ? "Wallet linked. Scroll back up and start verification."
-            : "Connect Auro below first, then come back up to start verification."}
+        {freshnessStatus === "verified"
+          ? "Verification is current. Your credential can be issued into Auro below or refreshed any time."
+          : freshnessStatus === "expiring_soon"
+            ? "Your current KYC is still valid, but it is close to expiring. Refresh it soon."
+            : freshnessStatus === "expired"
+              ? "Your stored claim has expired for product access. Start a new verification to refresh KYC."
+              : walletAddress
+                ? "Wallet linked. Scroll back up and start verification."
+                : "Connect Auro below first, then come back up to start verification."}
       </p>
     </div>
   );

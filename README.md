@@ -45,12 +45,12 @@ Mintra is the **provider bridge + claim normalization + SDK layer** that makes M
 │  POST /api/providers/didit/webhook  ← Didit             │
 │  GET  /api/claims/:userId                               │
 │  POST /api/mina/issue-credential                        │
-└──────┬────────────────────────────┬───────────────────────┘
+└──────┬────────────────────────────┬─────────────────────┘
        │ @mintra/provider-didit     │
 ┌──────▼──────────┐        ┌─────────▼──────────────────────┐
-│  Didit REST API │        │  @mintra/verifier             │
-│  + Webhook      │        │  POST /api/verify-presentation│
-│  + HMAC verify  │        │  GET  /health                 │
+│  Didit REST API │        │  @mintra/verifier              │
+│  + Webhook      │        │  POST /api/verify-presentation │
+│  + HMAC verify  │        │  GET  /health                  │
 └─────────────────┘        └─────────┬──────────────────────┘
                                      │ @mintra/mina-bridge
                             ┌────────▼───────────────┐
@@ -151,7 +151,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 The current frontend uses the linked wallet address as the verification user id. In production, replace local wallet-based identity with your real authentication and account model.
 
-The API keeps wallet auth sessions in memory, and persists only minimal verification metadata and normalized claims to a local state file. Normalized claims expire after 30 days. The verifier service is intentionally separate so Mina proof verification does not compete with Didit webhooks and wallet issuance for memory.
+The API keeps wallet auth sessions in memory, and persists only minimal verification metadata and normalized claims to a local state file. Normalized claims are retained for 30 days, but claim freshness is shorter and is used to decide when the product should ask the user to verify again. The verifier service is intentionally separate so Mina proof verification does not compete with Didit webhooks and wallet issuance for memory.
 
 ## Getting Didit Credentials
 
@@ -185,6 +185,8 @@ The Didit webhook endpoint still uses HMAC-SHA256 (`x-signature-v2`) instead. Pr
 
 ## SDK Usage
 
+`@mintra/sdk-js` exists in this monorepo today, but it is **not published to npm yet**. The example below shows the intended client shape and how the local workspace package is used inside this repo.
+
 ```typescript
 import { createMintraClient } from "@mintra/sdk-js";
 
@@ -203,6 +205,8 @@ const status = await mintra.getVerificationStatus(session.sessionId);
 const { claims } = await mintra.getClaims("B62...");
 // { age_over_18: true, kyc_passed: true, country_code: "AT" }
 ```
+
+Publishing the SDK is still a separate step on the roadmap.
 
 ## Monorepo Structure
 
@@ -232,6 +236,7 @@ docs/
 - **No raw KYC storage in Mintra**: Mintra does not store identity documents, selfies, or full KYC payloads. It keeps only minimal verification metadata, normalized claims, and webhook dedupe keys.
 - **Provider-side retention still applies**: In the current setup, Didit retains the underlying verification data for 1 month, which is the shortest retention window Didit currently offers.
 - **Mintra claim retention is 30 days**: normalized backend claims expire after 30 days and are removed on load/read.
+- **Claim freshness is shorter than retention**: the API returns `verified`, `expiring_soon`, or `expired` so apps can ask users to refresh KYC before the 30-day retention window ends.
 - **Wallet address as user id**: The current demo uses the linked wallet address as the verification identifier. Production use should map verification state to real application accounts.
 - **Ephemeral auth sessions**: Wallet sign-in sessions are short-lived and are cleared on API restart.
 - **Mina credential issuance**: Functional, but wallet issuance requires `MINA_ISSUER_PRIVATE_KEY` to be set on the API. Key management guidance is in [docs/security.md](docs/security.md).

@@ -86,6 +86,15 @@ Retention:
 - normalized claims expire after 30 days
 - expired claims are dropped when the API hydrates state and when claims are read
 
+Freshness:
+- Mintra also tracks a shorter claim freshness window for product access decisions
+- the claims API returns:
+  - `verified`
+  - `expiring_soon`
+  - `expired`
+  - `unverified`
+- apps can let users start a new verification at any time, even before retention expiry
+
 ### Not persisted by Mintra
 
 - document images
