@@ -1,9 +1,5 @@
 "use client";
 
-import {
-  buildAgeOver18PresentationRequest,
-  serializePresentationRequest,
-} from "@mintra/verifier-core";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
 import { Lock } from "lucide-react";
 import Link from "next/link";
@@ -56,8 +52,26 @@ export default function ProtectedPage() {
         throw new Error("Reconnect the same wallet that completed verification.");
       }
 
-      const request = await buildAgeOver18PresentationRequest();
-      const presentationRequest = await serializePresentationRequest(request);
+      const verifierUrl =
+        process.env.NEXT_PUBLIC_MINTRA_VERIFIER_URL?.replace(/\/$/, "") ??
+        "http://localhost:3002";
+
+      const requestResponse = await fetch(`${verifierUrl}/api/presentation-request`, {
+        method: "GET",
+      });
+
+      if (!requestResponse.ok) {
+        const body = await requestResponse.text();
+        throw new Error(`Could not create proof request: ${body}`);
+      }
+
+      const {
+        presentationRequest,
+        presentationRequestJson,
+      }: {
+        presentationRequest: unknown;
+        presentationRequestJson: string;
+      } = await requestResponse.json();
 
       setLoadingStep("proving");
       const result = await provider.requestPresentation({
@@ -80,10 +94,6 @@ export default function ProtectedPage() {
         throw new Error(result.message || "Auro could not create the presentation.");
       }
 
-      const verifierUrl =
-        process.env.NEXT_PUBLIC_MINTRA_VERIFIER_URL?.replace(/\/$/, "") ??
-        "http://localhost:3002";
-
       setLoadingStep("verifying");
       const verifyResponse = await fetch(`${verifierUrl}/api/verify-presentation`, {
         method: "POST",
@@ -92,7 +102,7 @@ export default function ProtectedPage() {
         },
         body: JSON.stringify({
           presentation: result.presentation,
-          presentationRequestJson: JSON.stringify(presentationRequest),
+          presentationRequestJson,
           expectedOwnerPublicKey: activeWallet,
         }),
       });

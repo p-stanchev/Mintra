@@ -18,10 +18,11 @@ That work is independent of Didit session management and wallet-authenticated cl
 
 `services/verifier` exposes:
 
+- `GET /api/presentation-request`
 - `POST /api/verify-presentation`
 - `GET /health`
 
-It does **not** read Mintra claims or query Didit. It only verifies a wallet-generated presentation against the request your app sent to Auro.
+It does **not** read Mintra claims or query Didit. It creates verifier-bound presentation requests and verifies the wallet-generated presentation against the exact request it issued.
 
 ## Reusable package
 
@@ -39,6 +40,23 @@ That package contains the public building blocks another app needs:
 `services/verifier` is just a reference Fastify wrapper around those helpers. Another team can run that service as-is, or call `@mintra/verifier-core` directly from their own backend.
 
 ## Request contract
+
+`GET /api/presentation-request`
+
+Success response:
+
+```json
+{
+  "presentationRequest": { "...": "..." },
+  "presentationRequestJson": "{\"type\":\"https\",...}"
+}
+```
+
+Behavior:
+
+- creates the age-over-18 HTTPS presentation request on the verifier backend
+- serializes it for the frontend and for later verification
+- keeps the verifier in control of the request format and server nonce
 
 `POST /api/verify-presentation`
 
@@ -71,9 +89,9 @@ Success response:
 
 The demo app does this on `/protected`:
 
-1. build a presentation request with `@mintra/verifier-core`
+1. fetch a presentation request from `services/verifier`
 2. send it to Auro with `window.mina.requestPresentation(...)`
-3. forward the returned presentation to `services/verifier`
+3. forward the returned presentation back to `services/verifier`
 4. unlock the page only if the verifier accepts it
 
 That means:
@@ -98,7 +116,7 @@ Do **not** treat “wallet returned something” as equivalent to proof verifica
 On another backend, the flow is:
 
 1. install or vendor the verifier helpers
-2. build the request the frontend will ask Auro to satisfy
+2. build the request on the backend the frontend will ask Auro to satisfy
 3. serialize that request and send it to the frontend
 4. receive `presentation` and `presentationRequestJson` back from the frontend
 5. verify the presentation on your own server
@@ -124,10 +142,11 @@ const parsedRequest = await parsePresentationRequest(presentationRequestJson);
 const verified = await verifyAgeOver18Presentation({
   request: parsedRequest,
   presentationJson,
+  verifierIdentity: "https://your-app.example",
 });
 
-const ownerPublicKey = verified.owner.toBase58();
-const ageOver18 = verified.ageOver18.toString() === "1";
+const ownerPublicKey = verified.ownerPublicKey;
+const ageOver18 = verified.ageOver18;
 ```
 
 If `ownerPublicKey` matches the wallet your app expects and `ageOver18` is true, the verifier can grant access without querying Mintra.

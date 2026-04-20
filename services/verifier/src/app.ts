@@ -3,7 +3,9 @@ import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { z } from "zod";
 import {
+  buildAgeOver18PresentationRequest,
   parseHttpsPresentationRequest,
+  serializePresentationRequest,
   verifyAgeOver18Presentation,
 } from "@mintra/verifier-core";
 
@@ -40,6 +42,26 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
 
   await app.register(cors, { origin: corsOrigin === "*" ? false : allowedOrigins });
   await app.register(rateLimit, { max: 30, timeWindow: "1 minute" });
+
+  app.get("/api/presentation-request", async (request, reply) => {
+    const verifierIdentity = request.headers.origin;
+    if (!verifierIdentity || !allowedOrigins.includes(verifierIdentity)) {
+      return reply.status(403).send({ error: "Verifier origin is not allowed" });
+    }
+
+    try {
+      const presentationRequestSpec = await buildAgeOver18PresentationRequest();
+      const presentationRequest = await serializePresentationRequest(presentationRequestSpec);
+
+      return reply.send({
+        presentationRequest,
+        presentationRequestJson: JSON.stringify(presentationRequest),
+      });
+    } catch (err) {
+      app.log.error({ err }, "verifier.presentation_request_failed");
+      return reply.status(500).send({ error: "Could not create presentation request" });
+    }
+  });
 
   app.post("/api/verify-presentation", async (request, reply) => {
     let body: z.infer<typeof VerifyPresentationRequestSchema>;
