@@ -1,6 +1,12 @@
 export {};
 
 declare global {
+  interface AuroProviderError {
+    code: number;
+    message: string;
+    data?: unknown;
+  }
+
   interface Window {
     mina?: {
       requestAccounts: () => Promise<string[]>;
@@ -12,12 +18,16 @@ declare global {
           field: string;
           scalar: string;
         };
-      } | {
-        code: number;
-        message: string;
-        data?: unknown;
-      }>;
+      } | AuroProviderError>;
       storePrivateCredential: (args: { credential: unknown }) => Promise<unknown>;
+      requestPresentation: (args: {
+        presentation: {
+          presentationRequest: unknown;
+          zkAppAccount?: unknown;
+        };
+      }) => Promise<{
+        presentation: string;
+      } | AuroProviderError>;
     };
   }
 }

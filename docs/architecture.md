@@ -16,43 +16,43 @@ Mintra sits between a real-world KYC provider and the Mina credential layer. It 
                                │
 ┌──────────────────────────────▼───────────────────────────────┐
 │  @mintra/demo-web  (Next.js 14)                              │
-│                                                               │
-│  /                  Wallet-first landing page                 │
-│  /verify            Starts Didit session                      │
-│  /verify/callback   Polls verification status                 │
-│  /claims/[userId]   Shows normalized claims                   │
-│  /protected         Checks age_over_18                        │
-│                                                               │
-│  Browser auth flow:                                           │
-│    POST /api/auth/challenge                                   │
-│    window.mina.signMessage(...)                               │
-│    POST /api/auth/verify                                      │
-│    Bearer token kept in sessionStorage                        │
+│                                                              │
+│  /                  Wallet-first landing page                │
+│  /verify            Starts Didit session                     │
+│  /verify/callback   Polls verification status                │
+│  /claims/[userId]   Shows normalized claims                  │
+│  /protected         Checks age_over_18                       │
+│                                                              │
+│  Browser auth flow:                                          │
+│    POST /api/auth/challenge                                  │
+│    window.mina.signMessage(...)                              │
+│    POST /api/auth/verify                                     │
+│    Bearer token kept in sessionStorage                       │
 └──────────────────────────────┬───────────────────────────────┘
                                │ @mintra/sdk-js
 ┌──────────────────────────────▼───────────────────────────────┐
-│  @mintra/api  (Fastify 4)                                     │
-│                                                               │
-│  Routes:                                                      │
-│    POST /api/auth/challenge                                   │
-│    POST /api/auth/verify                                      │
-│    POST /api/auth/logout                                      │
-│    POST /api/verifications/start                              │
-│    GET  /api/verifications/:id/status                         │
-│    POST /api/providers/didit/webhook                          │
-│    GET  /api/claims/:userId                                   │
-│    POST /api/mina/issue-credential                            │
-│    GET  /health                                               │
-│                                                               │
-│  Minimal persisted state:                                     │
-│    .mintra/state.json                                         │
-│    - verifications                                            │
-│    - normalized claims                                        │
-│    - processed webhook dedupe keys                            │
-│                                                               │
-│  Ephemeral auth state:                                        │
-│    - wallet challenges                                        │
-│    - short-lived bearer sessions                              │
+│  @mintra/api  (Fastify 4)                                    │
+│                                                              │
+│  Routes:                                                     │
+│    POST /api/auth/challenge                                  │
+│    POST /api/auth/verify                                     │
+│    POST /api/auth/logout                                     │
+│    POST /api/verifications/start                             │
+│    GET  /api/verifications/:id/status                        │
+│    POST /api/providers/didit/webhook                         │
+│    GET  /api/claims/:userId                                  │
+│    POST /api/mina/issue-credential                           │
+│    GET  /health                                              │
+│                                                              │
+│  Minimal persisted state:                                    │
+│    .mintra/state.json                                        │
+│    - verifications                                           │
+│    - normalized claims                                       │
+│    - processed webhook dedupe keys                           │
+│                                                              │
+│  Ephemeral auth state:                                       │
+│    - wallet challenges                                       │
+│    - short-lived bearer sessios                              │
 └────────────┬──────────────────────────────┬──────────────────┘
              │                              │
 ┌────────────▼────────────┐    ┌────────────▼──────────────────┐
