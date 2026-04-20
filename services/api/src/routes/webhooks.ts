@@ -62,10 +62,12 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
         verificationId: verification.id,
         hasDateOfBirth: !!event.decision.id_verification?.date_of_birth,
         ageOver18Granted: normalizedClaims.age_over_18 === true,
+        ageOver21Granted: normalizedClaims.age_over_21 === true,
         kycPassed: normalizedClaims.kyc_passed === true,
       }, "webhook.claims_computed");
       await app.store.upsertClaims(verification.userId, verification.id, {
         ...(normalizedClaims.age_over_18 !== undefined ? { ageOver18: normalizedClaims.age_over_18 } : {}),
+        ...(normalizedClaims.age_over_21 !== undefined ? { ageOver21: normalizedClaims.age_over_21 } : {}),
         ...(normalizedClaims.kyc_passed !== undefined ? { kycPassed: normalizedClaims.kyc_passed } : {}),
         ...(normalizedClaims.country_code !== undefined ? { countryCode: normalizedClaims.country_code } : {}),
       });

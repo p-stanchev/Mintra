@@ -248,7 +248,11 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
             <ul style={{ color: "var(--muted)", fontSize: 13, paddingLeft: 20, lineHeight: 2 }}>
               <li>
                 <strong style={{ color: "var(--text)" }}>age_over_18</strong> — the identity
-                provider confirmed a government-issued ID with a valid date of birth showing 18+
+                provider confirmed the holder is at least 18
+              </li>
+              <li>
+                <strong style={{ color: "var(--text)" }}>age_over_21</strong> — the identity
+                provider confirmed the holder is at least 21
               </li>
               <li>
                 <strong style={{ color: "var(--text)" }}>kyc_passed</strong> — the full KYC check

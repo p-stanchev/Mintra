@@ -72,6 +72,7 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
       const claim = await app.store.getClaims(record.userId);
       if (claim) {
         if (claim.ageOver18 !== null) normalizedClaims["age_over_18"] = claim.ageOver18;
+        if (claim.ageOver21 !== null) normalizedClaims["age_over_21"] = claim.ageOver21;
         if (claim.kycPassed !== null) normalizedClaims["kyc_passed"] = claim.kycPassed;
         if (claim.countryCode !== null) normalizedClaims["country_code"] = claim.countryCode;
       }

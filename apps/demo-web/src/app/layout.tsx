@@ -25,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <nav className="flex items-center gap-6 text-sm text-slate">
               <a className="transition hover:text-ink" href="/">Home</a>
               <a className="transition hover:text-ink" href="/protected">Protected</a>
+              <a className="transition hover:text-ink" href="/playground">Playground</a>
             </nav>
           </header>
           <main className="flex-1">{children}</main>

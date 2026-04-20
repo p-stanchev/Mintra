@@ -2,6 +2,7 @@ import type { NormalizedClaims } from "./verification";
 
 export interface MinaCredentialData {
   ageOver18: 0 | 1;
+  ageOver21: 0 | 1;
   kycPassed: 0 | 1;
   countryCode: number; // ISO 3166-1 numeric (0 = not provided)
   issuedAt: number;    // Unix timestamp seconds

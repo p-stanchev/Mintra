@@ -138,7 +138,7 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
   }
 
   return (
-    <div id="wallet-credential" className="rounded-3xl border border-line bg-white p-6 shadow-card">
+    <div id="wallet-credential" className="scroll-mt-28 rounded-3xl border border-line bg-white p-6 shadow-card">
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
           <div>

@@ -21,6 +21,7 @@ export const claimsRouter: FastifyPluginAsync = async (app) => {
     let freshnessStatus: "verified" | "expiring_soon" | "expired" | "unverified" = "unverified";
     if (claim) {
       if (claim.ageOver18 !== null) normalizedClaims["age_over_18"] = claim.ageOver18;
+      if (claim.ageOver21 !== null) normalizedClaims["age_over_21"] = claim.ageOver21;
       if (claim.kycPassed !== null) normalizedClaims["kyc_passed"] = claim.kycPassed;
       if (claim.countryCode !== null) normalizedClaims["country_code"] = claim.countryCode;
       verifiedAt = claim.verifiedAt.toISOString();

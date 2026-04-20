@@ -14,6 +14,7 @@ export function claimsToCredentialData(
 
   return {
     ageOver18: claims.age_over_18 === true ? 1 : 0,
+    ageOver21: claims.age_over_21 === true ? 1 : 0,
     kycPassed: claims.kyc_passed === true ? 1 : 0,
     countryCode: countryNumeric,
     issuedAt,

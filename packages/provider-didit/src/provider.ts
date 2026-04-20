@@ -164,6 +164,9 @@ export class DiditProvider implements VerificationProvider {
     if (age !== null && age >= 18) {
       claims.age_over_18 = true;
     }
+    if (age !== null && age >= 21) {
+      claims.age_over_21 = true;
+    }
     const countryCode = normalizeCountryToIso2(
       idVerif.country,
       idVerif.issuing_country,

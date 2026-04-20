@@ -6,10 +6,11 @@ describe("claimsToCredentialData", () => {
 
   it("maps all positive claims", () => {
     const result = claimsToCredentialData(
-      { age_over_18: true, kyc_passed: true, country_code: "AT" },
+      { age_over_18: true, age_over_21: true, kyc_passed: true, country_code: "AT" },
       TS
     );
     expect(result.ageOver18).toBe(1);
+    expect(result.ageOver21).toBe(1);
     expect(result.kycPassed).toBe(1);
     expect(result.countryCode).toBe(40); // AT = 40
     expect(result.issuedAt).toBe(TS);
@@ -18,6 +19,7 @@ describe("claimsToCredentialData", () => {
   it("maps absent/false claims to 0", () => {
     const result = claimsToCredentialData({}, TS);
     expect(result.ageOver18).toBe(0);
+    expect(result.ageOver21).toBe(0);
     expect(result.kycPassed).toBe(0);
     expect(result.countryCode).toBe(0);
   });

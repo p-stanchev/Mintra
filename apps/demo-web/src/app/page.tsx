@@ -162,6 +162,12 @@ export default function Home() {
             >
               View protected route
             </Link>
+            <Link
+              href="/playground"
+              className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-fog"
+            >
+              Verifier Playground
+            </Link>
           </div>
         </div>
 
@@ -275,6 +281,9 @@ export default function Home() {
             <div className="space-y-3">
               {claims.claims.age_over_18 !== undefined && (
                 <ClaimRow label="age_over_18" value={String(claims.claims.age_over_18)} />
+              )}
+              {claims.claims.age_over_21 !== undefined && (
+                <ClaimRow label="age_over_21" value={String(claims.claims.age_over_21)} />
               )}
               {claims.claims.kyc_passed !== undefined && (
                 <ClaimRow label="kyc_passed" value={String(claims.claims.kyc_passed)} />

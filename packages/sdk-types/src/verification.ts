@@ -12,6 +12,7 @@ export type VerificationStatus = z.infer<typeof VerificationStatusSchema>;
 
 export const NormalizedClaimsSchema = z.object({
   age_over_18: z.boolean().optional(),
+  age_over_21: z.boolean().optional(),
   kyc_passed: z.boolean().optional(),
   country_code: z.string().length(2).toUpperCase().optional(),
 });

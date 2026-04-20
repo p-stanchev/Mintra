@@ -37,6 +37,7 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
 
     const normalizedClaims = {
       ...(claim.ageOver18 !== null ? { age_over_18: claim.ageOver18 } : {}),
+      ...(claim.ageOver21 !== null ? { age_over_21: claim.ageOver21 } : {}),
       ...(claim.kycPassed !== null ? { kyc_passed: claim.kycPassed } : {}),
       ...(claim.countryCode !== null ? { country_code: claim.countryCode } : {}),
     };

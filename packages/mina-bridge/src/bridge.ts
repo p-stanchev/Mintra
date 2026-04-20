@@ -45,6 +45,7 @@ export class MinaBridge {
 
     const data = {
       ageOver18: Field(credData.ageOver18),
+      ageOver21: Field(credData.ageOver21),
       kycPassed: Field(credData.kycPassed),
       countryCode: Field(credData.countryCode),
       issuedAt: Field(credData.issuedAt),

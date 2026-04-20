@@ -19,6 +19,7 @@ That work is independent of Didit session management and wallet-authenticated cl
 `services/verifier` exposes:
 
 - `GET /api/presentation-request`
+- `POST /api/presentation-request`
 - `POST /api/verify-presentation`
 - `GET /health`
 
@@ -57,6 +58,24 @@ Behavior:
 - creates the age-over-18 HTTPS presentation request on the verifier backend
 - serializes it for the frontend and for later verification
 - keeps the verifier in control of the request format and server nonce
+
+`POST /api/presentation-request`
+
+```json
+{
+  "minAge": 21,
+  "requireKycPassed": true,
+  "countryAllowlist": ["US", "DE"],
+  "countryBlocklist": ["RU"],
+  "maxCredentialAgeDays": 30
+}
+```
+
+Behavior:
+
+- builds a verifier-bound HTTPS request for the submitted policy
+- supports the same policy model used by the demo playground
+- returns the serialized request the frontend should send to Auro
 
 `POST /api/verify-presentation`
 

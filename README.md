@@ -148,6 +148,7 @@ Open [http://localhost:3000](http://localhost:3000).
 4. Complete the hosted Didit KYC flow
 5. Return to Mintra, review claims, and issue the Mina credential into Auro
 6. Open `/protected` and prove the stored credential through the dedicated verifier service
+7. Open `/playground` to test custom verifier policies like 21+, country allow/block lists, or freshness windows
 
 The current frontend uses the linked wallet address as the verification user id. In production, replace local wallet-based identity with your real authentication and account model.
 

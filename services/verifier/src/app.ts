@@ -3,10 +3,11 @@ import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { z } from "zod";
 import {
-  buildAgeOver18PresentationRequest,
+  buildPresentationRequest,
+  normalizeVerifierPolicy,
   parseHttpsPresentationRequest,
   serializePresentationRequest,
-  verifyAgeOver18Presentation,
+  verifyPresentationPolicy,
 } from "@mintra/verifier-core";
 
 const MinaPublicKeySchema = z
@@ -17,6 +18,14 @@ const VerifyPresentationRequestSchema = z.object({
   presentation: z.string().min(1),
   presentationRequestJson: z.string().min(1),
   expectedOwnerPublicKey: MinaPublicKeySchema,
+});
+
+const PresentationPolicySchema = z.object({
+  minAge: z.union([z.literal(18), z.literal(21)]).optional(),
+  requireKycPassed: z.boolean().optional(),
+  countryAllowlist: z.array(z.string().min(2)).max(32).optional(),
+  countryBlocklist: z.array(z.string().min(2)).max(32).optional(),
+  maxCredentialAgeDays: z.number().int().positive().max(3650).optional(),
 });
 
 export interface VerifierAppOptions {
@@ -50,10 +59,42 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
     }
 
     try {
-      const presentationRequestSpec = await buildAgeOver18PresentationRequest();
+      const presentationRequestSpec = await buildPresentationRequest({
+        minAge: 18,
+        requireKycPassed: true,
+      });
       const presentationRequest = await serializePresentationRequest(presentationRequestSpec);
 
       return reply.send({
+        presentationRequest,
+        presentationRequestJson: JSON.stringify(presentationRequest),
+      });
+    } catch (err) {
+      app.log.error({ err }, "verifier.presentation_request_failed");
+      return reply.status(500).send({ error: "Could not create presentation request" });
+    }
+  });
+
+  app.post("/api/presentation-request", async (request, reply) => {
+    const verifierIdentity = request.headers.origin;
+    if (!verifierIdentity || !allowedOrigins.includes(verifierIdentity)) {
+      return reply.status(403).send({ error: "Verifier origin is not allowed" });
+    }
+
+    let policy: z.infer<typeof PresentationPolicySchema>;
+    try {
+      policy = PresentationPolicySchema.parse(request.body ?? {});
+    } catch (err) {
+      return reply.status(400).send({ error: "Invalid policy", detail: String(err) });
+    }
+
+    try {
+      const normalizedPolicy = normalizeVerifierPolicy(policy);
+      const presentationRequestSpec = await buildPresentationRequest(normalizedPolicy);
+      const presentationRequest = await serializePresentationRequest(presentationRequestSpec);
+
+      return reply.send({
+        policy: normalizedPolicy,
         presentationRequest,
         presentationRequestJson: JSON.stringify(presentationRequest),
       });
@@ -78,7 +119,7 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
 
     try {
       const requestSpec = await parseHttpsPresentationRequest(body.presentationRequestJson);
-      const verified = await verifyAgeOver18Presentation({
+      const verified = await verifyPresentationPolicy({
         request: requestSpec,
         presentationJson: body.presentation,
         verifierIdentity,
@@ -100,7 +141,13 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
       return reply.send({
         verified: true,
         ownerPublicKey,
-        ageOver18: true,
+        output: {
+          ageOver18: verified.ageOver18,
+          ageOver21: verified.ageOver21,
+          kycPassed: verified.kycPassed,
+          countryCodeNumeric: verified.countryCodeNumeric,
+          issuedAt: verified.issuedAt,
+        },
       });
     } catch (err) {
       app.log.warn({ err }, "verifier.presentation_verify_failed");

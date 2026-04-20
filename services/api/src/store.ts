@@ -29,6 +29,7 @@ export interface ClaimsRecord {
   userId: string;
   verificationId: string;
   ageOver18: boolean | null;
+  ageOver21: boolean | null;
   kycPassed: boolean | null;
   countryCode: string | null;
   verifiedAt: Date;
@@ -42,7 +43,7 @@ export interface VerificationStore {
   upsertClaims(
     userId: string,
     verificationId: string,
-    data: { ageOver18?: boolean; kycPassed?: boolean; countryCode?: string }
+    data: { ageOver18?: boolean; ageOver21?: boolean; kycPassed?: boolean; countryCode?: string }
   ): Promise<void>;
   getClaims(userId: string): Promise<ClaimsRecord | undefined>;
   isWebhookProcessed(key: string): boolean;
@@ -112,7 +113,7 @@ export class InMemoryStore implements VerificationStore {
   async upsertClaims(
     userId: string,
     verificationId: string,
-    data: { ageOver18?: boolean; kycPassed?: boolean; countryCode?: string }
+    data: { ageOver18?: boolean; ageOver21?: boolean; kycPassed?: boolean; countryCode?: string }
   ): Promise<void> {
     if (!this.claims.has(userId) && this.claims.size >= MAX_CLAIMS) {
       throw new Error("Claims store capacity exceeded");
@@ -121,6 +122,7 @@ export class InMemoryStore implements VerificationStore {
       userId,
       verificationId,
       ageOver18: data.ageOver18 ?? null,
+      ageOver21: data.ageOver21 ?? null,
       kycPassed: data.kycPassed ?? null,
       countryCode: data.countryCode ?? null,
       verifiedAt: new Date(),
@@ -186,6 +188,7 @@ export class InMemoryStore implements VerificationStore {
       for (const claim of parsed.claims ?? []) {
         const hydratedClaim: ClaimsRecord = {
           ...claim,
+          ageOver21: "ageOver21" in claim ? claim.ageOver21 : null,
           verifiedAt: new Date(claim.verifiedAt),
         };
         if (!isClaimExpired(hydratedClaim)) {

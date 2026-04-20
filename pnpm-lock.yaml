@@ -154,6 +154,9 @@ importers:
 
   packages/verifier-core:
     dependencies:
+      i18n-iso-countries:
+        specifier: ^7.14.0
+        version: 7.14.0
       mina-attestations:
         specifier: ^0.5.3
         version: 0.5.3(o1js@2.14.0)
