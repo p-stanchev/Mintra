@@ -37,6 +37,18 @@ function parseCountryList(raw: string): string[] {
     .filter(Boolean);
 }
 
+function formatPlaygroundError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (
+    message.includes("Program assertion failed") ||
+    message.includes("Constraint unsatisfied") ||
+    message.includes("Proof verification failed")
+  ) {
+    return "The stored credential does not satisfy the selected policy. Check the requested age threshold, country allow/block list, and freshness window.";
+  }
+  return message;
+}
+
 export default function PlaygroundPage() {
   const [minAge, setMinAge] = useState<"18" | "21" | "none">("18");
   const [requireKycPassed, setRequireKycPassed] = useState(true);
@@ -126,7 +138,11 @@ export default function PlaygroundPage() {
         presentationRequestJson: string;
       } = await requestResponse.json();
 
-      setRequestJson(presentationRequestJson);
+      try {
+        setRequestJson(JSON.stringify(JSON.parse(presentationRequestJson), null, 2));
+      } catch {
+        setRequestJson(presentationRequestJson);
+      }
       setLoadingStep("proving");
 
       const proof = await provider.requestPresentation({
@@ -163,7 +179,7 @@ export default function PlaygroundPage() {
       setResult(verified);
       setLoadingStep("idle");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not verify the wallet credential.");
+      setError(formatPlaygroundError(err));
       setLoadingStep("idle");
     }
   }
