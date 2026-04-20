@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { mintra } from "@/lib/mintra";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
@@ -64,7 +65,7 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
           </p>
         </div>
         <Link href="/" className="btn btn-secondary">
-          ← Back
+          <ArrowLeft size={16} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} /> Back
         </Link>
       </div>
 
