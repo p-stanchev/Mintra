@@ -119,9 +119,7 @@ Open [http://localhost:3000](http://localhost:3000).
 2. Connect an Auro wallet
 3. Start verification
 4. Complete the hosted Didit KYC flow
-5. Return to Mintra and review the normalized claims for the linked wallet
-6. Issue the Mina credential into Auro
-7. Visit the protected route, which unlocks when the linked wallet has the `age_over_18` claim
+5. Return to Mintra and issue the Mina credential into Auro
 
 The current frontend uses the linked wallet address as the verification user id. In production, replace local wallet-based identity with your real authentication and account model.
 
@@ -187,9 +185,9 @@ docs/
 ## Current Limitations
 
 - **Single provider**: Only Didit is integrated. Sumsub, Persona, Veriff are on the roadmap.
-- **Off-chain authorization only (v1)**: The protected route currently checks API-backed claims for the linked wallet. Wallet-stored credentials are issued and saved to Auro, but verifier-side proof or on-chain presentation flows are still v2 work.
+- **Off-chain claims only (v1)**: Claims are stored server-side. Mina on-chain proof generation is v2.
 - **No raw KYC storage in Mintra**: Mintra does not store identity documents, selfies, or full KYC payloads. It keeps only minimal in-memory verification linkage and normalized claims, so an API restart clears in-flight verification state.
-- **Provider-side retention still applies**: In the current setup, the Didit app is configured for a 1-month retention window, which is the shortest retention option Didit currently offers.
+- **Provider-side retention still applies**: In the current setup, Didit retains the underlying verification data for 1 month, which is the shortest retention window Didit currently offers.
 - **Wallet address as user id**: The current demo uses the linked wallet address as the verification identifier. Production use should map verification state to real application accounts.
 - **Mina credential issuance**: Functional, but wallet issuance requires `MINA_ISSUER_PRIVATE_KEY` to be set on the API. Key management guidance is in [docs/security.md](docs/security.md).
 - **Auro storage only**: The demo supports connecting Auro and storing the credential there. Presentation/proof flows are still v2 work.

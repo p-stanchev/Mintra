@@ -1,8 +1,12 @@
 import type { FastifyPluginAsync } from "fastify";
 import { StartVerificationRequestSchema } from "@mintra/sdk-types";
 
+const USER_ID_RE = /^[a-zA-Z0-9_\-.@:]{1,128}$/;
+
 export const verificationsRouter: FastifyPluginAsync = async (app) => {
-  app.post("/start", async (request, reply) => {
+  app.post("/start", {
+    config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+  }, async (request, reply) => {
     let body: { userId: string; redirectUrl?: string };
     try {
       body = StartVerificationRequestSchema.parse(request.body) as typeof body;
@@ -11,12 +15,26 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
     }
 
     const { userId, redirectUrl } = body;
+
+    if (!USER_ID_RE.test(userId)) {
+      return reply.status(400).send({ error: "Invalid userId format" });
+    }
+
+    if (redirectUrl !== undefined) {
+      const allowed = app.allowedCallbackOrigins;
+      const ok = allowed.some((origin) => redirectUrl === origin || redirectUrl.startsWith(origin + "/"));
+      if (!ok) {
+        return reply.status(400).send({ error: "redirectUrl is not an allowed callback origin" });
+      }
+    }
+
     const session = await app.diditProvider.createSession({
       userId,
       ...(redirectUrl !== undefined ? { redirectUrl } : {}),
     });
 
     const record = await app.store.createVerification(userId, session.sessionId);
+    app.log.info({ userId, verificationId: record.id }, "verification.created");
 
     return reply.status(201).send({
       sessionId: record.id,
@@ -25,9 +43,13 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.get<{ Params: { id: string } }>("/:id/status", async (request, reply) => {
+  app.get<{ Params: { id: string } }>("/:id/status", {
+    config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+  }, async (request, reply) => {
     const { id } = request.params;
-    const record = (await app.store.getVerification(id)) ?? (await app.store.getVerificationByProviderRef(id));
+
+    // Only resolve by internal UUID — never expose provider session ID as a lookup key
+    const record = await app.store.getVerification(id);
     if (!record) {
       return reply.status(404).send({ error: "Verification not found" });
     }
@@ -42,13 +64,14 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
       }
     }
 
+    app.log.info({ verificationId: id, status: record.status }, "verification.status_read");
+
     return reply.send({
       id: record.id,
       userId: record.userId,
       provider: record.provider,
       status: record.status,
       claims: normalizedClaims,
-      providerReference: record.providerReference,
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),
     });

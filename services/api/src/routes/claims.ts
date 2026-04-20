@@ -12,6 +12,7 @@ export const claimsRouter: FastifyPluginAsync = async (app) => {
       if (claim.countryCode !== null) normalizedClaims["country_code"] = claim.countryCode;
     }
 
+    app.log.info({ userId }, "claims.read");
     return reply.send({
       userId,
       claims: normalizedClaims,

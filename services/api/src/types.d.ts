@@ -14,5 +14,6 @@ declare module "fastify" {
     store: VerificationStore;
     diditProvider: DiditProvider;
     minaBridge: MinaBridgeLike | null;
+    allowedCallbackOrigins: string[];
   }
 }

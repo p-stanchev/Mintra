@@ -2,8 +2,7 @@ import { z } from "zod";
 import { NormalizedClaimsSchema, VerificationRecordSchema } from "./verification";
 
 export const StartVerificationRequestSchema = z.object({
-  userId: z.string().min(1),
-  claim: z.enum(["age_over_18", "kyc_passed"]),
+  userId: z.string().min(1).max(128).regex(/^[a-zA-Z0-9_\-.@:]+$/, "userId contains invalid characters"),
   redirectUrl: z.string().url().optional(),
 });
 export type StartVerificationRequest = z.infer<typeof StartVerificationRequestSchema>;

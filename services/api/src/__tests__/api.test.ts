@@ -11,21 +11,6 @@ function sign(body: string): string {
   return createHmac("sha256", TEST_SECRET).update(Buffer.from(body)).digest("hex");
 }
 
-function signSimple(payload: {
-  timestamp?: number;
-  session_id?: string;
-  status?: string;
-  webhook_type?: string;
-}): string {
-  const canonical = [
-    payload.timestamp ?? "",
-    payload.session_id ?? "",
-    payload.status ?? "",
-    payload.webhook_type ?? "",
-  ].join(":");
-
-  return createHmac("sha256", TEST_SECRET).update(canonical).digest("hex");
-}
 
 function signV2(payload: unknown): string {
   return createHmac("sha256", TEST_SECRET)
@@ -98,49 +83,47 @@ describe("Mintra API", () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it("GET /api/verifications/:id/status resolves provider session ids too", async () => {
+  it("GET /api/verifications/:id/status resolves by internal UUID only", async () => {
     const verification = await app.store.createVerification("user-provider-ref", "provider-session-123");
 
+    // Internal UUID works
     const res = await app.inject({
+      method: "GET",
+      url: `/api/verifications/${verification.id}/status`,
+    });
+    expect(res.statusCode).toBe(200);
+
+    // Provider session ID must NOT be a valid lookup key (security: prevents enumeration)
+    const res2 = await app.inject({
       method: "GET",
       url: "/api/verifications/provider-session-123/status",
     });
-
-    expect(res.statusCode).toBe(200);
-    const data = JSON.parse(res.body);
-    expect(data.id).toBe(verification.id);
-    expect(data.providerReference).toBe("provider-session-123");
+    expect(res2.statusCode).toBe(404);
   });
 
-  it("webhook with valid signature updates store and stores claims", async () => {
-    // Seed a verification directly into the store
+  it("webhook with valid v2 signature updates store and stores claims", async () => {
     const sessionId = "sess-valid-123";
     const timestamp = Math.floor(Date.now() / 1000);
     await app.store.createVerification("user-webhook", sessionId);
 
-    const body = JSON.stringify({
+    const payload = {
       session_id: sessionId,
       status: "Approved",
       webhook_type: "status.updated",
       vendor_data: "user-webhook",
       timestamp,
       decision: { id_verification: { status: "APPROVED", country: "US" } },
-    });
+    };
 
     const res = await app.inject({
       method: "POST",
       url: "/api/providers/didit/webhook",
       headers: {
         "content-type": "application/json",
-        "x-signature-simple": signSimple({
-          timestamp,
-          session_id: sessionId,
-          status: "Approved",
-          webhook_type: "status.updated",
-        }),
+        "x-signature-v2": signV2(payload),
         "x-timestamp": String(timestamp),
       },
-      payload: body,
+      payload: JSON.stringify(payload),
     });
     expect(res.statusCode).toBe(200);
 
@@ -271,27 +254,24 @@ describe("Mintra API", () => {
     const timestamp = Math.floor(Date.now() / 1000);
     const verification = await app.store.createVerification("user-pending", sessionId);
 
-    const body = JSON.stringify({
+    const payload = {
       session_id: sessionId,
       status: "Not Started",
       webhook_type: "status.updated",
+      vendor_data: "user-pending",
       timestamp,
-    });
+      decision: { id_verification: { status: "PENDING" } },
+    };
 
     const res = await app.inject({
       method: "POST",
       url: "/api/providers/didit/webhook",
       headers: {
         "content-type": "application/json",
-        "x-signature-simple": signSimple({
-          timestamp,
-          session_id: sessionId,
-          status: "Not Started",
-          webhook_type: "status.updated",
-        }),
+        "x-signature-v2": signV2(payload),
         "x-timestamp": String(timestamp),
       },
-      payload: body,
+      payload: JSON.stringify(payload),
     });
     expect(res.statusCode).toBe(200);
 

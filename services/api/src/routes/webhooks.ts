@@ -17,8 +17,6 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
   app.post("/didit/webhook", async (request, reply) => {
     const rawBody = (request as unknown as { rawBody?: Buffer }).rawBody;
     const signatureV2 = readHeader(request.headers["x-signature-v2"]);
-    const signatureSimple = readHeader(request.headers["x-signature-simple"]);
-    const signature = readHeader(request.headers["x-signature"]);
     const timestamp = readHeader(request.headers["x-timestamp"]);
 
     if (!rawBody || rawBody.length === 0) {
@@ -30,30 +28,31 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
       const webhookRequest: {
         rawBody: Buffer;
         parsedBody?: unknown;
-        signature?: string;
         signatureV2?: string;
-        signatureSimple?: string;
         timestamp?: string;
-      } = {
-        rawBody,
-      };
+      } = { rawBody };
       if (request.body !== undefined) webhookRequest.parsedBody = request.body;
-      if (signature !== undefined) webhookRequest.signature = signature;
       if (signatureV2 !== undefined) webhookRequest.signatureV2 = signatureV2;
-      if (signatureSimple !== undefined) webhookRequest.signatureSimple = signatureSimple;
       if (timestamp !== undefined) webhookRequest.timestamp = timestamp;
 
       event = await app.diditProvider.parseWebhook(webhookRequest);
     } catch (err) {
-      app.log.warn({ err }, "Webhook verification or parsing failed");
+      app.log.warn({ err }, "webhook.rejected: verification or parsing failed");
       return reply.status(401).send({ error: "Invalid signature or payload" });
+    }
+
+    // Deduplicate: ignore replayed webhooks for the same session+status
+    const dedupeKey = `${event.sessionId}:${event.rawStatus}`;
+    if (app.store.isWebhookProcessed(dedupeKey)) {
+      app.log.info({ sessionId: event.sessionId, rawStatus: event.rawStatus }, "webhook.duplicate_ignored");
+      return reply.status(200).send({ received: true });
     }
 
     const internalStatus = DIDIT_STATUS_MAP[event.rawStatus] ?? "pending";
     const verification = await app.store.updateVerificationStatus(event.sessionId, internalStatus);
 
     if (!verification) {
-      app.log.error({ sessionId: event.sessionId }, "No verification record found for webhook");
+      app.log.error({ sessionId: event.sessionId }, "webhook.no_record: no verification found");
       return reply.status(200).send({ received: true });
     }
 
@@ -64,15 +63,17 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
         ...(normalizedClaims.kyc_passed !== undefined ? { kycPassed: normalizedClaims.kyc_passed } : {}),
         ...(normalizedClaims.country_code !== undefined ? { countryCode: normalizedClaims.country_code } : {}),
       });
+      app.log.info({ userId: verification.userId, verificationId: verification.id }, "webhook.claims_stored");
     }
+
+    app.store.markWebhookProcessed(dedupeKey);
+    app.log.info({ sessionId: event.sessionId, status: internalStatus }, "webhook.processed");
 
     return reply.status(200).send({ received: true });
   });
 };
 
 function readHeader(value: string | string[] | undefined): string | undefined {
-  if (Array.isArray(value)) {
-    return value[0]?.trim();
-  }
+  if (Array.isArray(value)) return value[0]?.trim();
   return value?.trim();
 }

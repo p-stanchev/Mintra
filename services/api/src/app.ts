@@ -11,6 +11,8 @@ import { minaRouter } from "./routes/mina";
 
 export interface AppOptions {
   corsOrigin?: string;
+  apiKey?: string;
+  allowedCallbackOrigins?: string[];
   diditApiKey?: string;
   diditWebhookSecret?: string;
   diditWorkflowId?: string;
@@ -20,6 +22,13 @@ export interface AppOptions {
 
 export async function buildApp(opts: AppOptions = {}) {
   const corsOrigin = opts.corsOrigin ?? process.env["CORS_ORIGIN"] ?? "http://localhost:3000";
+  const apiKey = opts.apiKey ?? process.env["MINTRA_API_KEY"] ?? "";
+  const allowedCallbackOrigins = opts.allowedCallbackOrigins ??
+    (process.env["ALLOWED_CALLBACK_ORIGINS"] ?? corsOrigin)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
   const diditApiKey = opts.diditApiKey ?? requireEnv("DIDIT_API_KEY");
   const diditWebhookSecret = opts.diditWebhookSecret ?? requireEnv("DIDIT_WEBHOOK_SECRET");
   const diditWorkflowId = opts.diditWorkflowId ?? requireEnv("DIDIT_WORKFLOW_ID");
@@ -28,7 +37,20 @@ export async function buildApp(opts: AppOptions = {}) {
 
   const app = Fastify({ logger: opts.logger ?? true });
 
-  await app.register(cors, { origin: corsOrigin });
+  // Security headers (subset of helmet defaults, compatible with Fastify 4)
+  app.addHook("onSend", (_request, reply, _payload, done) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("X-XSS-Protection", "0"); // modern browsers ignore this; CSP is the real guard
+    reply.header("Referrer-Policy", "no-referrer");
+    reply.header("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+    done();
+  });
+
+  // CORS: only allow the configured origin, never a wildcard in production
+  const safeOrigin = corsOrigin === "*" ? false : corsOrigin;
+  await app.register(cors, { origin: safeOrigin });
+
   await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
 
   // Raw body capture for HMAC verification on the webhook route
@@ -59,8 +81,24 @@ export async function buildApp(opts: AppOptions = {}) {
     done();
   });
 
+  // API key auth — skips /health and the Didit webhook (which uses HMAC)
+  app.addHook("onRequest", (request, reply, done) => {
+    const url = request.url.split("?")[0];
+    if (url === "/health" || url === "/api/providers/didit/webhook") {
+      return done();
+    }
+    if (!apiKey) return done(); // no key configured = open (dev only)
+    const provided = readHeader(request.headers["x-api-key"]);
+    if (!provided || provided !== apiKey) {
+      reply.status(401).send({ error: "Unauthorized" });
+      return;
+    }
+    done();
+  });
+
   const store = await createStore();
   app.decorate("store", store);
+  app.decorate("allowedCallbackOrigins", allowedCallbackOrigins);
   app.addHook("onClose", async () => {
     await store.close();
   });
@@ -75,12 +113,11 @@ export async function buildApp(opts: AppOptions = {}) {
   let minaBridge: { issueCredential(req: { userId: string; claims: Record<string, unknown>; ownerPublicKey: string }): Promise<{ credentialJson: string; issuerPublicKey: string }> } | null = null;
   if (minaKey) {
     try {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore optional workspace package loaded only when configured
       const { createMinaBridge } = require("@mintra/mina-bridge");
       minaBridge = createMinaBridge({ issuerPrivateKey: minaKey });
     } catch (err) {
-      app.log.warn({ err }, "@mintra/mina-bridge unavailable or issuer key invalid — Mina credential issuance disabled");
+      app.log.warn({ err }, "@mintra/mina-bridge unavailable — Mina credential issuance disabled");
     }
   }
   app.decorate("minaBridge", minaBridge);
@@ -99,4 +136,9 @@ function requireEnv(key: string): string {
   const val = process.env[key];
   if (!val) throw new Error(`Missing required environment variable: ${key}`);
   return val;
+}
+
+function readHeader(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0]?.trim();
+  return value?.trim();
 }

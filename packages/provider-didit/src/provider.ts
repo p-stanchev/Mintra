@@ -87,7 +87,6 @@ export class DiditProvider implements VerificationProvider {
     }
 
     const raw = await response.json();
-    console.log("[didit] session response:", JSON.stringify(raw));
     const data = DiditSessionResponseSchema.parse(raw);
     const verificationUrl = data.verification_url ?? data.url ?? "";
     return {
@@ -172,7 +171,7 @@ export class DiditProvider implements VerificationProvider {
   }
 
   private verifySignature(request: IncomingWebhook & { parsedBody: unknown }): void {
-    const { rawBody, parsedBody, signature, signatureV2, signatureSimple, timestamp } = request;
+    const { parsedBody, signatureV2, timestamp } = request;
 
     if (!timestamp) {
       throw new Error("Missing webhook timestamp");
@@ -180,27 +179,18 @@ export class DiditProvider implements VerificationProvider {
 
     const currentTime = Math.floor(Date.now() / 1000);
     const incomingTime = Number.parseInt(timestamp, 10);
-    if (!Number.isFinite(incomingTime) || Math.abs(currentTime - incomingTime) > 300) {
-      throw new Error("Webhook timestamp is stale");
+    if (!Number.isFinite(incomingTime) || Math.abs(currentTime - incomingTime) > 60) {
+      throw new Error("Webhook timestamp is stale or too far in the future");
     }
 
-    if (signatureV2 && this.compareSignature(this.buildV2Signature(parsedBody), signatureV2)) {
-      return;
+    if (!signatureV2) {
+      throw new Error("Missing x-signature-v2 header");
     }
 
-    if (signatureSimple && this.compareSignature(this.buildSimpleSignature(parsedBody), signatureSimple)) {
-      return;
+    const expected = this.buildV2Signature(parsedBody);
+    if (!this.compareHmac(expected, signatureV2)) {
+      throw new Error("Webhook signature verification failed");
     }
-
-    if (signature && this.compareSignature(this.buildRawSignature(rawBody), signature)) {
-      return;
-    }
-
-    throw new Error("Webhook signature verification failed");
-  }
-
-  private buildRawSignature(rawBody: Buffer): string {
-    return createHmac("sha256", this.config.webhookSecret).update(rawBody).digest("hex");
   }
 
   private buildV2Signature(parsedBody: unknown): string {
@@ -208,26 +198,14 @@ export class DiditProvider implements VerificationProvider {
     return createHmac("sha256", this.config.webhookSecret).update(canonicalJson, "utf8").digest("hex");
   }
 
-  private buildSimpleSignature(parsedBody: unknown): string {
-    const body = parsedBody as Record<string, unknown>;
-    const canonicalString = [
-      body["timestamp"] ?? "",
-      body["session_id"] ?? "",
-      body["status"] ?? "",
-      body["webhook_type"] ?? "",
-    ].join(":");
-
-    return createHmac("sha256", this.config.webhookSecret).update(canonicalString).digest("hex");
-  }
-
-  private compareSignature(expected: string, received: string): boolean {
-    const normalizedExpected = expected.trim().toLowerCase();
-    const normalizedReceived = received.trim().replace(/^sha256=/i, "").toLowerCase();
-    const expectedBuf = Buffer.from(normalizedExpected, "utf8");
-    const receivedBuf = Buffer.from(normalizedReceived, "utf8");
-    return expectedBuf.length === receivedBuf.length &&
-      expectedBuf.length > 0 &&
-      timingSafeEqual(expectedBuf, receivedBuf);
+  // Constant-time hex HMAC comparison — both sides are always 64 hex chars (SHA-256)
+  private compareHmac(expected: string, received: string): boolean {
+    const normalizedReceived = received.replace(/^sha256=/i, "").toLowerCase();
+    const expectedBuf = Buffer.from(expected, "hex");
+    const receivedBuf = Buffer.from(normalizedReceived, "hex");
+    // Both must be exactly 32 bytes (64 hex chars → 32 bytes); reject anything else
+    if (expectedBuf.length !== 32 || receivedBuf.length !== 32) return false;
+    return timingSafeEqual(expectedBuf, receivedBuf);
   }
 }
 
