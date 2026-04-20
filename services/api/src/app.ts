@@ -101,6 +101,10 @@ export async function buildApp(opts: AppOptions = {}) {
       return done();
     }
 
+    if (request.authWalletAddress) {
+      return done();
+    }
+
     if (!apiKey) return done(); // no key configured = open (dev only)
     const provided = readHeader(request.headers["x-api-key"]);
     if (!provided || provided !== apiKey) {
