@@ -1,6 +1,7 @@
 "use client";
 
 import { mintra } from "@/lib/mintra";
+import { extractUiErrorMessage } from "@/lib/errors";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
 import { normalizeVerifierPolicy } from "@mintra/verifier-core";
 import { AlertTriangle, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
@@ -42,7 +43,7 @@ function parseCountryList(raw: string): string[] {
 }
 
 function formatPlaygroundError(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = extractUiErrorMessage(err, "Could not verify the wallet credential.");
   if (
     message.includes("Program assertion failed") ||
     message.includes("Constraint unsatisfied") ||
