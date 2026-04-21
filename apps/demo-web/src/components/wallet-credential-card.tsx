@@ -43,17 +43,46 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
     async function loadWallets() {
       const discovered = (await discoverMinaWallets()).map(summarizeWallet);
       if (cancelled) return;
-      setWallets(discovered);
+      setWallets((current) => {
+        if (
+          current.length === discovered.length &&
+          current.every(
+            (wallet, index) =>
+              wallet.id === discovered[index]?.id &&
+              wallet.name === discovered[index]?.name
+          )
+        ) {
+          return current;
+        }
+        return discovered;
+      });
 
-      const linkedProviderId = readLinkedWalletProviderId();
-      const nextSelection =
-        (linkedProviderId && discovered.some((wallet) => wallet.id === linkedProviderId)
-          ? linkedProviderId
-          : discovered[0]?.id) ?? "";
-      setSelectedWalletId(nextSelection);
+      setSelectedWalletId((current) => {
+        if (current && discovered.some((wallet) => wallet.id === current)) {
+          return current;
+        }
+
+        const linkedProviderId = readLinkedWalletProviderId();
+        if (linkedProviderId && discovered.some((wallet) => wallet.id === linkedProviderId)) {
+          return linkedProviderId;
+        }
+
+        return discovered[0]?.id ?? "";
+      });
     }
 
     void loadWallets();
+    const refreshInterval = window.setInterval(() => {
+      void loadWallets();
+    }, 1500);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void loadWallets();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
 
     const handleStorage = () => {
       setWalletAddress(readLinkedWalletAddress());
@@ -68,6 +97,8 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
 
     return () => {
       cancelled = true;
+      window.clearInterval(refreshInterval);
+      document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("mintra:wallet-linked", handleStorage as EventListener);
       window.removeEventListener("mintra:wallet-provider", handleStorage as EventListener);
