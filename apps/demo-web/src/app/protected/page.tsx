@@ -1,21 +1,21 @@
 "use client";
 
+import { requestPresentationWithHolderBinding } from "@/lib/auro-presentation";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
 import { Lock } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-
-function isProviderError(
-  value: { presentation: string } | AuroProviderError
-): value is AuroProviderError {
-  return "code" in value;
-}
+import type {
+  PresentationRequestEnvelope,
+  PresentationVerificationResult,
+} from "@mintra/sdk-types";
 
 export default function ProtectedPage() {
   const [allowed, setAllowed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingStep, setLoadingStep] = useState<"requesting" | "proving" | "verifying">("requesting");
   const [error, setError] = useState<string | null>(null);
+  const [verificationResult, setVerificationResult] = useState<PresentationVerificationResult | null>(null);
 
   const requestProof = useCallback(async () => {
     const walletAddress = readLinkedWalletAddress();
@@ -65,34 +65,18 @@ export default function ProtectedPage() {
         throw new Error(`Could not create proof request: ${body}`);
       }
 
-      const {
-        presentationRequest,
-        presentationRequestJson,
-      }: {
-        presentationRequest: unknown;
-        presentationRequestJson: string;
-      } = await requestResponse.json();
+      const { requestEnvelope }: { requestEnvelope: PresentationRequestEnvelope } =
+        await requestResponse.json();
 
       setLoadingStep("proving");
-      const result = await provider.requestPresentation({
-        presentation: {
-          presentationRequest,
-        },
+      const presentationEnvelope = await requestPresentationWithHolderBinding({
+        provider,
+        requestEnvelope,
+        walletAddress: activeWallet,
+        verifierUrl,
+        walletProviderName: "Auro",
+        clientVersion: "demo-web/protected",
       });
-
-      if (isProviderError(result)) {
-        if (result.code === 1001) {
-          throw new Error("Reconnect Auro Wallet and try again.");
-        }
-        if (result.code === 1002) {
-          throw new Error("The proof request was rejected.");
-        }
-        if (result.code === 23001) {
-          throw new Error("Auro rejected this origin. Reconnect and try again.");
-        }
-
-        throw new Error(result.message || "Auro could not create the presentation.");
-      }
 
       setLoadingStep("verifying");
       const verifyResponse = await fetch(`${verifierUrl}/api/verify-presentation`, {
@@ -101,17 +85,20 @@ export default function ProtectedPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          presentation: result.presentation,
-          presentationRequestJson,
+          presentationEnvelope,
           expectedOwnerPublicKey: activeWallet,
         }),
       });
 
       if (!verifyResponse.ok) {
-        const body = await verifyResponse.text();
-        throw new Error(`Proof verification failed: ${body}`);
+        const body = await verifyResponse.json().catch(async () => ({
+          error: await verifyResponse.text(),
+        }));
+        throw new Error(body?.error?.message ?? body?.error ?? "Proof verification failed.");
       }
 
+      const result = (await verifyResponse.json()) as PresentationVerificationResult;
+      setVerificationResult(result);
       setAllowed(true);
       setLoading(false);
     } catch (err) {
@@ -219,9 +206,23 @@ export default function ProtectedPage() {
           Access granted
         </h2>
         <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.8 }}>
-          The protected flow is unlocked from the wallet proof itself. This page no longer depends
-          on the backend claim check to confirm the 18+ requirement.
+          The protected flow is unlocked from the wallet proof itself. The verifier checked the
+          Mina presentation, verified audience binding, and confirmed the wallet signed the
+          holder-binding challenge for this exact proof.
         </p>
+        {verificationResult?.challenge && (
+          <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 12 }}>
+            Challenge{" "}
+            <code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>
+              {verificationResult.challenge.challengeId}
+            </code>{" "}
+            verified for{" "}
+            <code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>
+              {verificationResult.ownerPublicKey}
+            </code>
+            .
+          </p>
+        )}
       </div>
     </div>
   );

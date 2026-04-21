@@ -1,207 +1,173 @@
 # Mintra Architecture
 
-## System Overview
+## Proposed Architecture
 
-Mintra sits between a real-world KYC provider and the Mina credential layer. It handles:
-- provider session creation
-- webhook verification
-- normalized claim extraction
-- wallet-bound API auth
-- Mina credential issuance into Auro
-- separate verifier-side proof validation
+Mintra stays infrastructure-first.
+
+The core product is:
+
+1. wallet authentication
+2. KYC orchestration and claim normalization
+3. wallet-bound Mina credential issuance
+4. verifier-owned presentation requests
+5. off-chain proof verification with holder binding
+
+Optional on top of that:
+
+6. zkApp integration helpers
+7. example on-chain enforcement contracts
+
+## Current Layering
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│  User / Browser                                              │
-└──────────────────────────────┬───────────────────────────────┘
-                               │
-┌──────────────────────────────▼───────────────────────────────┐
-│  @mintra/demo-web  (Next.js 14)                              │
-│                                                              │
-│  /                  Wallet-first landing page                │
-│  /verify            Starts Didit session                     │
-│  /verify/callback   Polls verification status                │
-│  /claims/[userId]   Shows normalized claims                  │
-│  /protected         Requests Auro proof, forwards to verifier│
-│                                                              │
-│  Browser auth flow:                                          │
-│    POST /api/auth/challenge                                  │
-│    window.mina.signMessage(...)                              │
-│    POST /api/auth/verify                                     │
-│    Bearer token kept in sessionStorage                       │
-└──────────────────────────────┬───────────────────────────────┘
-                               │ @mintra/sdk-js
-┌──────────────────────────────▼───────────────────────────────┐
-│  @mintra/api  (Fastify 4)                                    │
-│                                                              │
-│  Routes:                                                     │
-│    POST /api/auth/challenge                                  │
-│    POST /api/auth/verify                                     │
-│    POST /api/auth/logout                                     │
-│    POST /api/verifications/start                             │
-│    GET  /api/verifications/:id/status                        │
-│    POST /api/providers/didit/webhook                         │
-│    GET  /api/claims/:userId                                  │
-│    POST /api/mina/issue-credential                           │
-│    GET  /health                                              │
-│                                                              │
-│  Minimal persisted state:                                    │
-│    .mintra/state.json                                        │
-│    - verifications                                           │
-│    - normalized claims                                       │
-│    - processed webhook dedupe keys                           │
-│                                                              │
-│  Ephemeral auth state:                                       │
-│    - wallet challenges                                       │
-│    - short-lived bearer sessios                              │
-└────────────┬──────────────────────────────┬──────────────────┘
-             │                              │
-┌────────────▼────────────┐    ┌────────────▼──────────────────┐
-│ @mintra/provider-didit  │    │ @mintra/verifier              │
-│ • createSession()       │    │ • parseHttpsPresentation...   │
-│ • parseWebhook()        │    │ • verifyAgeOver18Presentation │
-│ • mapClaims()           │    │ • POST /api/verify-presentation│
-│ • HMAC v2 verification  │    └────────────┬──────────────────┘
-└────────────┬────────────┘                 │
-             │                   ┌──────────▼──────────────────┐
-┌────────────▼────────────┐      │ @mintra/mina-bridge         │
-│ Didit REST + webhooks   │      │ • claimsToCredentialData()  │
-└─────────────────────────┘      │ • issueCredential()         │
-                                 │ • Presentation.verify(...)  │
-                                 └──────────┬──────────────────┘
-                                            │
-                                 ┌──────────▼──────────────────┐
-                                 │ mina-attestations / o1js    │
-                                 └─────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│  apps/demo-web                                                    │
+│  - wallet onboarding                                              │
+│  - KYC start / callback                                           │
+│  - protected route                                                │
+│  - verifier playground                                            │
+│  - relying party demo                                             │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │
+┌───────────────────────────────▼────────────────────────────────────┐
+│  services/api                                                     │
+│  - wallet auth challenge / verify                                 │
+│  - Didit session creation                                         │
+│  - Didit webhook ingestion                                        │
+│  - normalized claims storage                                      │
+│  - Mina credential issuance into Auro                             │
+└───────────────┬───────────────────────────────┬────────────────────┘
+                │                               │
+┌───────────────▼──────────────┐   ┌────────────▼────────────────────┐
+│ packages/provider-didit      │   │ packages/mina-bridge            │
+│ - provider session creation  │   │ - normalized claims -> Mina VC  │
+│ - webhook verification       │   │ - issuer signing                │
+│ - claim normalization        │   │ - wallet credential JSON        │
+└──────────────────────────────┘   └─────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────┐
+│  services/verifier                                                │
+│  - proof product catalog                                          │
+│  - presentation request issuance                                  │
+│  - challenge service                                               │
+│  - memory store for local dev                                      │
+│  - Redis store for production                                      │
+│  - atomic single-use challenge consume                             │
+│  - passkey binding registration / assertion option issuance       │
+│  - wallet + passkey holder-binding verification                   │
+│  - audience / freshness / replay checks                           │
+│  - proof acceptance / denial result                               │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │
+┌───────────────────────────────▼────────────────────────────────────┐
+│  packages/verifier-core                                           │
+│  - proof product configs                                          │
+│  - presentation request builder                                   │
+│  - stable presentation envelope format                            │
+│  - holder-binding message builder                                 │
+│  - proof verification helpers                                     │
+└────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────┐
+│  examples/zkapp-age-gate                                          │
+│  - optional zkApp consumption example                             │
+│  - not core to issuance or off-chain verification                 │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-## Verification Flow
+## Credential Flow
 
-1. User connects Auro on the home page.
-   - The frontend requests a Mina public key from `window.mina`.
-   - The frontend requests a wallet challenge from `/api/auth/challenge`.
-   - The wallet signs the challenge message.
-   - The frontend exchanges the signature at `/api/auth/verify`.
-   - The API returns a short-lived bearer token tied to that wallet.
+1. The user authenticates with a signed Mina wallet challenge.
+2. The API creates a Didit session tied to the authenticated wallet.
+3. Didit completes the KYC workflow and posts a webhook to Mintra.
+4. Mintra stores only normalized claims and minimal verification metadata.
+5. Mintra signs a Mina credential and the user stores it in Auro.
 
-2. User starts verification.
-   - Frontend calls `POST /api/verifications/start`.
-   - The API requires a valid wallet bearer token.
-   - `userId` must equal the authenticated wallet address.
-   - The API creates a Didit session and stores an internal verification record.
+## Presentation Flow
 
-3. User completes the hosted Didit flow.
-   - Didit redirects the user to `/verify/callback`.
-   - Didit separately POSTs a webhook to `/api/providers/didit/webhook`.
+1. A relying party backend asks the verifier to create a presentation request.
+2. The verifier creates:
+   - a proof product specific request
+   - a verifier-owned challenge
+   - single-use replay protection metadata
+   - a persisted challenge record in memory or Redis
+3. The frontend asks Auro to generate a Mina presentation.
+4. The frontend asks the same wallet to sign a holder-binding message for that exact proof.
+5. If the policy requires passkeys, the frontend asks the verifier for WebAuthn assertion options and signs a payload bound to the same challenge and `proof_sha256`.
+5. The backend verifies:
+   - the challenge was issued by this verifier
+   - the challenge is not expired
+   - the challenge has not already been used
+   - challenge consume succeeds atomically across verifier instances
+   - the Mina proof is valid
+   - the audience matches
+   - the credential freshness policy passes
+   - the wallet holder-binding signature matches the proof owner
+   - the passkey assertion matches the registered device binding when required
 
-4. API processes the webhook.
-   - Verifies `x-signature-v2`
-   - Rejects stale timestamps
-   - Deduplicates `sessionId:rawStatus`
-   - Maps provider status to internal status
-   - Derives normalized claims:
-     - `age_over_18`
-     - `kyc_passed`
-     - `country_code`
-   - Persists only normalized verification state
+## Challenge Storage
 
-5. Frontend polls status.
-   - `/verify/callback` polls `GET /api/verifications/:id/status`
-   - Only the authenticated wallet that owns the verification can read it
+Verifier challenge state is now behind a storage adapter:
 
-6. User views claims and issues a credential.
-   - `GET /api/claims/:userId` requires the authenticated wallet to match `:userId`
-   - `POST /api/mina/issue-credential` requires:
-     - wallet bearer auth
-     - fresh auth session
-     - `userId === ownerPublicKey === authenticated wallet`
-   - The signed credential is stored in Auro
+- `MemoryPresentationChallengeStore`
+- `RedisPresentationChallengeStore`
 
-7. User proves the credential on `/protected`.
-   - Frontend builds a presentation request
-   - Auro returns a wallet presentation
-   - Frontend forwards presentation + request JSON to `services/verifier`
-   - Verifier checks:
-     - origin allowlist
-     - proof validity
-     - owner public key match
-     - 18+ assertions
+The memory store keeps local development simple.
 
-## Auth Model
+The Redis store is the production path because it allows:
 
-### Browser → API
+- shared challenge visibility across verifier instances
+- atomic challenge consumption
+- stronger replay resistance in horizontally scaled deployments
 
-Mintra no longer relies on a browser-shared API key.
+## Holder-Binding Model
 
-The browser authenticates with:
-- signed wallet challenge
-- short-lived bearer token
-- wallet-bound route authorization
+Mintra now treats holder binding as a first-class verification layer.
 
-Protected API routes require bearer auth:
-- `/api/verifications/start`
-- `/api/verifications/:id/status`
-- `/api/claims/:userId`
-- `/api/mina/issue-credential`
+The wallet signs a message that includes:
 
-Proof verification does not depend on bearer auth. It is a separate verifier concern.
+- `challenge_id`
+- `nonce`
+- `audience`
+- `verifier`
+- `action`
+- `owner`
+- `proof_sha256`
+- `issued_at`
+- `expires_at`
 
-### Provider → API
+The optional passkey layer signs a verifier-issued WebAuthn challenge that is derived from:
 
-Didit authenticates with:
-- `x-signature-v2`
-- timestamp freshness check
-- constant-time HMAC comparison
+- `challenge_id`
+- `nonce`
+- `audience`
+- `proof_sha256`
+- wallet / subject binding context
 
-## Data Model
+That gives the verifier a realistic challenge-response flow that prevents:
 
-### Persisted minimal state
+- simple replay of an old presentation bundle
+- cross-audience proof reuse
+- reusing a proof after the verifier marks the challenge as consumed
+- presenting a proof for one wallet and a holder signature from another
 
-Mintra persists only:
-- verification id
-- wallet/user id
-- provider reference
-- status
-- normalized claims
-- timestamps
-- webhook dedupe keys
+It does not claim to solve:
 
-It does not persist:
-- raw documents
-- selfies
-- full webhook payloads
-- names
-- dates of birth
-- document numbers
+- malware on the holder device
+- real-time man-in-the-browser compromise
+- full anti-collusion guarantees
 
-## Mina Credential Mapping
+Those remain future production-hardening work, alongside multi-device recovery and policy tooling.
 
-Normalized claims:
+## Why This Is Not “Just a zkApp”
 
-```ts
-type NormalizedClaims = {
-  age_over_18?: boolean;
-  kyc_passed?: boolean;
-  country_code?: string;
-};
-```
+Mintra’s core value is not a single on-chain contract. It is the reusable verification infrastructure around:
 
-Credential data:
+- provider integration
+- wallet auth
+- claim normalization
+- credential issuance
+- proof product design
+- verifier-side consumption
 
-```ts
-{
-  ageOver18: Field(0 | 1),
-  kycPassed: Field(0 | 1),
-  countryCode: Field(iso3166NumericOrZero),
-  issuedAt: Field(unixSeconds)
-}
-```
-
-The bridge uses `Credential.sign(...)` from `mina-attestations`.
-
-## Current Constraints
-
-- Didit is the only provider integrated
-- auth sessions are ephemeral and are not restored after API restart
-- minimal verification state persists locally unless you replace the state file path with a platform-backed volume
-- verifier-side proof validation is memory-intensive and should run on a separate service tier
+The zkApp layer is therefore optional and modular.

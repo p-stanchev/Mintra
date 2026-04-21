@@ -16,6 +16,8 @@
     "dev": "tsup src/index.ts --format esm,cjs --dts --watch"
   },
   "dependencies": {
+    "@simplewebauthn/server": "^10.0.1",
+    "@mintra/sdk-types": "workspace:*",
     "i18n-iso-countries": "^7.14.0",
     "mina-attestations": "^0.5.3",
     "o1js": "^2.3.0"

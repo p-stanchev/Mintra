@@ -168,6 +168,12 @@ export default function Home() {
             >
               Verifier Playground
             </Link>
+            <Link
+              href="/relying-party"
+              className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-fog"
+            >
+              Relying Party Demo
+            </Link>
           </div>
         </div>
 

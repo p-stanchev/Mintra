@@ -1,274 +1,258 @@
 # Verifier Integration
 
-## Why run a verifier separately
+Mintra presentations are meant to be consumed on the relying party's own backend.
 
-Mina presentation verification is the heavy part of the stack:
+That is the product direction:
 
-- it loads `o1js`
-- it loads `mina-attestations`
-- it runs `Presentation.verify(...)`
+- Mintra issues credentials
+- the holder stores them in a Mina wallet
+- the relying party creates its own presentation request
+- the relying party verifies the returned presentation itself
 
-That work is independent of Didit session management and wallet-authenticated claim issuance. In production, keep it on its own service so:
-
-- webhook handling stays responsive
-- credential issuance stays lightweight
-- verifier memory can scale independently
-
-## What the verifier does
+## Verifier Endpoints
 
 `services/verifier` exposes:
 
+- `GET /api/proof-products`
 - `GET /api/presentation-request`
 - `POST /api/presentation-request`
+- `GET /api/passkeys/:walletAddress`
+- `POST /api/passkeys/register/options`
+- `POST /api/passkeys/register/verify`
+- `POST /api/passkeys/assertion/options`
 - `POST /api/verify-presentation`
 - `GET /health`
 
-It does **not** read Mintra claims or query Didit. It creates verifier-bound presentation requests and verifies the wallet-generated presentation against the exact request it issued.
-
-## Reusable package
-
-The reusable proof helpers live in `@mintra/verifier-core`.
-
-Like `@mintra/sdk-js`, this package exists in the monorepo today and is not published to npm yet. Until it is published, another team should either vendor the package code or copy the `services/verifier` reference service into its own repo.
-
-That package contains the public building blocks another app needs:
-
-- `buildAgeOver18PresentationRequest()`
-- `serializePresentationRequest()`
-- `parsePresentationRequest()`
-- `verifyAgeOver18Presentation()`
-
-`services/verifier` is just a reference Fastify wrapper around those helpers. Another team can run that service as-is, or call `@mintra/verifier-core` directly from their own backend.
-
-## Request contract
-
-`GET /api/presentation-request`
-
-Success response:
-
-```json
-{
-  "presentationRequest": { "...": "..." },
-  "presentationRequestJson": "{\"type\":\"https\",...}"
-}
-```
-
-Behavior:
-
-- creates the age-over-18 HTTPS presentation request on the verifier backend
-- serializes it for the frontend and for later verification
-- keeps the verifier in control of the request format and server nonce
+## Request Creation
 
 `POST /api/presentation-request`
 
 ```json
 {
-  "minAge": 21,
-  "requireKycPassed": true,
-  "countryAllowlist": ["US", "DE"],
-  "countryBlocklist": ["RU"],
-  "maxCredentialAgeDays": 30
+  "proofProductId": "proof_of_age_18",
+  "expectedOwnerPublicKey": "B62...",
+  "requirePasskeyBinding": true,
+  "policy": {
+    "minAge": 18,
+    "requireKycPassed": true,
+    "countryAllowlist": [],
+    "countryBlocklist": [],
+    "maxCredentialAgeDays": 30
+  }
 }
 ```
 
-Behavior:
+Response:
 
-- builds a verifier-bound HTTPS request for the submitted policy
-- supports the same policy model used by the demo playground
-- returns the serialized request the frontend should send to Auro
+```json
+{
+  "proofProduct": {
+    "id": "proof_of_age_18",
+    "displayName": "Proof of Age 18+"
+  },
+  "challenge": {
+    "version": "mintra.challenge/v1",
+    "challengeId": "uuid",
+    "audience": "https://your-app.example",
+    "proofProductId": "proof_of_age_18"
+  },
+  "requestEnvelope": {
+    "version": "mintra.presentation-request/v1",
+    "...": "..."
+  }
+}
+```
+
+The verifier stores the challenge server-side and expects a single verification attempt against it.
+
+Storage mode:
+
+- local dev: in-memory store
+- production: Redis-backed challenge store via `REDIS_URL`
+
+The verifier API shape stays the same. The hardening is internal to challenge persistence and consume semantics.
+
+If `requirePasskeyBinding` is `true`, the challenge is still created first, but the WebAuthn assertion options are issued later from `POST /api/passkeys/assertion/options` after the frontend has the exact `presentationJson`.
+
+## Passkey Registration
+
+`POST /api/passkeys/register/options`
+
+```json
+{
+  "walletAddress": "B62...",
+  "deviceName": "Primary laptop"
+}
+```
+
+`POST /api/passkeys/register/verify`
+
+```json
+{
+  "registrationId": "uuid",
+  "credential": {
+    "id": "...",
+    "rawId": "...",
+    "type": "public-key",
+    "response": {
+      "attestationObject": "...",
+      "clientDataJSON": "...",
+      "transports": ["internal"]
+    }
+  }
+}
+```
+
+The verifier stores the resulting passkey binding against the wallet / subject.
+
+## Passkey Assertion Options
+
+`POST /api/passkeys/assertion/options`
+
+```json
+{
+  "challengeId": "uuid",
+  "walletAddress": "B62...",
+  "presentationJson": "..."
+}
+```
+
+The verifier returns a WebAuthn challenge plus a signed payload reference that binds:
+
+- `challengeId`
+- `nonce`
+- `audience`
+- `proofSha256`
+- wallet / subject identity
+
+## Verification
 
 `POST /api/verify-presentation`
 
 ```json
 {
-  "presentation": "<presentation-json-string>",
-  "presentationRequestJson": "<serialized-request-json-string>",
+  "presentationEnvelope": {
+    "version": "mintra.presentation/v1",
+    "challenge": { "...": "..." },
+    "proof": {
+      "format": "mina-attestations/auro",
+      "presentationJson": "...",
+      "presentationRequestJson": "..."
+    },
+    "holderBinding": {
+      "method": "mina:signMessage",
+      "publicKey": "B62...",
+      "message": "Mintra proof presentation\n...",
+      "signature": {
+        "field": "...",
+        "scalar": "..."
+      },
+      "signedAt": "2026-04-21T10:00:00.000Z"
+    },
+    "passkeyBinding": {
+      "bindingId": "passkey-binding-id",
+      "credentialId": "credential-id",
+      "challenge": "webauthn-challenge",
+      "signedPayload": {
+        "challengeId": "uuid",
+        "nonce": "hex",
+        "audience": "https://your-app.example",
+        "proofSha256": "sha256hex",
+        "walletAddress": "B62...",
+        "subjectId": "B62..."
+      },
+      "credential": {
+        "id": "...",
+        "rawId": "...",
+        "type": "public-key",
+        "response": {
+          "authenticatorData": "...",
+          "clientDataJSON": "...",
+          "signature": "..."
+        }
+      }
+    },
+    "metadata": {
+      "walletProvider": "Auro",
+      "submittedAt": "2026-04-21T10:00:02.000Z"
+    }
+  },
   "expectedOwnerPublicKey": "B62..."
 }
 ```
-
-Behavior:
-
-- parses the serialized HTTPS presentation request
-- verifies the returned presentation with `Presentation.verify(...)`
-- checks that the credential owner in the proof matches `expectedOwnerPublicKey`
-- checks that the proof satisfies the built-in `ageOver18 == 1` and `kycPassed == 1` constraints
 
 Success response:
 
 ```json
 {
-  "verified": true,
+  "ok": true,
+  "challenge": {
+    "challengeId": "uuid",
+    "proofProductId": "proof_of_age_18",
+    "audience": "https://your-app.example"
+  },
   "ownerPublicKey": "B62...",
-  "ageOver18": true
+  "output": {
+    "ageOver18": true,
+    "ageOver21": false,
+    "kycPassed": true,
+    "countryCodeNumeric": 100,
+    "issuedAt": 1776717714
+  },
+  "holderBinding": {
+    "verified": true
+  },
+  "audience": {
+    "verified": true,
+    "expected": "https://your-app.example",
+    "actual": "https://your-app.example"
+  },
+  "freshness": {
+    "verified": true,
+    "issuedAt": 1776717714,
+    "credentialAgeSeconds": 86400,
+    "maxAgeDays": 30
+  },
+  "verifiedAt": "2026-04-21T10:00:03.000Z"
 }
 ```
 
-## Current frontend flow
+Normalized failure codes now include:
 
-The demo app does this on `/protected`:
+- `unknown_challenge`
+- `expired_challenge`
+- `challenge_replay`
+- `challenge_audience_mismatch`
+- `challenge_nonce_mismatch`
+- `challenge_request_mismatch`
+- `passkey_missing`
+- `passkey_not_registered`
+- `passkey_mismatch`
+- `passkey_invalid_signature`
 
-1. fetch a presentation request from `services/verifier`
-2. send it to Auro with `window.mina.requestPresentation(...)`
-3. forward the returned presentation back to `services/verifier`
-4. unlock the page only if the verifier accepts it
+That gives relying parties explicit verifier outcomes for replay-safe flows in multi-instance deployments.
 
-That means:
+## Local Integration Flow
 
-- Mintra API is still used for verification sessions, claims, and issuance
-- the verifier is only used for proof validation
+1. The backend requests a Mintra presentation challenge.
+2. The frontend sends the request to Auro.
+3. The frontend signs the holder-binding message with the same wallet.
+4. If required, the frontend asks the verifier for passkey assertion options and signs the same challenge payload with WebAuthn.
+5. The backend verifies the presentation envelope.
+6. The backend atomically consumes the challenge during verification.
+7. The backend grants or denies access.
 
-## How another app should use it
-
-Another app should follow the same model on its own server:
-
-1. define the credential schema and constraints it cares about
-2. build a `PresentationRequest`
-3. ask the user’s wallet for a presentation
-4. send the wallet response to a verifier backend
-5. verify server-side before granting access
-
-Do **not** treat “wallet returned something” as equivalent to proof verification in production.
-
-### Minimal backend flow
-
-On another backend, the flow is:
-
-1. install or vendor the verifier helpers
-2. build the request on the backend the frontend will ask Auro to satisfy
-3. serialize that request and send it to the frontend
-4. receive `presentation` and `presentationRequestJson` back from the frontend
-5. verify the presentation on your own server
-6. compare the verified owner to the wallet your app expects
-
-Example:
-
-```ts
-import {
-  buildAgeOver18PresentationRequest,
-  serializePresentationRequest,
-  parsePresentationRequest,
-  verifyAgeOver18Presentation,
-} from "@mintra/verifier-core";
-
-const request = await buildAgeOver18PresentationRequest();
-const presentationRequestJson = JSON.stringify(
-  await serializePresentationRequest(request)
-);
-
-// send presentationRequestJson to the frontend, then receive it back with the wallet presentation
-const parsedRequest = await parsePresentationRequest(presentationRequestJson);
-const verified = await verifyAgeOver18Presentation({
-  request: parsedRequest,
-  presentationJson,
-  verifierIdentity: "https://your-app.example",
-});
-
-const ownerPublicKey = verified.ownerPublicKey;
-const ageOver18 = verified.ageOver18;
-```
-
-If `ownerPublicKey` matches the wallet your app expects and `ageOver18` is true, the verifier can grant access without querying Mintra.
-
-## Example verifier service deployment
-
-Run `services/verifier` separately with:
+## Verifier Environment
 
 ```env
 CORS_ORIGIN=https://your-frontend-domain
+VERIFIER_PUBLIC_URL=https://your-verifier-domain
+REDIS_URL=redis://user:password@host:6379
 PORT=3002
 ```
 
-Recommended deploy model:
+See:
 
-- `services/api` on one Railway service
-- `services/verifier` on a separate Railway service with more memory
-- `apps/demo-web` on Vercel or Railway
-
-### Railway setup
-
-Create a third Railway service from the same monorepo and use the repo root as the source context.
-
-Build command:
-
-```bash
-pnpm install --frozen-lockfile && pnpm run build:packages && pnpm --filter @mintra/verifier build
-```
-
-Start command:
-
-```bash
-pnpm --filter @mintra/verifier start
-```
-
-Required Railway variables:
-
-```env
-CORS_ORIGIN=https://your-frontend-domain
-```
-
-After deploy, verify the service with:
-
-```text
-https://your-verifier-domain/health
-```
-
-Expected response:
-
-```json
-{"ok":true,"service":"mintra-verifier"}
-```
-
-### Frontend wiring
-
-The frontend must know the verifier URL separately from the API URL.
-
-Set:
-
-```env
-NEXT_PUBLIC_MINTRA_VERIFIER_URL=https://your-verifier-domain
-```
-
-The demo frontend will then:
-
-1. request a presentation from Auro
-2. post that presentation to `NEXT_PUBLIC_MINTRA_VERIFIER_URL`
-3. unlock `/protected` only after the verifier accepts it
-
-## Using the verifier from another backend
-
-If you want a third-party app to verify the same proof model, it has two choices:
-
-### 1. Run Mintra's verifier code directly
-
-Reuse the code in:
-
-- [`../services/verifier`](../services/verifier)
-- [`../packages/verifier-core`](../packages/verifier-core)
-
-This is the preferred option if they want full control.
-
-### 2. Mirror the same presentation spec
-
-They can build the same request shape themselves:
-
-- native credential fields:
-  - `ageOver18`
-  - `kycPassed`
-  - `countryCode`
-  - `issuedAt`
-- required assertions:
-  - `ageOver18 == 1`
-  - `kycPassed == 1`
-- output claims:
-  - `ageOver18`
-  - `owner`
-
-The key requirement is that verifier and wallet agree on the exact request that is being proven.
-
-## Security notes
-
-- Restrict `CORS_ORIGIN` to your frontend origin
-- Treat the verifier as public verification infrastructure, not a claims oracle
-- Size the verifier for proof workloads; do not colocate it with lightweight webhook handling on tiny instances
-- Keep the main API and verifier independently deployable
+- [consume-proofs.md](./consume-proofs.md)
+- [off-chain-verification.md](./off-chain-verification.md)
+- [replay-protection-and-audience-binding.md](./replay-protection-and-audience-binding.md)

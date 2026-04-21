@@ -1,5 +1,24 @@
 import countries from "i18n-iso-countries";
 import enLocale from "i18n-iso-countries/langs/en.json" with { type: "json" };
+import {
+  type HolderBinding,
+  type HolderBindingVerification,
+  type PasskeyAssertion,
+  type PasskeyAuthenticationRequest,
+  PasskeySignedPayloadSchema,
+  type PasskeyBinding,
+  type PresentationChallenge,
+  type PresentationEnvelope,
+  PresentationEnvelopeSchema,
+  type PresentationRequestEnvelope,
+  PresentationRequestEnvelopeSchema,
+  type PresentationVerificationResult,
+  type PresentationVerificationOutput,
+  type ProofProduct,
+  type ProofProductId,
+  type SerializedPresentationRequest,
+  type VerifierPolicy as NormalizedVerifierPolicy,
+} from "@mintra/sdk-types";
 
 countries.registerLocale(enLocale);
 
@@ -15,32 +34,19 @@ let cachedPresentationTools:
   | undefined;
 
 export const DEFAULT_AGE_PROOF_ACTION = "mintra:protected-access";
+const DEFAULT_PRESENTATION_TTL_SECONDS = 5 * 60;
 
 export type AgeOver18PresentationRequest = unknown;
-export type SerializedPresentationRequest = Record<string, unknown>;
 
 export interface VerifierPolicy {
-  minAge?: 18 | 21;
+  minAge?: 18 | 21 | null;
   requireKycPassed?: boolean;
   countryAllowlist?: string[];
   countryBlocklist?: string[];
-  maxCredentialAgeDays?: number;
+  maxCredentialAgeDays?: number | null;
 }
 
-export interface NormalizedVerifierPolicy {
-  minAge: 18 | 21;
-  requireKycPassed: boolean;
-  countryAllowlist: string[];
-  countryBlocklist: string[];
-  maxCredentialAgeDays: number | null;
-}
-
-export interface VerifiedPresentationOutput {
-  ageOver18: boolean;
-  ageOver21: boolean;
-  kycPassed: boolean;
-  countryCodeNumeric: number;
-  issuedAt: number;
+export interface VerifiedPresentationOutput extends PresentationVerificationOutput {
   ownerPublicKey: string;
 }
 
@@ -49,6 +55,143 @@ export interface VerifyPresentationParams {
   presentationJson: string;
   verifierIdentity: string;
 }
+
+export interface CreatePresentationRequestOptions {
+  proofProductId?: ProofProductId;
+  policy?: VerifierPolicy;
+  audience: string;
+  verifier: string;
+  subjectId?: string;
+  walletAddress?: string | null;
+  requirePasskeyBinding?: boolean;
+  action?: string;
+  expiresInSeconds?: number;
+}
+
+export interface CreatePresentationEnvelopeInput {
+  requestEnvelope: PresentationRequestEnvelope;
+  presentationJson: string;
+  holderBinding: HolderBinding;
+  passkeyBinding?: PasskeyAssertion;
+  metadata?: {
+    walletProvider?: string;
+    clientVersion?: string;
+  };
+}
+
+export interface HolderBindingVerifierAdapter {
+  verifyMessage(input: {
+    publicKey: string;
+    data: string;
+    signature: { field: string; scalar: string };
+  }): boolean | Promise<boolean>;
+}
+
+export interface VerifyHolderBindingParams {
+  envelope: PresentationEnvelope;
+  ownerPublicKey: string;
+  verifier: HolderBindingVerifierAdapter;
+  passkeyVerifier?: PasskeyBindingVerifierAdapter;
+  expectedPasskeyAuthentication?: PasskeyAuthenticationRequest | null;
+}
+
+export interface VerifyAudienceParams {
+  challenge: PresentationChallenge;
+  expectedAudience: string;
+}
+
+export interface VerifyFreshnessParams {
+  issuedAt: number;
+  maxAgeDays: number | null;
+  now?: number;
+}
+
+export interface VerifyMintraPresentationParams {
+  envelope: PresentationEnvelope;
+  verifierIdentity: string;
+  expectedAudience?: string;
+  expectedOwnerPublicKey?: string;
+  holderBindingVerifier?: HolderBindingVerifierAdapter;
+  passkeyBindingVerifier?: PasskeyBindingVerifierAdapter;
+  expectedPasskeyAuthentication?: PasskeyAuthenticationRequest | null;
+  now?: number;
+}
+
+export interface PasskeyBindingRecord extends PasskeyBinding {
+  rpId: string;
+  origin: string;
+}
+
+export interface PasskeyBindingVerifierAdapter {
+  getBindingById(bindingId: string): Promise<PasskeyBindingRecord | null> | PasskeyBindingRecord | null;
+  updateBindingCounter(bindingId: string, counter: number): Promise<void> | void;
+}
+
+export interface VerifyPasskeyBindingParams {
+  envelope: PresentationEnvelope;
+  ownerPublicKey: string;
+  expectedAuthentication: PasskeyAuthenticationRequest | null;
+  verifier: PasskeyBindingVerifierAdapter;
+}
+
+const PROOF_PRODUCTS: Record<ProofProductId, ProofProduct & { defaultPolicy: NormalizedVerifierPolicy }> = {
+  proof_of_age_18: {
+    id: "proof_of_age_18",
+    displayName: "Proof of Age 18+",
+    description: "Selective proof that the holder is at least 18 and passed KYC.",
+    requestedClaims: ["age_over_18", "kyc_passed", "country_code", "issued_at"],
+    verificationRequirements: [
+      "age_over_18 must be true",
+      "kyc_passed must be true",
+      "credential must satisfy freshness rules if configured",
+    ],
+    outputFields: ["ageOver18", "kycPassed", "countryCodeNumeric", "issuedAt", "ownerPublicKey"],
+    defaultPolicy: {
+      minAge: 18,
+      requireKycPassed: true,
+      countryAllowlist: [],
+      countryBlocklist: [],
+      maxCredentialAgeDays: 30,
+    },
+  },
+  proof_of_kyc_passed: {
+    id: "proof_of_kyc_passed",
+    displayName: "Proof of KYC Passed",
+    description: "Selective proof that the holder completed KYC without disclosing extra identity data.",
+    requestedClaims: ["kyc_passed", "issued_at"],
+    verificationRequirements: [
+      "kyc_passed must be true",
+      "credential must satisfy freshness rules if configured",
+    ],
+    outputFields: ["kycPassed", "issuedAt", "ownerPublicKey"],
+    defaultPolicy: {
+      minAge: null,
+      requireKycPassed: true,
+      countryAllowlist: [],
+      countryBlocklist: [],
+      maxCredentialAgeDays: 30,
+    },
+  },
+  proof_of_country_code: {
+    id: "proof_of_country_code",
+    displayName: "Proof of Country Code",
+    description: "Selective proof for country policy checks such as allow lists and block lists.",
+    requestedClaims: ["country_code", "kyc_passed", "issued_at"],
+    verificationRequirements: [
+      "country policy must pass",
+      "credential must satisfy freshness rules if configured",
+      "kyc_passed can be required by policy",
+    ],
+    outputFields: ["countryCodeNumeric", "kycPassed", "issuedAt", "ownerPublicKey"],
+    defaultPolicy: {
+      minAge: null,
+      requireKycPassed: true,
+      countryAllowlist: [],
+      countryBlocklist: [],
+      maxCredentialAgeDays: 30,
+    },
+  },
+};
 
 export function warmUpPresentationTools() {
   void loadPresentationTools();
@@ -70,8 +213,17 @@ async function loadPresentationTools() {
   return cachedPresentationTools;
 }
 
+export function listProofProducts(): ProofProduct[] {
+  return Object.values(PROOF_PRODUCTS).map(({ defaultPolicy: _defaultPolicy, ...product }) => product);
+}
+
+export function getProofProduct(proofProductId: ProofProductId): ProofProduct {
+  const { defaultPolicy: _defaultPolicy, ...product } = PROOF_PRODUCTS[proofProductId];
+  return product;
+}
+
 export function normalizeVerifierPolicy(policy?: VerifierPolicy): NormalizedVerifierPolicy {
-  const minAge = policy?.minAge === 21 ? 21 : 18;
+  const minAge = policy?.minAge === 21 ? 21 : policy?.minAge === 18 ? 18 : null;
   const requireKycPassed = policy?.requireKycPassed !== false;
   const countryAllowlist = normalizeCountryList(policy?.countryAllowlist);
   const countryBlocklist = normalizeCountryList(policy?.countryBlocklist);
@@ -84,6 +236,32 @@ export function normalizeVerifierPolicy(policy?: VerifierPolicy): NormalizedVeri
     countryBlocklist,
     maxCredentialAgeDays,
   };
+}
+
+export function resolveProofProductPolicy(
+  proofProductId: ProofProductId,
+  overrides?: VerifierPolicy
+): NormalizedVerifierPolicy {
+  const basePolicy = PROOF_PRODUCTS[proofProductId].defaultPolicy;
+  return normalizeVerifierPolicy({
+    minAge: overrides?.minAge === undefined ? basePolicy.minAge : overrides.minAge,
+    requireKycPassed:
+      overrides?.requireKycPassed === undefined
+        ? basePolicy.requireKycPassed
+        : overrides.requireKycPassed,
+    countryAllowlist:
+      overrides?.countryAllowlist === undefined
+        ? basePolicy.countryAllowlist
+        : overrides.countryAllowlist,
+    countryBlocklist:
+      overrides?.countryBlocklist === undefined
+        ? basePolicy.countryBlocklist
+        : overrides.countryBlocklist,
+    maxCredentialAgeDays:
+      overrides?.maxCredentialAgeDays === undefined
+        ? basePolicy.maxCredentialAgeDays
+        : overrides.maxCredentialAgeDays,
+  });
 }
 
 export async function buildPresentationRequest(
@@ -99,17 +277,13 @@ export async function buildPresentationRequest(
   } = await loadPresentationTools();
 
   const normalizedPolicy = normalizeVerifierPolicy(policy);
-
   const credentialShape: Record<string, typeof Field> = {
     ageOver18: Field,
+    ageOver21: Field,
     kycPassed: Field,
     countryCode: Field,
     issuedAt: Field,
   };
-  if (normalizedPolicy.minAge === 21) {
-    credentialShape["ageOver21"] = Field;
-  }
-
   const credential = Credential.Native(credentialShape);
 
   const spec = PresentationSpec(
@@ -167,7 +341,8 @@ export async function buildPresentationRequest(
       }
 
       if (normalizedPolicy.maxCredentialAgeDays !== null) {
-        const minIssuedAt = Math.floor(Date.now() / 1000) - normalizedPolicy.maxCredentialAgeDays * 24 * 60 * 60;
+        const minIssuedAt =
+          Math.floor(Date.now() / 1000) - normalizedPolicy.maxCredentialAgeDays * 24 * 60 * 60;
         assertions.push(
           Operation.lessThanEq(
             Operation.constant(Field(minIssuedAt)),
@@ -180,10 +355,7 @@ export async function buildPresentationRequest(
         assert: assertions,
         outputClaim: Operation.record({
           ageOver18: Operation.property(credential, "ageOver18"),
-          ageOver21:
-            normalizedPolicy.minAge === 21
-              ? Operation.property(credential, "ageOver21")
-              : Operation.constant(Field(0)),
+          ageOver21: Operation.property(credential, "ageOver21"),
           kycPassed: Operation.property(credential, "kycPassed"),
           countryCode: Operation.property(credential, "countryCode"),
           issuedAt: Operation.property(credential, "issuedAt"),
@@ -199,16 +371,136 @@ export async function buildPresentationRequest(
 export async function buildAgeOver18PresentationRequest(
   action = DEFAULT_AGE_PROOF_ACTION
 ): Promise<AgeOver18PresentationRequest> {
-  return buildPresentationRequest({ minAge: 18, requireKycPassed: true }, action);
+  return buildPresentationRequest(
+    {
+      minAge: 18,
+      requireKycPassed: true,
+      maxCredentialAgeDays: 30,
+    },
+    action
+  );
+}
+
+export async function createPresentationRequest(
+  options: CreatePresentationRequestOptions
+): Promise<PresentationRequestEnvelope> {
+  const proofProductId = options.proofProductId ?? "proof_of_age_18";
+  const product = getProofProduct(proofProductId);
+  const normalizedPolicy = resolveProofProductPolicy(proofProductId, options.policy);
+  const action = options.action ?? DEFAULT_AGE_PROOF_ACTION;
+  const request = await buildPresentationRequest(normalizedPolicy, action);
+  const presentationRequest = await serializePresentationRequest(request);
+  const presentationRequestJson = JSON.stringify(presentationRequest);
+  const issuedAtDate = new Date();
+  const expiresAtDate = new Date(
+    issuedAtDate.getTime() + (options.expiresInSeconds ?? DEFAULT_PRESENTATION_TTL_SECONDS) * 1000
+  );
+  const challengeId = globalThis.crypto.randomUUID();
+  const nonce = randomHex(16);
+  const claimRequestRef = await sha256Hex(presentationRequestJson);
+
+  return PresentationRequestEnvelopeSchema.parse({
+    version: "mintra.presentation-request/v1",
+    proofProduct: product,
+    challenge: {
+      version: "mintra.challenge/v1",
+      challengeId,
+      nonce,
+      verifier: options.verifier,
+      audience: options.audience,
+      action,
+      proofProductId,
+      claimRequestRef,
+      issuedAt: issuedAtDate.toISOString(),
+      expiresAt: expiresAtDate.toISOString(),
+      policy: normalizedPolicy,
+      replayProtection: {
+        challengeId,
+        nonce,
+        singleUse: true,
+        expiresAt: expiresAtDate.toISOString(),
+      },
+      holderBindingContext: {
+        walletAddress: options.walletAddress ?? null,
+        subjectId: options.subjectId ?? options.walletAddress ?? "anonymous-subject",
+        requiredMethods: options.requirePasskeyBinding ? ["wallet", "passkey"] : ["wallet"],
+      },
+    },
+    presentationRequest,
+    presentationRequestJson,
+    holderBindingFormat: "mina:signMessage",
+  });
+}
+
+export async function buildHolderBindingMessage(
+  challenge: PresentationChallenge,
+  presentationJson: string,
+  ownerPublicKey: string
+): Promise<string> {
+  const proofHash = await computeProofSha256(presentationJson);
+  return [
+    "Mintra proof presentation",
+    "",
+    "Sign this message to bind the proof to this wallet and verifier challenge.",
+    "This does not submit a Mina transaction.",
+    "",
+    `challenge_id: ${challenge.challengeId}`,
+    `nonce: ${challenge.nonce}`,
+    `audience: ${challenge.audience}`,
+    `verifier: ${challenge.verifier}`,
+    `action: ${challenge.action}`,
+    `owner: ${ownerPublicKey}`,
+    `proof_sha256: ${proofHash}`,
+    `issued_at: ${challenge.issuedAt}`,
+    `expires_at: ${challenge.expiresAt}`,
+  ].join("\n");
+}
+
+export async function computeProofSha256(presentationJson: string): Promise<string> {
+  return sha256Hex(presentationJson);
+}
+
+export async function buildPasskeySignedPayload(params: {
+  challenge: PresentationChallenge;
+  presentationJson: string;
+  ownerPublicKey: string;
+}): Promise<PasskeyAuthenticationRequest["signedPayload"]> {
+  return PasskeySignedPayloadSchema.parse({
+    challengeId: params.challenge.challengeId,
+    nonce: params.challenge.nonce,
+    audience: params.challenge.audience,
+    proofSha256: await computeProofSha256(params.presentationJson),
+    walletAddress: params.ownerPublicKey,
+    subjectId: params.challenge.holderBindingContext.subjectId,
+  });
+}
+
+export function createPresentationEnvelope(
+  input: CreatePresentationEnvelopeInput
+): PresentationEnvelope {
+  return PresentationEnvelopeSchema.parse({
+    version: "mintra.presentation/v1",
+    challenge: input.requestEnvelope.challenge,
+    proof: {
+      format: "mina-attestations/auro",
+      presentationJson: input.presentationJson,
+      presentationRequestJson: input.requestEnvelope.presentationRequestJson,
+    },
+    holderBinding: input.holderBinding,
+    ...(input.passkeyBinding === undefined ? {} : { passkeyBinding: input.passkeyBinding }),
+    metadata: {
+      walletProvider: input.metadata?.walletProvider,
+      clientVersion: input.metadata?.clientVersion,
+      submittedAt: new Date().toISOString(),
+    },
+  });
 }
 
 export async function serializePresentationRequest(
   request: AgeOver18PresentationRequest
 ): Promise<SerializedPresentationRequest> {
   const { PresentationRequest } = await loadPresentationTools();
-  return JSON.parse(
-    PresentationRequest.toJSON(request as any)
-  ) as SerializedPresentationRequest;
+  return JSON.parse(PresentationRequest.toJSON(request as any)) as SerializedPresentationRequest;
 }
 
 export async function parsePresentationRequest(
@@ -228,11 +520,9 @@ export async function verifyPresentationPolicy(
   const presentation = Presentation.fromJSON(params.presentationJson);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const verified = await (Presentation.verify as any)(
-    params.request,
-    presentation,
-    { verifierIdentity: params.verifierIdentity }
-  );
+  const verified = await (Presentation.verify as any)(params.request, presentation, {
+    verifierIdentity: params.verifierIdentity,
+  });
 
   return {
     ageOver18: verified.ageOver18.toString() === "1",
@@ -241,6 +531,405 @@ export async function verifyPresentationPolicy(
     countryCodeNumeric: Number(verified.countryCode.toString()),
     issuedAt: Number(verified.issuedAt.toString()),
     ownerPublicKey: verified.owner.toBase58(),
+  };
+}
+
+export function verifyAudience(params: VerifyAudienceParams) {
+  return {
+    verified: params.challenge.audience === params.expectedAudience,
+    expected: params.expectedAudience,
+    actual: params.challenge.audience,
+  };
+}
+
+export function verifyFreshness(params: VerifyFreshnessParams) {
+  const now = params.now ?? Math.floor(Date.now() / 1000);
+  const credentialAgeSeconds = Math.max(0, now - params.issuedAt);
+  return {
+    verified:
+      params.maxAgeDays === null ? true : credentialAgeSeconds <= params.maxAgeDays * 24 * 60 * 60,
+    issuedAt: params.issuedAt,
+    credentialAgeSeconds,
+    maxAgeDays: params.maxAgeDays,
+  };
+}
+
+export async function verifyPasskeyBinding(
+  params: VerifyPasskeyBindingParams
+): Promise<HolderBindingVerification> {
+  const context = params.envelope.challenge.holderBindingContext;
+  const requiresPasskey = context.requiredMethods.includes("passkey");
+  const assertion = params.envelope.passkeyBinding;
+  const expectedAuthentication = params.expectedAuthentication;
+
+  if (!assertion) {
+    return requiresPasskey
+      ? {
+          verified: false,
+          walletVerified: true,
+          passkeyVerified: false,
+          errorCode: "passkey_missing",
+          reason: "Passkey assertion is required for this presentation",
+        }
+      : {
+          verified: true,
+          walletVerified: true,
+          passkeyVerified: false,
+      };
+  }
+
+  if (!expectedAuthentication) {
+    return {
+      verified: false,
+      walletVerified: true,
+      passkeyVerified: false,
+      errorCode: "passkey_not_registered",
+      reason: "Passkey authentication context was not issued for this challenge",
+    };
+  }
+
+  const binding = await params.verifier.getBindingById(assertion.bindingId);
+  if (!binding) {
+    return {
+      verified: false,
+      walletVerified: true,
+      passkeyVerified: false,
+      errorCode: "passkey_not_registered",
+      reason: "Passkey binding is not registered for this verifier",
+    };
+  }
+
+  if (
+    binding.walletAddress !== params.ownerPublicKey ||
+    binding.subjectId !== context.subjectId ||
+    assertion.bindingId !== binding.bindingId ||
+    assertion.credentialId !== binding.credentialId ||
+    expectedAuthentication.bindingId !== binding.bindingId
+  ) {
+    return {
+      verified: false,
+      walletVerified: true,
+      passkeyVerified: false,
+      errorCode: "passkey_mismatch",
+      reason: "Passkey binding does not match the proof owner or subject",
+    };
+  }
+
+  if (!params.envelope.challenge.holderBindingContext.walletAddress) {
+    return {
+      verified: false,
+      walletVerified: true,
+      passkeyVerified: false,
+      errorCode: "passkey_mismatch",
+      reason: "Passkey binding requires a wallet-bound holder binding context",
+    };
+  }
+
+  const expectedPayload = await buildPasskeySignedPayload({
+    challenge: params.envelope.challenge,
+    presentationJson: params.envelope.proof.presentationJson,
+    ownerPublicKey: params.ownerPublicKey,
+  });
+
+  if (
+    assertion.challenge !== expectedAuthentication.challenge ||
+    JSON.stringify(assertion.signedPayload) !== JSON.stringify(expectedPayload) ||
+    JSON.stringify(expectedAuthentication.signedPayload) !== JSON.stringify(expectedPayload)
+  ) {
+    return {
+      verified: false,
+      walletVerified: true,
+      passkeyVerified: false,
+      errorCode: "passkey_mismatch",
+      reason: "Passkey signed payload does not match this challenge or proof",
+    };
+  }
+
+  const { verifyAuthenticationResponse } = await import("@simplewebauthn/server");
+  const authenticationResponse = {
+    id: assertion.credential.id,
+    rawId: assertion.credential.rawId,
+    type: assertion.credential.type,
+    clientExtensionResults: assertion.credential.clientExtensionResults ?? {},
+    response: {
+      authenticatorData: assertion.credential.response.authenticatorData,
+      clientDataJSON: assertion.credential.response.clientDataJSON,
+      signature: assertion.credential.response.signature,
+      ...(assertion.credential.response.userHandle == null
+        ? {}
+        : { userHandle: assertion.credential.response.userHandle }),
+    },
+  };
+  const verification = await verifyAuthenticationResponse({
+    response: authenticationResponse,
+    expectedChallenge: assertion.challenge,
+    expectedOrigin: binding.origin,
+    expectedRPID: binding.rpId,
+    requireUserVerification: true,
+    authenticator: {
+      credentialID: binding.credentialId,
+      credentialPublicKey: base64UrlToBytes(binding.publicKey),
+      counter: binding.counter,
+      transports: binding.transports as never,
+    },
+  });
+
+  if (!verification.verified) {
+    return {
+      verified: false,
+      walletVerified: true,
+      passkeyVerified: false,
+      errorCode: "passkey_invalid_signature",
+      reason: "Passkey assertion signature verification failed",
+    };
+  }
+
+  await params.verifier.updateBindingCounter(
+    binding.bindingId,
+    verification.authenticationInfo.newCounter
+  );
+
+  return {
+    verified: true,
+    walletVerified: true,
+    passkeyVerified: true,
+  };
+}
+
+export async function verifyHolderBinding(
+  params: VerifyHolderBindingParams
+): Promise<HolderBindingVerification> {
+  const holderBinding = params.envelope.holderBinding;
+
+  if (holderBinding.publicKey !== params.ownerPublicKey) {
+    return {
+      verified: false,
+      walletVerified: false,
+      passkeyVerified: false,
+      reason: "Holder binding key does not match the proof owner",
+    };
+  }
+
+  const expectedMessage = await buildHolderBindingMessage(
+    params.envelope.challenge,
+    params.envelope.proof.presentationJson,
+    params.ownerPublicKey
+  );
+
+  if (holderBinding.message !== expectedMessage) {
+    return {
+      verified: false,
+      walletVerified: false,
+      passkeyVerified: false,
+      reason: "Holder binding message does not match the verifier challenge",
+    };
+  }
+
+  const signatureVerified = await params.verifier.verifyMessage({
+    publicKey: holderBinding.publicKey,
+    data: holderBinding.message,
+    signature: holderBinding.signature,
+  });
+
+  if (!signatureVerified) {
+    return {
+      verified: false,
+      walletVerified: false,
+      passkeyVerified: false,
+      reason: "Wallet signature verification failed",
+    };
+  }
+
+  if (!params.passkeyVerifier) {
+    return params.envelope.challenge.holderBindingContext.requiredMethods.includes("passkey")
+      ? {
+          verified: false,
+          walletVerified: true,
+          passkeyVerified: false,
+          errorCode: "passkey_missing",
+          reason: "Passkey verifier is not configured for a passkey-required challenge",
+        }
+      : { verified: true, walletVerified: true, passkeyVerified: false };
+  }
+
+  return verifyPasskeyBinding({
+    envelope: params.envelope,
+    ownerPublicKey: params.ownerPublicKey,
+    expectedAuthentication: params.expectedPasskeyAuthentication ?? null,
+    verifier: params.passkeyVerifier,
+  });
+}
+
+export async function verifyPresentation(
+  params: VerifyMintraPresentationParams
+): Promise<PresentationVerificationResult> {
+  const verifiedAt = new Date().toISOString();
+  const envelope = PresentationEnvelopeSchema.parse(params.envelope);
+  const audience = verifyAudience({
+    challenge: envelope.challenge,
+    expectedAudience: params.expectedAudience ?? params.verifierIdentity,
+  });
+
+  if (!audience.verified) {
+    return {
+      ok: false,
+      challenge: {
+        challengeId: envelope.challenge.challengeId,
+        proofProductId: envelope.challenge.proofProductId,
+        audience: envelope.challenge.audience,
+      },
+      holderBinding: { verified: false, reason: "Presentation rejected before holder binding" },
+      audience,
+      error: {
+        code: "audience_mismatch",
+        message: "Presentation audience does not match this verifier",
+      },
+      verifiedAt,
+    };
+  }
+
+  let proofOutput: VerifiedPresentationOutput;
+  try {
+    const request = await parsePresentationRequest(envelope.proof.presentationRequestJson);
+    proofOutput = await verifyPresentationPolicy({
+      request,
+      presentationJson: envelope.proof.presentationJson,
+      verifierIdentity: params.verifierIdentity,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      challenge: {
+        challengeId: envelope.challenge.challengeId,
+        proofProductId: envelope.challenge.proofProductId,
+        audience: envelope.challenge.audience,
+      },
+      holderBinding: { verified: false, reason: "Presentation proof did not verify" },
+      audience,
+      error: {
+        code: "invalid_proof",
+        message: "Proof verification failed",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+      verifiedAt,
+    };
+  }
+
+  if (params.expectedOwnerPublicKey && proofOutput.ownerPublicKey !== params.expectedOwnerPublicKey) {
+    return {
+      ok: false,
+      challenge: {
+        challengeId: envelope.challenge.challengeId,
+        proofProductId: envelope.challenge.proofProductId,
+        audience: envelope.challenge.audience,
+      },
+      ownerPublicKey: proofOutput.ownerPublicKey,
+      holderBinding: { verified: false, reason: "Presentation owner did not match expectation" },
+      audience,
+      error: {
+        code: "owner_mismatch",
+        message: "Presentation owner does not match the expected wallet",
+      },
+      verifiedAt,
+    };
+  }
+
+  const freshness = verifyFreshness({
+    issuedAt: proofOutput.issuedAt,
+    maxAgeDays: envelope.challenge.policy.maxCredentialAgeDays,
+    ...(params.now === undefined ? {} : { now: params.now }),
+  });
+  if (!freshness.verified) {
+    return {
+      ok: false,
+      challenge: {
+        challengeId: envelope.challenge.challengeId,
+        proofProductId: envelope.challenge.proofProductId,
+        audience: envelope.challenge.audience,
+      },
+      ownerPublicKey: proofOutput.ownerPublicKey,
+      output: {
+        ageOver18: proofOutput.ageOver18,
+        ageOver21: proofOutput.ageOver21,
+        kycPassed: proofOutput.kycPassed,
+        countryCodeNumeric: proofOutput.countryCodeNumeric,
+        issuedAt: proofOutput.issuedAt,
+      },
+      holderBinding: { verified: false, reason: "Freshness check failed before holder binding" },
+      audience,
+      freshness,
+      error: {
+        code: "stale_credential",
+        message: "Credential freshness requirement was not satisfied",
+      },
+      verifiedAt,
+    };
+  }
+
+  const holderBinding = params.holderBindingVerifier
+    ? await verifyHolderBinding({
+        envelope,
+        ownerPublicKey: proofOutput.ownerPublicKey,
+        verifier: params.holderBindingVerifier,
+        ...(params.passkeyBindingVerifier === undefined
+          ? {}
+          : { passkeyVerifier: params.passkeyBindingVerifier }),
+        ...(params.expectedPasskeyAuthentication === undefined
+          ? {}
+          : { expectedPasskeyAuthentication: params.expectedPasskeyAuthentication }),
+      })
+    : {
+        verified: false,
+        reason: "No holder-binding verifier configured",
+      };
+
+  if (!holderBinding.verified) {
+    return {
+      ok: false,
+      challenge: {
+        challengeId: envelope.challenge.challengeId,
+        proofProductId: envelope.challenge.proofProductId,
+        audience: envelope.challenge.audience,
+      },
+      ownerPublicKey: proofOutput.ownerPublicKey,
+      output: {
+        ageOver18: proofOutput.ageOver18,
+        ageOver21: proofOutput.ageOver21,
+        kycPassed: proofOutput.kycPassed,
+        countryCodeNumeric: proofOutput.countryCodeNumeric,
+        issuedAt: proofOutput.issuedAt,
+      },
+      holderBinding,
+      audience,
+      freshness,
+      error: {
+        code: holderBinding.errorCode ?? "holder_binding_failed",
+        message: "Holder binding verification failed",
+        detail: holderBinding.reason,
+      },
+      verifiedAt,
+    };
+  }
+
+  return {
+    ok: true,
+    challenge: {
+      challengeId: envelope.challenge.challengeId,
+      proofProductId: envelope.challenge.proofProductId,
+      audience: envelope.challenge.audience,
+    },
+    ownerPublicKey: proofOutput.ownerPublicKey,
+    output: {
+      ageOver18: proofOutput.ageOver18,
+      ageOver21: proofOutput.ageOver21,
+      kycPassed: proofOutput.kycPassed,
+      countryCodeNumeric: proofOutput.countryCodeNumeric,
+      issuedAt: proofOutput.issuedAt,
+    },
+    holderBinding,
+    audience,
+    freshness,
+    verifiedAt,
   };
 }
 
@@ -285,9 +974,28 @@ function alpha2ToNumeric(alpha2: string): number {
   return Number(countries.alpha2ToNumeric(alpha2) ?? 0);
 }
 
-function normalizeMaxCredentialAgeDays(value: number | undefined): number | null {
+function normalizeMaxCredentialAgeDays(value: number | null | undefined): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   const normalized = Math.floor(value);
   if (normalized <= 0) return null;
   return normalized;
+}
+
+function base64UrlToBytes(value: string): Uint8Array {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function randomHex(byteLength: number): string {
+  const bytes = new Uint8Array(byteLength);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
 }

@@ -1,39 +1,29 @@
 "use client";
 
-import { mintra } from "@/lib/mintra";
+import { requestPresentationWithHolderBinding } from "@/lib/auro-presentation";
 import { extractUiErrorMessage } from "@/lib/errors";
+import { mintra } from "@/lib/mintra";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
-import { normalizeVerifierPolicy } from "@mintra/verifier-core";
+import { listProofProducts, normalizeVerifierPolicy } from "@mintra/verifier-core";
+import type {
+  PresentationRequestEnvelope,
+  PresentationVerificationResult,
+  ProofProductId,
+} from "@mintra/sdk-types";
 import { AlertTriangle, FlaskConical, Loader2, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type PlaygroundPolicy = {
-  minAge?: 18 | 21;
+  minAge?: 18 | 21 | null;
   requireKycPassed?: boolean;
   countryAllowlist?: string[];
   countryBlocklist?: string[];
   maxCredentialAgeDays?: number;
 };
 
-type VerificationResult = {
-  verified: true;
-  ownerPublicKey: string;
-  output: {
-    ageOver18: boolean;
-    ageOver21: boolean;
-    kycPassed: boolean;
-    countryCodeNumeric: number;
-    issuedAt: number;
-  };
-};
-
 type ClaimsResponse = Awaited<ReturnType<typeof mintra.getClaims>>;
 
-function isProviderError(
-  value: { presentation: string } | AuroProviderError
-): value is AuroProviderError {
-  return "code" in value;
-}
+const proofProducts = listProofProducts();
 
 function parseCountryList(raw: string): string[] {
   return raw
@@ -49,12 +39,13 @@ function formatPlaygroundError(err: unknown): string {
     message.includes("Constraint unsatisfied") ||
     message.includes("Proof verification failed")
   ) {
-    return "The stored credential does not satisfy the selected policy. Check the requested age threshold, country allow/block list, and freshness window.";
+    return "The stored credential does not satisfy the selected policy. Check the requested age threshold, country allow/block list, freshness window, and holder-binding signature.";
   }
   return message;
 }
 
 export default function PlaygroundPage() {
+  const [proofProductId, setProofProductId] = useState<ProofProductId>("proof_of_age_18");
   const [minAge, setMinAge] = useState<"18" | "21" | "none">("18");
   const [requireKycPassed, setRequireKycPassed] = useState(true);
   const [countryAllowlist, setCountryAllowlist] = useState("");
@@ -62,7 +53,7 @@ export default function PlaygroundPage() {
   const [maxCredentialAgeDays, setMaxCredentialAgeDays] = useState("30");
   const [loadingStep, setLoadingStep] = useState<"idle" | "requesting" | "proving" | "verifying">("idle");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<VerificationResult | null>(null);
+  const [result, setResult] = useState<PresentationVerificationResult | null>(null);
   const [requestJson, setRequestJson] = useState<string | null>(null);
   const [claimsData, setClaimsData] = useState<ClaimsResponse | null>(null);
 
@@ -71,8 +62,7 @@ export default function PlaygroundPage() {
   const policy = useMemo<PlaygroundPolicy>(() => {
     const parsedDays = Number(maxCredentialAgeDays);
     return {
-      ...(minAge === "18" ? { minAge: 18 as const } : {}),
-      ...(minAge === "21" ? { minAge: 21 as const } : {}),
+      minAge: minAge === "18" ? 18 : minAge === "21" ? 21 : null,
       requireKycPassed,
       ...(parseCountryList(countryAllowlist).length > 0
         ? { countryAllowlist: parseCountryList(countryAllowlist) }
@@ -121,19 +111,29 @@ export default function PlaygroundPage() {
       blockers.push("The current claim set does not show `age_over_18 = true`.");
     }
     if (normalizedPolicy.minAge === 21 && claims.age_over_21 !== true) {
-      blockers.push("The current claim set does not show `age_over_21 = true`. Reissue a fresh credential after verifying 21+ support.");
+      blockers.push("The current claim set does not show `age_over_21 = true`. Reissue a fresh credential after a 21+ verification.");
     }
     if (normalizedPolicy.requireKycPassed && claims.kyc_passed !== true) {
       blockers.push("The current claim set does not show `kyc_passed = true`.");
     }
-    if (normalizedPolicy.countryAllowlist.length > 0 && countryCode && !normalizedPolicy.countryAllowlist.includes(countryCode)) {
+    if (
+      normalizedPolicy.countryAllowlist.length > 0 &&
+      countryCode &&
+      !normalizedPolicy.countryAllowlist.includes(countryCode)
+    ) {
       blockers.push(`The current claim country \`${countryCode}\` is not in the allow list.`);
     }
-    if (normalizedPolicy.countryBlocklist.length > 0 && countryCode && normalizedPolicy.countryBlocklist.includes(countryCode)) {
+    if (
+      normalizedPolicy.countryBlocklist.length > 0 &&
+      countryCode &&
+      normalizedPolicy.countryBlocklist.includes(countryCode)
+    ) {
       blockers.push(`The current claim country \`${countryCode}\` is in the block list.`);
     }
     if (normalizedPolicy.maxCredentialAgeDays !== null) {
-      blockers.push("Freshness is checked against the wallet credential `issuedAt` value at proof time, so this rule may still fail even if backend claims look fresh.");
+      blockers.push(
+        "Freshness is checked against the wallet credential `issuedAt` value during proof verification, so this rule may still fail even if backend claims look fresh."
+      );
     }
 
     return blockers;
@@ -148,7 +148,7 @@ export default function PlaygroundPage() {
     }
 
     const provider = window.mina;
-    if (!provider?.requestPresentation) {
+    if (!provider?.requestPresentation || !provider.signMessage) {
       setError("Auro Wallet is required to run the verifier playground.");
       setResult(null);
       return;
@@ -159,9 +159,7 @@ export default function PlaygroundPage() {
       setResult(null);
       setLoadingStep("requesting");
 
-      const accounts = provider.getAccounts
-        ? await provider.getAccounts()
-        : await provider.requestAccounts();
+      const accounts = provider.getAccounts ? await provider.getAccounts() : await provider.requestAccounts();
       const activeWallet = accounts[0];
 
       if (!activeWallet) {
@@ -173,15 +171,17 @@ export default function PlaygroundPage() {
       }
 
       const verifierUrl =
-        process.env.NEXT_PUBLIC_MINTRA_VERIFIER_URL?.replace(/\/$/, "") ??
-        "http://localhost:3002";
+        process.env.NEXT_PUBLIC_MINTRA_VERIFIER_URL?.replace(/\/$/, "") ?? "http://localhost:3002";
 
       const requestResponse = await fetch(`${verifierUrl}/api/presentation-request`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(policy),
+        body: JSON.stringify({
+          proofProductId,
+          policy,
+        }),
       });
 
       if (!requestResponse.ok) {
@@ -189,32 +189,20 @@ export default function PlaygroundPage() {
         throw new Error(`Could not create proof request: ${body}`);
       }
 
-      const {
-        presentationRequest,
-        presentationRequestJson,
-      }: {
-        presentationRequest: unknown;
-        presentationRequestJson: string;
-      } = await requestResponse.json();
+      const { requestEnvelope }: { requestEnvelope: PresentationRequestEnvelope } =
+        await requestResponse.json();
 
-      try {
-        setRequestJson(JSON.stringify(JSON.parse(presentationRequestJson), null, 2));
-      } catch {
-        setRequestJson(presentationRequestJson);
-      }
+      setRequestJson(JSON.stringify(requestEnvelope, null, 2));
       setLoadingStep("proving");
 
-      const proof = await provider.requestPresentation({
-        presentation: {
-          presentationRequest,
-        },
+      const presentationEnvelope = await requestPresentationWithHolderBinding({
+        provider,
+        requestEnvelope,
+        walletAddress: activeWallet,
+        verifierUrl,
+        walletProviderName: "Auro",
+        clientVersion: "demo-web/playground",
       });
-
-      if (isProviderError(proof)) {
-        if (proof.code === 1001) throw new Error("Reconnect Auro Wallet and try again.");
-        if (proof.code === 1002) throw new Error("The proof request was rejected.");
-        throw new Error(proof.message || "Auro could not create the presentation.");
-      }
 
       setLoadingStep("verifying");
       const verifyResponse = await fetch(`${verifierUrl}/api/verify-presentation`, {
@@ -223,19 +211,20 @@ export default function PlaygroundPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          presentation: proof.presentation,
-          presentationRequestJson,
+          presentationEnvelope,
           expectedOwnerPublicKey: activeWallet,
         }),
       });
 
+      const payload = await verifyResponse.json().catch(async () => ({
+        error: await verifyResponse.text(),
+      }));
+
       if (!verifyResponse.ok) {
-        const body = await verifyResponse.text();
-        throw new Error(`Proof verification failed: ${body}`);
+        throw new Error(payload?.error?.message ?? payload?.error ?? "Proof verification failed.");
       }
 
-      const verified = (await verifyResponse.json()) as VerificationResult;
-      setResult(verified);
+      setResult(payload as PresentationVerificationResult);
       setLoadingStep("idle");
     } catch (err) {
       setError(formatPlaygroundError(err));
@@ -251,11 +240,12 @@ export default function PlaygroundPage() {
           Verifier Playground
         </div>
         <h1 className="text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-          Build a proof policy and test it live against the wallet.
+          Build a proof product request and test it live against the wallet.
         </h1>
         <p className="mt-4 max-w-3xl text-sm leading-7 text-slate">
-          This page lets you configure the verifier policy that another Mina app could run on its own backend.
-          The verifier service generates the request, Auro builds the proof, and the verifier checks it.
+          This page models how a relying party backend would request a Mintra presentation, require
+          holder binding, and verify the result off-chain. The verifier issues a single-use challenge,
+          Auro builds the proof, then the wallet signs the holder-binding message for that exact proof.
         </p>
       </section>
 
@@ -263,6 +253,21 @@ export default function PlaygroundPage() {
         <div className="rounded-[32px] border border-line bg-white p-8 shadow-card">
           <h2 className="text-xl font-semibold tracking-tight text-ink">Policy builder</h2>
           <div className="mt-6 space-y-5">
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-ink">Proof product</span>
+              <select
+                value={proofProductId}
+                onChange={(event) => setProofProductId(event.target.value as ProofProductId)}
+                className="w-full rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-ink"
+              >
+                {proofProducts.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.displayName}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-ink">Minimum age proof</span>
               <select
@@ -336,7 +341,7 @@ export default function PlaygroundPage() {
           <div className="rounded-[32px] border border-line bg-white p-8 shadow-card">
             <h2 className="text-xl font-semibold tracking-tight text-ink">Current policy</h2>
             <pre className="mt-4 overflow-x-auto rounded-2xl border border-line bg-fog p-4 text-xs text-ink">
-              {JSON.stringify(policy, null, 2)}
+              {JSON.stringify({ proofProductId, policy }, null, 2)}
             </pre>
           </div>
 
@@ -357,7 +362,7 @@ export default function PlaygroundPage() {
           {requestJson && (
             <div className="rounded-[32px] border border-line bg-white p-8 shadow-card">
               <h2 className="text-xl font-semibold tracking-tight text-ink">Issued presentation request</h2>
-              <pre className="mt-4 max-h-72 overflow-auto rounded-2xl border border-line bg-fog p-4 text-xs text-ink">
+              <pre className="mt-4 max-h-96 overflow-auto rounded-2xl border border-line bg-fog p-4 text-xs text-ink">
                 {requestJson}
               </pre>
             </div>
