@@ -337,7 +337,7 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
         {walletAddress && (
           <div className="rounded-2xl border border-line bg-fog px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate">Connected address</p>
-            <code className="mt-2 block overflow-hidden text-ellipsis whitespace-nowrap text-sm text-ink">
+            <code className="mt-2 block break-all text-sm text-ink">
               {walletAddress}
             </code>
             {walletProviderName && (

@@ -68,7 +68,7 @@ export function HomeVerificationCard({
 
       <div className="mt-6 rounded-2xl border border-line bg-fog px-4 py-3">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate">Linked wallet</p>
-        <p className="mt-2 text-sm text-ink">
+        <p className="mt-2 break-all text-sm text-ink">
           {walletAddress ?? "No wallet linked yet. Connect a Mina wallet below before starting verification."}
         </p>
       </div>
