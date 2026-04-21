@@ -25,6 +25,8 @@ The wallet-bound credential includes:
 
 The signed credential is then stored in Auro.
 
+In the current demo build, Pallad can be connected as a wallet, but credential storage is not supported there yet.
+
 ## Retention vs Freshness
 
 - retention: how long Mintra keeps normalized backend claims

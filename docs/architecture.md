@@ -36,6 +36,7 @@ Optional on top of that:
 │  - Didit webhook ingestion                                        │
 │  - normalized claims storage                                      │
 │  - Mina credential issuance into Auro                             │
+│  - Pallad wallet connection (demo only; no proof/storage flow)   │
 └───────────────┬───────────────────────────────┬────────────────────┘
                 │                               │
 ┌───────────────▼──────────────┐   ┌────────────▼────────────────────┐

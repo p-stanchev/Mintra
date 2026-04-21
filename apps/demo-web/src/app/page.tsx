@@ -149,7 +149,7 @@ export default function Home() {
           </h1>
 
           <p className="mt-5 max-w-2xl text-base leading-7 text-slate">
-            Mintra turns a completed identity check into a wallet-bound Mina credential. The main flow lives here: verify, connect Auro or Pallad, then issue directly into the wallet.
+            Mintra turns a completed identity check into a wallet-bound Mina credential. The main flow lives here: verify, connect a Mina wallet, then issue directly into Auro. Pallad connection works, but proof and credential flows are not supported in this demo yet.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">

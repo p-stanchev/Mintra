@@ -279,7 +279,7 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
             </div>
             <h3 className="text-lg font-semibold tracking-tight text-ink">Link a Mina wallet</h3>
             <p className="mt-2 max-w-xl text-sm leading-6 text-slate">
-              Connect Auro or Pallad first. After verification is approved, you can issue the credential into a supported wallet that exposes Mina credential storage.
+              Connect Auro or Pallad first. In the current demo, Pallad connection works, but credential storage is only supported through Auro.
             </p>
           </div>
           <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${mounted && wallets.length > 0 ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-500"}`}>
@@ -391,7 +391,7 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
         <div className="grid gap-3 text-sm text-slate sm:grid-cols-3">
           <div className="rounded-2xl border border-line bg-fog px-4 py-3">
             <p className="font-medium text-ink">1. Link wallet</p>
-            <p className="mt-1 leading-6">Connect Auro or Pallad so the later credential has a supported destination.</p>
+            <p className="mt-1 leading-6">Connect Auro or Pallad. Pallad is currently connection-only in this demo.</p>
           </div>
           <div className="rounded-2xl border border-line bg-fog px-4 py-3">
             <p className="font-medium text-ink">2. Verify</p>

@@ -236,6 +236,8 @@ That gives relying parties explicit verifier outcomes for replay-safe flows in m
 
 1. The backend requests a Mintra presentation challenge.
 2. The frontend sends the request to Auro.
+
+The current demo verifier flow is wired against Auro for credential presentation. Pallad connection may work for wallet auth, but presentation is not supported in the demo yet.
 3. The frontend signs the holder-binding message with the same wallet.
 4. If required, the frontend asks the verifier for passkey assertion options and signs the same challenge payload with WebAuthn.
 5. The backend verifies the presentation envelope.

@@ -129,10 +129,10 @@ services/
 
 ## Quick Start
 
-Supported demo wallets today:
+Supported wallet status in the current demo:
 
-- Auro
-- Pallad
+- Auro: supported for connection, credential storage, and proof presentation
+- Pallad: wallet connection works, but credential storage and proof presentation are not supported in the current demo flow
 
 Clorio is not supported in the current Mintra demo flow.
 
@@ -140,7 +140,8 @@ Clorio is not supported in the current Mintra demo flow.
 
 - Node.js `>=20`
 - pnpm `>=9`
-- Auro or Pallad wallet
+- Auro wallet for the full demo flow
+- Pallad wallet only if you want to test wallet connection
 - Didit account
 
 ### Install
