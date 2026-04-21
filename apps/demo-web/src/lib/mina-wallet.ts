@@ -179,6 +179,7 @@ function createAdapterFromProvider(params: {
   source: "direct" | "announced";
 }): MinaWalletAdapter {
   const provider = params.provider;
+  const preferRequestRpc = params.id === "pallad";
   const capabilities = {
     connect: Boolean(provider.requestAccounts || provider.getAccounts || provider.request),
     signMessage: Boolean(provider.signMessage || provider.request),
@@ -192,7 +193,7 @@ function createAdapterFromProvider(params: {
     source: params.source,
     capabilities,
     async requestAccounts() {
-      if (provider.requestAccounts) {
+      if (!preferRequestRpc && provider.requestAccounts) {
         return provider.requestAccounts();
       }
 
@@ -207,7 +208,7 @@ function createAdapterFromProvider(params: {
       throw new Error(`${params.name} does not expose account connection methods.`);
     },
     async getAccounts() {
-      if (provider.getAccounts) {
+      if (!preferRequestRpc && provider.getAccounts) {
         return provider.getAccounts();
       }
 
@@ -220,7 +221,7 @@ function createAdapterFromProvider(params: {
       return this.requestAccounts();
     },
     async signMessage(args) {
-      if (provider.signMessage) {
+      if (!preferRequestRpc && provider.signMessage) {
         return provider.signMessage(args);
       }
 
@@ -244,7 +245,7 @@ function createAdapterFromProvider(params: {
       };
     },
     async requestPresentation(args) {
-      if (provider.requestPresentation) {
+      if (!preferRequestRpc && provider.requestPresentation) {
         return provider.requestPresentation(args);
       }
 
@@ -263,7 +264,7 @@ function createAdapterFromProvider(params: {
       };
     },
     async storePrivateCredential(args) {
-      if (provider.storePrivateCredential) {
+      if (!preferRequestRpc && provider.storePrivateCredential) {
         return provider.storePrivateCredential(args);
       }
 
@@ -336,7 +337,7 @@ function buildRetryParamCandidates(method: string, params: unknown): unknown[][]
   }
 
   if (method === "mina_requestPresentation" && isPresentationParam(params)) {
-    return [[params.presentation], [JSON.stringify(params.presentation)]];
+    return [[params.presentation], [params.presentation.presentationRequest]];
   }
 
   return [[params]];
