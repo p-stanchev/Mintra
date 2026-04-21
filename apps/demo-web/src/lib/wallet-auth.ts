@@ -1,7 +1,14 @@
 "use client";
 
 import { mintra } from "@/lib/mintra";
-import { clearWalletSession, writeAuthToken, writeLinkedWalletAddress } from "./wallet-session";
+import {
+  clearWalletSession,
+  writeAuthToken,
+  writeLinkedWalletAddress,
+  writeLinkedWalletProviderId,
+  writeLinkedWalletProviderName,
+} from "./wallet-session";
+import type { MinaWalletAdapter } from "./mina-wallet";
 
 type ProviderError = {
   code?: number;
@@ -18,8 +25,6 @@ type SignedMessage = {
   };
 };
 
-type MinaProvider = NonNullable<Window["mina"]>;
-
 function isProviderError(value: unknown): value is ProviderError {
   return Boolean(
     value &&
@@ -35,7 +40,10 @@ export function extractErrorMessage(err: unknown): string {
   return "Wallet connection failed";
 }
 
-export async function authenticateWallet(provider: MinaProvider, walletAddress: string): Promise<void> {
+export async function authenticateWallet(
+  provider: MinaWalletAdapter,
+  walletAddress: string
+): Promise<void> {
   const challenge = await mintra.createWalletAuthChallenge({ walletAddress });
   const signed = await provider.signMessage({ message: challenge.message }).catch((err: unknown) => err);
 
@@ -61,6 +69,8 @@ export async function authenticateWallet(provider: MinaProvider, walletAddress: 
 
   writeLinkedWalletAddress(verified.walletAddress);
   writeAuthToken(verified.token);
+  writeLinkedWalletProviderId(provider.id);
+  writeLinkedWalletProviderName(provider.name);
 }
 
 export async function resetWalletSession(): Promise<void> {

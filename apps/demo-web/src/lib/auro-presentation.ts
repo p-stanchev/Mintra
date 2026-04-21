@@ -8,6 +8,7 @@ import type {
   PresentationEnvelope,
   PresentationRequestEnvelope,
 } from "@mintra/sdk-types";
+import type { MinaWalletAdapter } from "./mina-wallet";
 import { requestPasskeyAssertion } from "./passkeys";
 
 function isProviderError(
@@ -21,15 +22,15 @@ function isProviderError(
           scalar: string;
         };
       }
-    | AuroProviderError
-): value is AuroProviderError {
+    | MinaProviderError
+): value is MinaProviderError {
   return "code" in value;
 }
 
 export { warmUpPresentationTools };
 
 export async function requestPresentationWithHolderBinding(params: {
-  provider: NonNullable<Window["mina"]>;
+  provider: MinaWalletAdapter;
   requestEnvelope: PresentationRequestEnvelope;
   walletAddress: string;
   verifierUrl: string;
@@ -43,7 +44,9 @@ export async function requestPresentationWithHolderBinding(params: {
   });
 
   if (isProviderError(proof) || !proof.presentation) {
-    throw new Error(normalizeProviderError(proof, "Auro could not create the presentation."));
+    throw new Error(
+      normalizeProviderError(proof, `${params.provider.name} could not create the presentation.`)
+    );
   }
 
   const holderBindingMessage = await buildHolderBindingMessage(
@@ -55,7 +58,10 @@ export async function requestPresentationWithHolderBinding(params: {
   const signed = await params.provider.signMessage({ message: holderBindingMessage });
   if (isProviderError(signed) || !signed.signature || !signed.publicKey) {
     throw new Error(
-      normalizeProviderError(signed, "Auro could not sign the holder-binding challenge.")
+      normalizeProviderError(
+        signed,
+        `${params.provider.name} could not sign the holder-binding challenge.`
+      )
     );
   }
 
@@ -84,17 +90,20 @@ export async function requestPresentationWithHolderBinding(params: {
     holderBinding,
     ...(passkeyBinding ? { passkeyBinding } : {}),
     metadata: {
-      walletProvider: params.walletProviderName ?? "Auro",
+      walletProvider: params.walletProviderName ?? params.provider.name,
       clientVersion: params.clientVersion,
     },
   });
 }
 
-function normalizeProviderError(error: AuroProviderError | { message?: string } | unknown, fallback: string) {
+function normalizeProviderError(
+  error: MinaProviderError | { message?: string } | unknown,
+  fallback: string
+) {
   if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
-    if ((error as { code?: number }).code === 1001) return "Reconnect Auro Wallet and try again.";
-    if ((error as { code?: number }).code === 1002) return "The request was rejected in Auro.";
-    if ((error as { code?: number }).code === 23001) return "Auro rejected this origin. Reconnect and try again.";
+    if ((error as { code?: number }).code === 1001) return "Reconnect the wallet and try again.";
+    if ((error as { code?: number }).code === 1002) return "The request was rejected in the wallet.";
+    if ((error as { code?: number }).code === 23001) return "The wallet rejected this origin. Reconnect and try again.";
     return error.message;
   }
 

@@ -1,5 +1,7 @@
 export const LINKED_WALLET_STORAGE_KEY = "mintra.linkedWalletAddress";
 export const AUTH_TOKEN_STORAGE_KEY = "mintra.authToken";
+export const WALLET_PROVIDER_ID_STORAGE_KEY = "mintra.walletProviderId";
+export const WALLET_PROVIDER_NAME_STORAGE_KEY = "mintra.walletProviderName";
 
 // Mina public keys are base58-encoded, ~55 chars, always starting with B62
 const MINA_PUBKEY_RE = /^B62[1-9A-HJ-NP-Za-km-z]{50,54}$/;
@@ -23,6 +25,38 @@ export function writeLinkedWalletAddress(address: string): void {
   window.dispatchEvent(new CustomEvent("mintra:wallet-linked", { detail: address }));
 }
 
+export function readLinkedWalletProviderId(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage.getItem(WALLET_PROVIDER_ID_STORAGE_KEY);
+}
+
+export function writeLinkedWalletProviderId(providerId: string | null): void {
+  if (typeof window === "undefined") return;
+  if (!providerId) {
+    window.sessionStorage.removeItem(WALLET_PROVIDER_ID_STORAGE_KEY);
+    window.dispatchEvent(new CustomEvent("mintra:wallet-provider", { detail: null }));
+    return;
+  }
+  window.sessionStorage.setItem(WALLET_PROVIDER_ID_STORAGE_KEY, providerId);
+  window.dispatchEvent(new CustomEvent("mintra:wallet-provider", { detail: providerId }));
+}
+
+export function readLinkedWalletProviderName(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage.getItem(WALLET_PROVIDER_NAME_STORAGE_KEY);
+}
+
+export function writeLinkedWalletProviderName(providerName: string | null): void {
+  if (typeof window === "undefined") return;
+  if (!providerName) {
+    window.sessionStorage.removeItem(WALLET_PROVIDER_NAME_STORAGE_KEY);
+    window.dispatchEvent(new CustomEvent("mintra:wallet-provider-name", { detail: null }));
+    return;
+  }
+  window.sessionStorage.setItem(WALLET_PROVIDER_NAME_STORAGE_KEY, providerName);
+  window.dispatchEvent(new CustomEvent("mintra:wallet-provider-name", { detail: providerName }));
+}
+
 export function readAuthToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
@@ -38,6 +72,10 @@ export function clearWalletSession(): void {
   if (typeof window === "undefined") return;
   window.sessionStorage.removeItem(LINKED_WALLET_STORAGE_KEY);
   window.sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  window.sessionStorage.removeItem(WALLET_PROVIDER_ID_STORAGE_KEY);
+  window.sessionStorage.removeItem(WALLET_PROVIDER_NAME_STORAGE_KEY);
   window.dispatchEvent(new CustomEvent("mintra:auth-updated", { detail: null }));
   window.dispatchEvent(new CustomEvent("mintra:wallet-linked", { detail: null }));
+  window.dispatchEvent(new CustomEvent("mintra:wallet-provider", { detail: null }));
+  window.dispatchEvent(new CustomEvent("mintra:wallet-provider-name", { detail: null }));
 }

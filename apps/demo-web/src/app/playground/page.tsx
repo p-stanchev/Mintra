@@ -2,8 +2,13 @@
 
 import { requestPresentationWithHolderBinding } from "@/lib/auro-presentation";
 import { extractUiErrorMessage } from "@/lib/errors";
+import { getWalletById } from "@/lib/mina-wallet";
 import { mintra } from "@/lib/mintra";
-import { readLinkedWalletAddress } from "@/lib/wallet-session";
+import {
+  readLinkedWalletAddress,
+  readLinkedWalletProviderId,
+  readLinkedWalletProviderName,
+} from "@/lib/wallet-session";
 import { listProofProducts, normalizeVerifierPolicy } from "@mintra/verifier-core";
 import type {
   PresentationRequestEnvelope,
@@ -56,6 +61,7 @@ export default function PlaygroundPage() {
   const [result, setResult] = useState<PresentationVerificationResult | null>(null);
   const [requestJson, setRequestJson] = useState<string | null>(null);
   const [claimsData, setClaimsData] = useState<ClaimsResponse | null>(null);
+  const [walletProviderName, setWalletProviderName] = useState<string | null>(null);
 
   const loading = loadingStep !== "idle";
 
@@ -147,9 +153,11 @@ export default function PlaygroundPage() {
       return;
     }
 
-    const provider = window.mina;
-    if (!provider?.requestPresentation || !provider.signMessage) {
-      setError("Auro Wallet is required to run the verifier playground.");
+    const provider = await getWalletById(readLinkedWalletProviderId());
+    const providerName = readLinkedWalletProviderName();
+    setWalletProviderName(providerName);
+    if (!provider?.capabilities.requestPresentation) {
+      setError(`${providerName ?? "This wallet"} is required to run the verifier playground.`);
       setResult(null);
       return;
     }
@@ -163,7 +171,7 @@ export default function PlaygroundPage() {
       const activeWallet = accounts[0];
 
       if (!activeWallet) {
-        throw new Error("Connect Auro Wallet to continue.");
+        throw new Error(`Connect ${provider.name} to continue.`);
       }
 
       if (activeWallet !== walletAddress) {
@@ -200,7 +208,7 @@ export default function PlaygroundPage() {
         requestEnvelope,
         walletAddress: activeWallet,
         verifierUrl,
-        walletProviderName: "Auro",
+        walletProviderName: provider.name,
         clientVersion: "demo-web/playground",
       });
 
@@ -245,7 +253,7 @@ export default function PlaygroundPage() {
         <p className="mt-4 max-w-3xl text-sm leading-7 text-slate">
           This page models how a relying party backend would request a Mintra presentation, require
           holder binding, and verify the result off-chain. The verifier issues a single-use challenge,
-          Auro builds the proof, then the wallet signs the holder-binding message for that exact proof.
+          the wallet builds the proof, then the same wallet signs the holder-binding message for that exact proof.
         </p>
       </section>
 
@@ -332,7 +340,7 @@ export default function PlaygroundPage() {
               className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black disabled:opacity-50"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              {loading ? "Running verifier flow…" : "Prove with Auro"}
+              {loading ? "Running verifier flow…" : `Prove with ${walletProviderName ?? "wallet"}`}
             </button>
           </div>
         </div>

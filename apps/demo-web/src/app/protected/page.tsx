@@ -1,7 +1,12 @@
 "use client";
 
 import { requestPresentationWithHolderBinding } from "@/lib/auro-presentation";
-import { readLinkedWalletAddress } from "@/lib/wallet-session";
+import {
+  readLinkedWalletAddress,
+  readLinkedWalletProviderId,
+  readLinkedWalletProviderName,
+} from "@/lib/wallet-session";
+import { getWalletById } from "@/lib/mina-wallet";
 import { Lock } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -16,9 +21,13 @@ export default function ProtectedPage() {
   const [loadingStep, setLoadingStep] = useState<"requesting" | "proving" | "verifying">("requesting");
   const [error, setError] = useState<string | null>(null);
   const [verificationResult, setVerificationResult] = useState<PresentationVerificationResult | null>(null);
+  const [walletProviderName, setWalletProviderName] = useState<string | null>(null);
 
   const requestProof = useCallback(async () => {
     const walletAddress = readLinkedWalletAddress();
+    const providerName = readLinkedWalletProviderName();
+    setWalletProviderName(providerName);
+
     if (!walletAddress) {
       setAllowed(false);
       setError("Connect the verified wallet to prove your 18+ credential.");
@@ -26,10 +35,10 @@ export default function ProtectedPage() {
       return;
     }
 
-    const provider = window.mina;
-    if (!provider?.requestPresentation) {
+    const provider = await getWalletById(readLinkedWalletProviderId());
+    if (!provider?.capabilities.requestPresentation) {
       setAllowed(false);
-      setError("Auro Wallet is required to prove the stored credential.");
+      setError(`${providerName ?? "This wallet"} does not support Mina proof presentation in this flow.`);
       setLoading(false);
       return;
     }
@@ -39,13 +48,11 @@ export default function ProtectedPage() {
       setLoadingStep("requesting");
       setError(null);
 
-      const accounts = provider.getAccounts
-        ? await provider.getAccounts()
-        : await provider.requestAccounts();
+      const accounts = await provider.getAccounts();
       const activeWallet = accounts[0];
 
       if (!activeWallet) {
-        throw new Error("Connect Auro Wallet to continue.");
+        throw new Error(`Connect ${provider.name} to continue.`);
       }
 
       if (activeWallet !== walletAddress) {
@@ -74,7 +81,7 @@ export default function ProtectedPage() {
         requestEnvelope,
         walletAddress: activeWallet,
         verifierUrl,
-        walletProviderName: "Auro",
+        walletProviderName: provider.name,
         clientVersion: "demo-web/protected",
       });
 
@@ -121,13 +128,13 @@ export default function ProtectedPage() {
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>Access Denied</h1>
           <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 12 }}>
-            This page now checks the credential stored in Auro. Prove the wallet-held{" "}
+            This page now checks the credential stored in a Mina wallet. Prove the wallet-held{" "}
             <code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>age_over_18</code> claim to continue.
           </p>
           <p style={{ color: "var(--danger)", fontSize: 14, marginBottom: 24 }}>{error}</p>
           <div className="row" style={{ justifyContent: "center", gap: 12 }}>
             <button type="button" className="btn btn-primary" onClick={() => void requestProof()}>
-              Prove with Auro
+              Prove with {walletProviderName ?? "wallet"}
             </button>
             <Link href="/verify" className="btn btn-secondary">
               Start verification
@@ -141,12 +148,12 @@ export default function ProtectedPage() {
   if (loading) {
     const steps: Record<typeof loadingStep, { label: string; detail: string }> = {
       requesting: {
-        label: "Sending proof request to Auro…",
-        detail: "Check Auro and approve the credential request.",
+        label: `Sending proof request to ${walletProviderName ?? "wallet"}…`,
+        detail: "Check the wallet and approve the credential request.",
       },
       proving: {
-        label: "Auro is generating the ZK proof…",
-        detail: "This takes 30–90 seconds. Auro is computing the proof — don't close the wallet.",
+        label: `${walletProviderName ?? "Wallet"} is generating the ZK proof…`,
+        detail: "This takes 30–90 seconds. The wallet is computing the proof — don't close it.",
       },
       verifying: {
         label: "Verifying proof on server…",
@@ -171,13 +178,13 @@ export default function ProtectedPage() {
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>Access Denied</h1>
           <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 24 }}>
-            This feature requires an Auro presentation proving the{" "}
+            This feature requires a Mina wallet presentation proving the{" "}
             <code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>age_over_18</code> claim.
             Complete verification first, then come back and prove it from the wallet.
           </p>
           <div className="row" style={{ justifyContent: "center", gap: 12 }}>
             <button type="button" className="btn btn-primary" onClick={() => void requestProof()}>
-              Prove with Auro
+              Prove with {walletProviderName ?? "wallet"}
             </button>
             <Link href="/verify" className="btn btn-secondary">
               Start verification
@@ -196,7 +203,7 @@ export default function ProtectedPage() {
         </div>
         <h1 style={{ fontSize: 28, fontWeight: 700 }}>Verification successful</h1>
         <p style={{ color: "var(--muted)", marginTop: 6 }}>
-          Auro produced a valid presentation for the linked wallet’s{" "}
+          {walletProviderName ?? "Your wallet"} produced a valid presentation for the linked wallet’s{" "}
           <code style={{ fontFamily: "var(--mono)", fontSize: 13 }}>age_over_18</code> credential.
         </p>
       </div>

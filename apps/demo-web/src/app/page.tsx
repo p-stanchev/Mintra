@@ -5,8 +5,14 @@ import Link from "next/link";
 import { ArrowRight, BadgeCheck, CheckCheck, Lock, Shield, Wallet } from "lucide-react";
 import { WalletCredentialCard } from "@/components/wallet-credential-card";
 import { HomeVerificationCard } from "@/components/home-verification-card";
-import { readAuthToken, readLinkedWalletAddress } from "@/lib/wallet-session";
+import {
+  readAuthToken,
+  readLinkedWalletAddress,
+  readLinkedWalletProviderId,
+  readLinkedWalletProviderName,
+} from "@/lib/wallet-session";
 import { authenticateWallet, resetWalletSession } from "@/lib/wallet-auth";
+import { getWalletById } from "@/lib/mina-wallet";
 import { useCallback, useEffect, useState } from "react";
 
 type ClaimsResponse = Awaited<ReturnType<typeof mintra.getClaims>>;
@@ -17,7 +23,7 @@ function classifyClaimsError(err: unknown): string {
   }
 
   if (err.message.includes("Mintra API error 401")) {
-    return "Reconnect Auro to refresh your wallet session.";
+    return "Reconnect your Mina wallet to refresh your wallet session.";
   }
 
   if (err.message.includes("Mintra API error 403")) {
@@ -33,6 +39,8 @@ function classifyClaimsError(err: unknown): string {
 
 export default function Home() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletProviderId, setWalletProviderId] = useState<string | null>(null);
+  const [walletProviderName, setWalletProviderName] = useState<string | null>(null);
   const [claims, setClaims] = useState<ClaimsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -43,6 +51,8 @@ export default function Home() {
     const syncWallet = () => {
       const linkedWallet = readLinkedWalletAddress();
       setWalletAddress(linkedWallet);
+      setWalletProviderId(readLinkedWalletProviderId());
+      setWalletProviderName(readLinkedWalletProviderName());
 
       if (!linkedWallet) {
         setClaims(null);
@@ -85,15 +95,19 @@ export default function Home() {
     window.addEventListener("storage", syncWallet);
     window.addEventListener("mintra:wallet-linked", syncWallet as EventListener);
     window.addEventListener("mintra:auth-updated", syncWallet as EventListener);
+    window.addEventListener("mintra:wallet-provider", syncWallet as EventListener);
+    window.addEventListener("mintra:wallet-provider-name", syncWallet as EventListener);
     return () => {
       window.removeEventListener("storage", syncWallet);
       window.removeEventListener("mintra:wallet-linked", syncWallet as EventListener);
       window.removeEventListener("mintra:auth-updated", syncWallet as EventListener);
+      window.removeEventListener("mintra:wallet-provider", syncWallet as EventListener);
+      window.removeEventListener("mintra:wallet-provider-name", syncWallet as EventListener);
     };
   }, []);
 
   const handleReconnect = useCallback(async () => {
-    const provider = typeof window !== "undefined" ? window.mina ?? null : null;
+    const provider = await getWalletById(readLinkedWalletProviderId());
     if (!provider) return;
     try {
       setReconnecting(true);
@@ -135,7 +149,7 @@ export default function Home() {
           </h1>
 
           <p className="mt-5 max-w-2xl text-base leading-7 text-slate">
-            Mintra turns a completed identity check into a wallet-bound Mina credential. The main flow lives here: verify, connect Auro, then issue directly into the wallet.
+            Mintra turns a completed identity check into a wallet-bound Mina credential. The main flow lives here: verify, connect Auro, Pallad, or Clorio-compatible Mina wallet, then issue directly into the wallet.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
@@ -239,14 +253,16 @@ export default function Home() {
       {sessionExpired && (
         <section className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm">
           <p className="font-medium text-amber-800 mb-2">Wallet session expired</p>
-          <p className="text-amber-700 mb-3">Reconnect Auro to reload your claims and resume the flow.</p>
+          <p className="text-amber-700 mb-3">
+            Reconnect {walletProviderName ?? "your wallet"} to reload your claims and resume the flow.
+          </p>
           <button
             type="button"
             onClick={() => void handleReconnect()}
             disabled={reconnecting}
             className="inline-flex items-center gap-2 rounded-full bg-amber-800 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-900 disabled:opacity-50"
           >
-            {reconnecting ? "Reconnecting…" : "Reconnect Auro"}
+            {reconnecting ? "Reconnecting…" : `Reconnect ${walletProviderName ?? "wallet"}`}
           </button>
         </section>
       )}
@@ -265,7 +281,7 @@ export default function Home() {
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate">Flow</p>
           <div className="mt-6 space-y-5">
             <StepRow index="01" title="Verify your identity" body="Complete the hosted KYC session once to derive normalized claims." />
-            <StepRow index="02" title="Link Auro Wallet" body="Connect the wallet from the main page so the credential can bind to your Mina public key." />
+            <StepRow index="02" title="Link Mina Wallet" body="Connect the wallet from the main page so the credential can bind to your Mina public key." />
             <StepRow index="03" title="Issue private credential" body="Mintra signs a Mina credential and stores it in the wallet for later proof requests." />
           </div>
         </div>

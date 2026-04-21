@@ -1,8 +1,13 @@
 "use client";
 
 import { requestPresentationWithHolderBinding } from "@/lib/auro-presentation";
+import { getWalletById } from "@/lib/mina-wallet";
 import { registerPasskey } from "@/lib/passkeys";
-import { readLinkedWalletAddress } from "@/lib/wallet-session";
+import {
+  readLinkedWalletAddress,
+  readLinkedWalletProviderId,
+  readLinkedWalletProviderName,
+} from "@/lib/wallet-session";
 import type {
   PresentationRequestEnvelope,
   PresentationVerificationResult,
@@ -36,6 +41,7 @@ export default function RelyingPartyPage() {
   const [result, setResult] = useState<PresentationVerificationResult | null>(null);
   const [passkeyRegistered, setPasskeyRegistered] = useState(false);
   const [passkeyLabel, setPasskeyLabel] = useState<string | null>(null);
+  const [walletProviderName, setWalletProviderName] = useState<string | null>(null);
 
   const verifierUrl =
     process.env.NEXT_PUBLIC_MINTRA_VERIFIER_URL?.replace(/\/$/, "") ?? "http://localhost:3002";
@@ -94,9 +100,11 @@ export default function RelyingPartyPage() {
       return;
     }
 
-    const provider = window.mina;
-    if (!provider?.requestPresentation || !provider.signMessage) {
-      setMessage("Auro Wallet is required to present the proof.");
+    const provider = await getWalletById(readLinkedWalletProviderId());
+    const providerName = readLinkedWalletProviderName();
+    setWalletProviderName(providerName);
+    if (!provider?.capabilities.requestPresentation) {
+      setMessage(`${providerName ?? "This wallet"} is required to present the proof.`);
       setResult(null);
       return;
     }
@@ -108,7 +116,7 @@ export default function RelyingPartyPage() {
 
       const accounts = provider.getAccounts ? await provider.getAccounts() : await provider.requestAccounts();
       const activeWallet = accounts[0];
-      if (!activeWallet) throw new Error("Connect Auro Wallet to continue.");
+      if (!activeWallet) throw new Error(`Connect ${provider.name} to continue.`);
       if (activeWallet !== walletAddress) {
         throw new Error("Reconnect the same wallet that completed verification.");
       }
@@ -138,7 +146,7 @@ export default function RelyingPartyPage() {
         requestEnvelope,
         walletAddress: activeWallet,
         verifierUrl,
-        walletProviderName: "Auro",
+        walletProviderName: provider.name,
         clientVersion: "demo-web/relying-party",
       });
 
@@ -239,7 +247,7 @@ export default function RelyingPartyPage() {
             className="mt-6 inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black disabled:opacity-50"
           >
             {loading ? <Wallet className="h-4 w-4 animate-pulse" /> : <ShieldCheck className="h-4 w-4" />}
-            {loading ? "Verifying…" : `Request ${selectedProduct.label} proof`}
+            {loading ? "Verifying…" : `Request ${selectedProduct.label} proof${walletProviderName ? ` with ${walletProviderName}` : ""}`}
           </button>
         </div>
 
@@ -252,9 +260,9 @@ export default function RelyingPartyPage() {
             </p>
             {!result && !message && (
               <div className="mt-6 rounded-2xl border border-dashed border-line bg-fog px-5 py-8 text-sm text-slate">
-                Run the flow to see an access decision.
-              </div>
-            )}
+              Run the flow to see an access decision.
+            </div>
+          )}
 
             {message && (
               <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">

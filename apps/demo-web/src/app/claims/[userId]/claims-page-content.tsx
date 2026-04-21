@@ -4,10 +4,15 @@ import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { mintra } from "@/lib/mintra";
-import { readLinkedWalletAddress } from "@/lib/wallet-session";
+import {
+  readLinkedWalletAddress,
+  readLinkedWalletProviderId,
+  readLinkedWalletProviderName,
+} from "@/lib/wallet-session";
 import { warmUpPresentationTools } from "@/lib/auro-presentation";
 import { authenticateWallet, resetWalletSession } from "@/lib/wallet-auth";
 import { WalletCredentialCard } from "@/components/wallet-credential-card";
+import { getWalletById } from "@/lib/mina-wallet";
 
 type ClaimsResponse = Awaited<ReturnType<typeof mintra.getClaims>>;
 
@@ -18,6 +23,7 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [reconnecting, setReconnecting] = useState(false);
+  const [walletProviderName, setWalletProviderName] = useState<string | null>(null);
 
   useEffect(() => {
     // Pre-load mina-attestations WASM so /protected page is faster
@@ -25,6 +31,7 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
 
     const linkedWallet = readLinkedWalletAddress();
     setWalletAddress(linkedWallet);
+    setWalletProviderName(readLinkedWalletProviderName());
 
     if (!linkedWallet || linkedWallet !== userId) {
       setLoading(false);
@@ -66,7 +73,7 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
   }, [userId]);
 
   async function handleReconnect() {
-    const provider = typeof window !== "undefined" ? window.mina ?? null : null;
+    const provider = await getWalletById(readLinkedWalletProviderId());
     if (!provider) return;
     try {
       setReconnecting(true);
@@ -134,7 +141,7 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
         <div className="card" style={{ borderColor: "var(--warning, #f59e0b)" }}>
           <p style={{ fontWeight: 600, marginBottom: 6 }}>Session expired</p>
           <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 16 }}>
-            Your wallet session has expired. Reconnect Auro to reload your claims.
+            Your wallet session has expired. Reconnect {walletProviderName ?? "your wallet"} to reload your claims.
           </p>
           <button
             type="button"
@@ -142,7 +149,7 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
             onClick={() => void handleReconnect()}
             disabled={reconnecting}
           >
-            {reconnecting ? "Reconnecting…" : "Reconnect Auro"}
+            {reconnecting ? "Reconnecting…" : `Reconnect ${walletProviderName ?? "wallet"}`}
           </button>
         </div>
       )}
