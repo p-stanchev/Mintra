@@ -219,7 +219,7 @@ function createAdapterFromProvider(params: {
 async function tryProviderRequest<T>(
   provider: MinaDirectProvider,
   method: string,
-  params?: Record<string, unknown>
+  params?: unknown
 ): Promise<T | null> {
   if (!provider.request) return null;
   try {
@@ -230,6 +230,21 @@ async function tryProviderRequest<T>(
     return unwrapProviderResponse<T>(response);
   } catch (error) {
     const providerError = error as MinaProviderError | undefined;
+    if (shouldRetryWithArrayParams(providerError, params)) {
+      try {
+        const retryResponse = await provider.request({
+          method,
+          params: [params],
+        });
+        return unwrapProviderResponse<T>(retryResponse);
+      } catch (retryError) {
+        const retryProviderError = retryError as MinaProviderError | undefined;
+        if (retryProviderError?.message) {
+          return retryProviderError as T;
+        }
+        return null;
+      }
+    }
     if (providerError?.message) {
       return providerError as T;
     }
@@ -271,6 +286,13 @@ function normalizeWalletId(value: string): string {
 
 function titleCase(value: string): string {
   return value.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function shouldRetryWithArrayParams(error: MinaProviderError | undefined, params: unknown): boolean {
+  if (params === undefined) return false;
+  if (!error?.message) return false;
+  const message = error.message.toLowerCase();
+  return message.includes("expected array") && message.includes("received object");
 }
 
 function delay(milliseconds: number): Promise<void> {

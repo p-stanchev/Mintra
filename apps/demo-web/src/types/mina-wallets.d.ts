@@ -33,7 +33,7 @@ declare global {
     }) => Promise<MinaPresentationResponse | MinaProviderError>;
     request?: (args: {
       method: string;
-      params?: Record<string, unknown>;
+      params?: unknown;
     }) => Promise<unknown>;
   }
 
