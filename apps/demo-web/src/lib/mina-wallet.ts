@@ -164,7 +164,9 @@ async function collectAnnouncedProviders(): Promise<MinaAnnouncedProviderDetail[
 
   window.addEventListener("mina:announceProvider", handler as EventListener);
   window.dispatchEvent(new Event("mina:requestProvider"));
-  await delay(150);
+  // Pallad follows the RFC-0008 announce flow, but some extensions answer a bit later
+  // than Auro after page load, so keep the listener alive longer.
+  await delay(1000);
   window.removeEventListener("mina:announceProvider", handler as EventListener);
 
   return announced;
