@@ -24,7 +24,6 @@ export type MinaWalletSummary = Pick<MinaWalletAdapter, "id" | "name" | "source"
 const KNOWN_WALLET_NAMES: Record<string, string> = {
   auro: "Auro",
   pallad: "Pallad",
-  clorio: "Clorio",
   mina: "Mina Wallet",
 };
 
@@ -32,8 +31,9 @@ const WALLET_ID_ALIASES: Record<string, string> = {
   "auro-wallet": "auro",
   "auro-wallet-provider": "auro",
   "pallad-wallet": "pallad",
-  "clorio-wallet": "clorio",
 };
+
+const UNSUPPORTED_WALLET_IDS = new Set(["clorio"]);
 
 export async function discoverMinaWallets(): Promise<MinaWalletAdapter[]> {
   if (typeof window === "undefined") return [];
@@ -44,8 +44,10 @@ export async function discoverMinaWallets(): Promise<MinaWalletAdapter[]> {
   for (const announced of await collectAnnouncedProviders()) {
     const announcedProvider = announced.provider;
     if (!announcedProvider) continue;
+    const announcedId = normalizeWalletId(announced.info?.slug ?? announced.info?.name ?? "announced-wallet");
+    if (UNSUPPORTED_WALLET_IDS.has(announcedId)) continue;
     const adapter = createAdapterFromProvider({
-      id: normalizeWalletId(announced.info?.slug ?? announced.info?.name ?? "announced-wallet"),
+      id: announcedId,
       name: announced.info?.name ?? inferWalletName(announced.info?.slug),
       provider: announcedProvider,
       source: "announced",
@@ -55,7 +57,6 @@ export async function discoverMinaWallets(): Promise<MinaWalletAdapter[]> {
 
   const directCandidates: Array<{ id: string; provider: MinaDirectProvider | undefined }> = [
     { id: "auro", provider: window.mina },
-    { id: "clorio", provider: window.clorio },
     { id: "pallad", provider: window.pallad },
   ];
 
@@ -71,7 +72,7 @@ export async function discoverMinaWallets(): Promise<MinaWalletAdapter[]> {
   }
 
   return Array.from(wallets.values()).sort((left, right) => {
-    const order = ["auro", "pallad", "clorio"];
+    const order = ["auro", "pallad"];
     const leftIndex = order.indexOf(left.id);
     const rightIndex = order.indexOf(right.id);
     if (leftIndex === -1 && rightIndex === -1) return left.name.localeCompare(right.name);
@@ -291,7 +292,7 @@ async function tryProviderRequest<T>(
       try {
         const retryResponse = await provider.request({
           method,
-          params: [params],
+          params: buildArrayParamsForMethod(method, params),
         });
         return unwrapProviderResponse<T>(retryResponse);
       } catch (retryError) {
@@ -307,6 +308,14 @@ async function tryProviderRequest<T>(
     }
     return null;
   }
+}
+
+function buildArrayParamsForMethod(method: string, params: unknown): unknown[] {
+  if ((method === "mina_sign" || method === "mina_signMessage") && isMessageParam(params)) {
+    return [params.message];
+  }
+
+  return [params];
 }
 
 function unwrapProviderResponse<T>(value: unknown): T {
@@ -351,6 +360,15 @@ function shouldRetryWithArrayParams(error: MinaProviderError | undefined, params
   if (!error?.message) return false;
   const message = error.message.toLowerCase();
   return message.includes("expected array") && message.includes("received object");
+}
+
+function isMessageParam(value: unknown): value is { message: string } {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "message" in value &&
+      typeof (value as { message?: unknown }).message === "string"
+  );
 }
 
 function delay(milliseconds: number): Promise<void> {
