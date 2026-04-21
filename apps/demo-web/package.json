@@ -9,10 +9,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@mintra/verifier-core": "workspace:*",
     "@mintra/sdk-js": "workspace:*",
     "@mintra/sdk-types": "workspace:*",
+    "@mintra/verifier-core": "workspace:*",
     "lucide-react": "^1.8.0",
+    "marked": "^18.0.2",
     "mina-attestations": "^0.5.3",
     "next": "14.2.35",
     "o1js": "^2.3.0",
@@ -20,6 +21,7 @@
     "react-dom": "^18"
   },
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
