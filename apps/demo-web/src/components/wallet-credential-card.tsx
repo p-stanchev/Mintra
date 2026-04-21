@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Check, KeyRound, Link as LinkIcon, Loader2, ShieldCheck, Wallet } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, KeyRound, Link as LinkIcon, Loader2, ShieldCheck, Wallet } from "lucide-react";
 import { mintra } from "@/lib/mintra";
 import {
   readAuthToken,
@@ -23,6 +23,8 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
   const [wallets, setWallets] = useState<MinaWalletSummary[]>([]);
   const [selectedWalletId, setSelectedWalletId] = useState<string>("");
   const [mounted, setMounted] = useState(false);
+  const [walletMenuOpen, setWalletMenuOpen] = useState(false);
+  const walletMenuRef = useRef<HTMLDivElement | null>(null);
 
   const busy = state === "connecting" || state === "issuing" || state === "storing";
   const selectedWallet = useMemo(
@@ -70,6 +72,27 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
       window.removeEventListener("mintra:wallet-linked", handleStorage as EventListener);
       window.removeEventListener("mintra:wallet-provider", handleStorage as EventListener);
       window.removeEventListener("mintra:wallet-provider-name", handleStorage as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      if (!walletMenuRef.current) return;
+      if (walletMenuRef.current.contains(event.target as Node)) return;
+      setWalletMenuOpen(false);
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setWalletMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
     };
   }, []);
 
@@ -222,25 +245,42 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
           </div>
         </div>
 
-        <label className="block">
+        <div className="block" ref={walletMenuRef}>
           <span className="mb-2 block text-sm font-medium text-ink">Detected wallet</span>
-          <select
-            value={selectedWalletId}
-            onChange={(event) => setSelectedWalletId(event.target.value)}
+          <button
+            type="button"
+            onClick={() => setWalletMenuOpen((current) => !current)}
             disabled={!mounted || wallets.length === 0 || busy}
-            className="w-full rounded-2xl border border-line bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-ink disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 text-left text-sm text-ink outline-none transition hover:bg-fog focus:border-ink disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {wallets.length === 0 ? (
-              <option value="">No supported wallet detected</option>
-            ) : (
-              wallets.map((wallet) => (
-                <option key={wallet.id} value={wallet.id}>
-                  {wallet.name}
-                </option>
-              ))
-            )}
-          </select>
-        </label>
+            <span>{selectedWallet?.name ?? "No supported wallet detected"}</span>
+            <ChevronDown className={`h-4 w-4 text-slate transition ${walletMenuOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {walletMenuOpen && wallets.length > 0 && (
+            <div className="mt-2 overflow-hidden rounded-2xl border border-line bg-white shadow-card">
+              {wallets.map((wallet) => {
+                const active = wallet.id === selectedWalletId;
+                return (
+                  <button
+                    key={wallet.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedWalletId(wallet.id);
+                      setWalletMenuOpen(false);
+                    }}
+                    className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm transition ${
+                      active ? "bg-fog text-ink" : "text-slate hover:bg-fog hover:text-ink"
+                    }`}
+                  >
+                    <span>{wallet.name}</span>
+                    {active ? <Check className="h-4 w-4" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {selectedWallet && (
           <div className="rounded-2xl border border-line bg-fog px-4 py-3 text-sm text-slate">

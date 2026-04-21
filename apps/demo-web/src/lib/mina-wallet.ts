@@ -28,10 +28,18 @@ const KNOWN_WALLET_NAMES: Record<string, string> = {
   mina: "Mina Wallet",
 };
 
+const WALLET_ID_ALIASES: Record<string, string> = {
+  "auro-wallet": "auro",
+  "auro-wallet-provider": "auro",
+  "pallad-wallet": "pallad",
+  "clorio-wallet": "clorio",
+};
+
 export async function discoverMinaWallets(): Promise<MinaWalletAdapter[]> {
   if (typeof window === "undefined") return [];
 
   const wallets = new Map<string, MinaWalletAdapter>();
+  const providerIds = new WeakMap<object, string>();
 
   for (const announced of await collectAnnouncedProviders()) {
     const announcedProvider = announced.provider;
@@ -42,7 +50,7 @@ export async function discoverMinaWallets(): Promise<MinaWalletAdapter[]> {
       provider: announcedProvider,
       source: "announced",
     });
-    wallets.set(adapter.id, adapter);
+    upsertWallet(wallets, providerIds, adapter, announcedProvider);
   }
 
   const directCandidates: Array<{ id: string; provider: MinaDirectProvider | undefined }> = [
@@ -59,9 +67,7 @@ export async function discoverMinaWallets(): Promise<MinaWalletAdapter[]> {
       provider: candidate.provider,
       source: "direct",
     });
-    if (!wallets.has(adapter.id)) {
-      wallets.set(adapter.id, adapter);
-    }
+    upsertWallet(wallets, providerIds, adapter, candidate.provider);
   }
 
   return Array.from(wallets.values()).sort((left, right) => {
@@ -73,6 +79,57 @@ export async function discoverMinaWallets(): Promise<MinaWalletAdapter[]> {
     if (rightIndex === -1) return -1;
     return leftIndex - rightIndex;
   });
+}
+
+function upsertWallet(
+  wallets: Map<string, MinaWalletAdapter>,
+  providerIds: WeakMap<object, string>,
+  candidate: MinaWalletAdapter,
+  provider: MinaDirectProvider
+) {
+  const existingByProviderId = providerIds.get(provider as object);
+  if (existingByProviderId) {
+    const existing = wallets.get(existingByProviderId);
+    if (!existing) {
+      wallets.set(candidate.id, candidate);
+      providerIds.set(provider as object, candidate.id);
+      return;
+    }
+
+    const preferred = pickPreferredWallet(existing, candidate);
+    wallets.delete(existing.id);
+    wallets.set(preferred.id, preferred);
+    providerIds.set(provider as object, preferred.id);
+    return;
+  }
+
+  const existingById = wallets.get(candidate.id);
+  if (!existingById) {
+    wallets.set(candidate.id, candidate);
+    providerIds.set(provider as object, candidate.id);
+    return;
+  }
+
+  const preferred = pickPreferredWallet(existingById, candidate);
+  wallets.set(preferred.id, preferred);
+  providerIds.set(provider as object, preferred.id);
+}
+
+function pickPreferredWallet(current: MinaWalletAdapter, candidate: MinaWalletAdapter): MinaWalletAdapter {
+  const currentScore = walletCapabilityScore(current);
+  const candidateScore = walletCapabilityScore(candidate);
+
+  if (candidateScore > currentScore) return candidate;
+  if (candidateScore < currentScore) return current;
+
+  if (candidate.source === "direct" && current.source !== "direct") return candidate;
+  if (current.source === "direct" && candidate.source !== "direct") return current;
+
+  return current;
+}
+
+function walletCapabilityScore(wallet: MinaWalletAdapter): number {
+  return Object.values(wallet.capabilities).filter(Boolean).length;
 }
 
 export async function getWalletById(walletId: string | null | undefined): Promise<MinaWalletAdapter | null> {
@@ -281,7 +338,8 @@ function inferWalletName(rawId: string | undefined): string {
 }
 
 function normalizeWalletId(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, "-");
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, "-");
+  return WALLET_ID_ALIASES[normalized] ?? normalized;
 }
 
 function titleCase(value: string): string {
