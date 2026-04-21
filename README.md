@@ -136,6 +136,13 @@ Supported wallet status in the current demo:
 
 Clorio is not supported in the current Mintra demo flow.
 
+Privacy and retention in the current demo:
+
+- users explicitly confirm consent before starting verification
+- Mintra stores only minimal normalized verification data needed for credential issuance and proof flows
+- normalized claims are retained for up to 30 days in the current setup
+- export and delete-account workflows are planned, but not fully productized in the demo yet
+
 ### Prerequisites
 
 - Node.js `>=20`

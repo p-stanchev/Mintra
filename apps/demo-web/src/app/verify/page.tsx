@@ -49,6 +49,7 @@ export default function VerifyPage() {
   const [state, setState] = useState<VerifyState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [linkedWallet, setLinkedWallet] = useState<string | null>(null);
+  const [consentChecked, setConsentChecked] = useState(false);
 
   useEffect(() => {
     const wallet = readLinkedWalletAddress();
@@ -65,6 +66,7 @@ export default function VerifyPage() {
 
   async function handleStartVerification(providerId: string) {
     if (providerId !== "didit") return;
+    if (!consentChecked) return;
     if (!linkedWallet) {
       setState("blocked");
       setError("Connect your wallet on the home page before starting verification.");
@@ -109,6 +111,45 @@ export default function VerifyPage() {
 
             <div
               style={{
+                marginBottom: 20,
+                border: "1px solid var(--border)",
+                borderRadius: 20,
+                padding: 16,
+                background: "rgba(255,255,255,0.86)",
+                textAlign: "left",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 14, color: "#111111", fontWeight: 600 }}>
+                Consent and retention
+              </p>
+              <p style={{ marginTop: 8, fontSize: 13, lineHeight: 1.7, color: "var(--muted)" }}>
+                By continuing, you consent to the selected KYC provider processing your verification. Mintra keeps only
+                minimal normalized verification records needed for credential issuance and proof flows, and retains
+                them for the shortest window available in this setup: up to 30 days.
+              </p>
+              <label
+                style={{
+                  marginTop: 12,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  fontSize: 13,
+                  color: "#111111",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={consentChecked}
+                  onChange={(event) => setConsentChecked(event.target.checked)}
+                  style={{ marginTop: 2 }}
+                />
+                <span>I understand and consent to this verification and retention policy.</span>
+              </label>
+            </div>
+
+            <div
+              style={{
                 display: "grid",
                 gap: 12,
                 textAlign: "left",
@@ -119,21 +160,22 @@ export default function VerifyPage() {
                 <button
                   key={provider.id}
                   type="button"
-                  disabled={!provider.available}
+                  disabled={!provider.available || !consentChecked}
                   onClick={() => void handleStartVerification(provider.id)}
                   style={{
                     width: "100%",
                     borderRadius: 20,
                     border: provider.available ? "1px solid var(--border)" : "1px solid #e7e5e4",
                     background: provider.available ? "rgba(255,255,255,0.92)" : "#f5f5f4",
-                    opacity: provider.available ? 1 : 0.58,
+                    opacity: provider.available ? (consentChecked ? 1 : 0.72) : 0.58,
                     padding: "16px 18px",
-                    cursor: provider.available ? "pointer" : "not-allowed",
+                    cursor: provider.available && consentChecked ? "pointer" : "not-allowed",
                     transition: "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
                     boxShadow: provider.available
                       ? "0 1px 2px rgba(17,17,17,0.04), 0 10px 24px rgba(17,17,17,0.05)"
                       : "none",
                   }}
+                  aria-disabled={!provider.available || !consentChecked}
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -178,6 +220,11 @@ export default function VerifyPage() {
               Selected flow will continue with{" "}
               <strong style={{ color: "#111111" }}>{activeProvider.name}</strong>.
             </p>
+            {!consentChecked && (
+              <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 8 }}>
+                Confirm consent above to continue.
+              </p>
+            )}
           </>
         )}
 

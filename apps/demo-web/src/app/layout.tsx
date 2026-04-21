@@ -32,16 +32,33 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </header>
           <main className="flex-1">{children}</main>
           <footer className="mt-16 border-t border-line/80 pt-5 text-sm text-slate">
-            Mintra bridges verified identity claims into Mina credentials. Built on{" "}
-            <a
-              className="font-medium text-ink transition hover:text-slate"
-              href="https://github.com/zksecurity/mina-attestations"
-              target="_blank"
-              rel="noreferrer"
-            >
-              mina-attestations
-            </a>
-            .
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <p>
+                Mintra bridges verified identity claims into Mina credentials. Built on{" "}
+                <a
+                  className="font-medium text-ink transition hover:text-slate"
+                  href="https://github.com/zksecurity/mina-attestations"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  mina-attestations
+                </a>
+                .
+              </p>
+
+              <details className="max-w-xl rounded-2xl border border-line bg-white/80 px-4 py-3 backdrop-blur-sm">
+                <summary className="cursor-pointer list-none font-medium text-ink">
+                  Privacy, consent, and retention
+                </summary>
+                <p className="mt-3 text-sm leading-6 text-slate">
+                  By starting verification, the user consents to the KYC provider processing the identity check and to
+                  Mintra storing only minimal normalized verification data needed for credential issuance and proof
+                  flows. The current demo keeps normalized claims for up to 30 days, which matches the shortest Didit
+                  retention window available in this setup. Export and deletion workflows are product roadmap items, not
+                  full demo features yet.
+                </p>
+              </details>
+            </div>
           </footer>
         </div>
       </body>

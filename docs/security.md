@@ -65,6 +65,13 @@ Mintra does not store:
 - Mintra normalized claims: up to 30 days
 - Didit retention: provider-side and separate from Mintra
 
+## Consent And Data Minimization
+
+- the demo verification flow now requires explicit user acknowledgment before redirecting to the provider
+- Mintra keeps only minimal normalized verification data needed for credential issuance and proof verification
+- raw KYC payloads, images, and document scans are not retained by Mintra
+- export, delete-account, and automated deletion workflows are still productization items rather than complete demo features
+
 ## Deployment Guidance
 
 - run `services/verifier` separately from `services/api`
