@@ -18,8 +18,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={plusJakartaSans.variable}>
-        <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-6 sm:px-8">
-          <header className="relative mb-10 flex items-center justify-between border-b border-line/80 pb-5">
+        <div className="site-shell">
+          <div className="site-orb site-orb-left" aria-hidden="true" />
+          <div className="site-orb site-orb-right" aria-hidden="true" />
+          <div className="site-grid" aria-hidden="true" />
+        </div>
+        <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-6 sm:px-8">
+          <header className="glass-panel relative mb-10 flex items-center justify-between border-b border-line/80 pb-5">
             <a href="/" className="text-lg font-semibold tracking-tight text-ink">
               Mintra
             </a>

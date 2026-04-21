@@ -138,7 +138,7 @@ export default function Home() {
   return (
     <div className="space-y-8">
       <section className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-        <div className="rounded-[32px] border border-line bg-white p-8 shadow-card sm:p-10">
+        <div className="reveal-up rounded-[32px] border border-line bg-white/90 p-8 shadow-card backdrop-blur-sm sm:p-10">
           <div className="mb-8 inline-flex items-center gap-2 rounded-full bg-fog px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-slate">
             <Shield className="h-3.5 w-3.5" />
             Reusable Mina verification
@@ -191,7 +191,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="rounded-[32px] border border-line bg-white p-8 shadow-card">
+        <div className="reveal-up reveal-delay-1 rounded-[32px] border border-line bg-white/90 p-8 shadow-card backdrop-blur-sm">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate">Verification status</p>
           <p className="mt-3 text-sm text-slate">
             The homepage now drives a single sequence: connect wallet, return to the top, then verify.
@@ -268,7 +268,7 @@ export default function Home() {
       )}
 
       {error && !sessionExpired && (
-        <section className="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">
+        <section className="reveal-up rounded-3xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">
           {error}
         </section>
       )}
@@ -277,7 +277,7 @@ export default function Home() {
       <WalletCredentialCard userId={walletAddress ?? ""} isVerified={isVerified} />
 
       <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[32px] border border-line bg-white p-8 shadow-card">
+        <div className="reveal-up reveal-delay-1 rounded-[32px] border border-line bg-white/90 p-8 shadow-card backdrop-blur-sm">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate">Flow</p>
           <div className="mt-6 space-y-5">
             <StepRow index="01" title="Verify your identity" body="Complete the hosted KYC session once to derive normalized claims." />
@@ -286,7 +286,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="rounded-[32px] border border-line bg-white p-8 shadow-card">
+        <div className="reveal-up reveal-delay-2 rounded-[32px] border border-line bg-white/90 p-8 shadow-card backdrop-blur-sm">
           <div className="mb-6 flex items-center justify-between">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate">Active claims</p>

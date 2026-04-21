@@ -21,22 +21,22 @@ Optional on top of that:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────┐
-│  apps/demo-web                                                    │
-│  - wallet onboarding                                              │
-│  - KYC start / callback                                           │
-│  - protected route                                                │
-│  - verifier playground                                            │
-│  - relying party demo                                             │
+│  apps/demo-web                                                     │
+│  - wallet onboarding                                               │
+│  - KYC start / callback                                            │
+│  - protected route                                                 │
+│  - verifier playground                                             │
+│  - relying party demo                                              │
 └───────────────────────────────┬────────────────────────────────────┘
                                 │
 ┌───────────────────────────────▼────────────────────────────────────┐
-│  services/api                                                     │
-│  - wallet auth challenge / verify                                 │
-│  - Didit session creation                                         │
-│  - Didit webhook ingestion                                        │
-│  - normalized claims storage                                      │
-│  - Mina credential issuance into Auro                             │
-│  - Pallad wallet connection (demo only; no proof/storage flow)   │
+│  services/api                                                      │
+│  - wallet auth challenge / verify                                  │
+│  - Didit session creation                                          │
+│  - Didit webhook ingestion                                         │
+│  - normalized claims storage                                       │
+│  - Mina credential issuance into Auro                              │
+│  - Pallad wallet connection (demo only; no proof/storage flow)     │
 └───────────────┬───────────────────────────────┬────────────────────┘
                 │                               │
 ┌───────────────▼──────────────┐   ┌────────────▼────────────────────┐
@@ -47,32 +47,32 @@ Optional on top of that:
 └──────────────────────────────┘   └─────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────┐
-│  services/verifier                                                │
-│  - proof product catalog                                          │
-│  - presentation request issuance                                  │
+│  services/verifier                                                 │
+│  - proof product catalog                                           │
+│  - presentation request issuance                                   │
 │  - challenge service                                               │
 │  - memory store for local dev                                      │
 │  - Redis store for production                                      │
 │  - atomic single-use challenge consume                             │
-│  - passkey binding registration / assertion option issuance       │
-│  - wallet + passkey holder-binding verification                   │
-│  - audience / freshness / replay checks                           │
-│  - proof acceptance / denial result                               │
+│  - passkey binding registration / assertion option issuance        │
+│  - wallet + passkey holder-binding verification                    │
+│  - audience / freshness / replay checks                            │
+│  - proof acceptance / denial result                                │
 └───────────────────────────────┬────────────────────────────────────┘
                                 │
 ┌───────────────────────────────▼────────────────────────────────────┐
-│  packages/verifier-core                                           │
-│  - proof product configs                                          │
-│  - presentation request builder                                   │
-│  - stable presentation envelope format                            │
-│  - holder-binding message builder                                 │
-│  - proof verification helpers                                     │
+│  packages/verifier-core                                            │
+│  - proof product configs                                           │
+│  - presentation request builder                                    │
+│  - stable presentation envelope format                             │
+│  - holder-binding message builder                                  │
+│  - proof verification helpers                                      │
 └────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────┐
-│  examples/zkapp-age-gate                                          │
-│  - optional zkApp consumption example                             │
-│  - not core to issuance or off-chain verification                 │
+│  examples/zkapp-age-gate                                           │
+│  - optional zkApp consumption example                              │
+│  - not core to issuance or off-chain verification                  │
 └────────────────────────────────────────────────────────────────────┘
 ```
 

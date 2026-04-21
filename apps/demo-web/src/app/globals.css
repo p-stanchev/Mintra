@@ -30,7 +30,7 @@ body {
   min-height: 100vh;
   background:
     radial-gradient(circle at top left, rgba(245, 245, 244, 0.9), transparent 30%),
-    linear-gradient(180deg, #ffffff 0%, #fafaf9 100%);
+    linear-gradient(180deg, #ffffff 0%, #fafaf9 54%, #f7f6f3 100%);
   color: #111111;
   font-family: var(--font-sans);
 }
@@ -176,4 +176,95 @@ pre {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.site-shell {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.site-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(17, 17, 17, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(17, 17, 17, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.16), transparent 72%);
+}
+
+.site-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(28px);
+  opacity: 0.65;
+  animation: floatOrb 12s ease-in-out infinite;
+}
+
+.site-orb-left {
+  top: 84px;
+  left: -96px;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(17, 17, 17, 0.09), rgba(17, 17, 17, 0));
+}
+
+.site-orb-right {
+  top: 220px;
+  right: -88px;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(120, 113, 108, 0.14), rgba(120, 113, 108, 0));
+  animation-delay: -4s;
+}
+
+.glass-panel {
+  backdrop-filter: blur(10px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.68));
+}
+
+.reveal-up {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: revealUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.reveal-delay-1 {
+  animation-delay: 0.08s;
+}
+
+.reveal-delay-2 {
+  animation-delay: 0.16s;
+}
+
+@keyframes revealUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatOrb {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, 14px, 0) scale(1.03);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .reveal-up,
+  .site-orb {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
