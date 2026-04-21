@@ -34,8 +34,20 @@ function isProviderError(value: unknown): value is ProviderError {
 }
 
 export function extractErrorMessage(err: unknown): string {
+  if (Array.isArray(err)) {
+    const firstMessage = err.find(
+      (entry): entry is { message: string } =>
+        Boolean(entry && typeof entry === "object" && "message" in entry && typeof (entry as { message?: unknown }).message === "string")
+    )?.message;
+    if (firstMessage) return firstMessage;
+  }
+  if (isProviderError(err)) {
+    if (err.code === 4100) {
+      return "Wrong password. Unlock the wallet and try again.";
+    }
+    if (err.message) return err.message;
+  }
   if (err instanceof Error) return err.message;
-  if (isProviderError(err) && err.message) return err.message;
   if (typeof err === "string") return err;
   return "Wallet connection failed";
 }

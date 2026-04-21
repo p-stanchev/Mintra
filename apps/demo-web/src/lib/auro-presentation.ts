@@ -100,7 +100,16 @@ function normalizeProviderError(
   error: MinaProviderError | { message?: string } | unknown,
   fallback: string
 ) {
+  if (Array.isArray(error)) {
+    const firstMessage = error.find(
+      (entry): entry is { message: string } =>
+        Boolean(entry && typeof entry === "object" && "message" in entry && typeof (entry as { message?: unknown }).message === "string")
+    )?.message;
+    if (firstMessage) return firstMessage;
+  }
+
   if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    if ((error as { code?: number }).code === 4100) return "Wrong password. Unlock the wallet and try again.";
     if ((error as { code?: number }).code === 1001) return "Reconnect the wallet and try again.";
     if ((error as { code?: number }).code === 1002) return "The request was rejected in the wallet.";
     if ((error as { code?: number }).code === 23001) return "The wallet rejected this origin. Reconnect and try again.";

@@ -291,19 +291,33 @@ async function tryProviderRequest<T>(
   } catch (error) {
     const providerError = error as MinaProviderError | undefined;
     if (shouldRetryWithArrayParams(providerError, params)) {
-      try {
-        const retryResponse = await provider.request({
-          method,
-          params: buildArrayParamsForMethod(method, params),
-        });
-        return unwrapProviderResponse<T>(retryResponse);
-      } catch (retryError) {
-        const retryProviderError = retryError as MinaProviderError | undefined;
-        if (retryProviderError?.message) {
-          return retryProviderError as T;
+      for (const retryParams of buildRetryParamCandidates(method, params)) {
+        try {
+          const retryResponse = await provider.request({
+            method,
+            params: retryParams,
+          });
+          return unwrapProviderResponse<T>(retryResponse);
+        } catch (retryError) {
+          const retryProviderError = retryError as MinaProviderError | undefined;
+          if (retryProviderError?.message) {
+            const message = retryProviderError.message.toLowerCase();
+            const looksLikeParamValidationFailure =
+              message.includes("expected array") ||
+              message.includes("expected object") ||
+              message.includes("expected string") ||
+              message.includes("invalid literal") ||
+              message.includes("invalid input") ||
+              message.includes("required");
+
+            if (!looksLikeParamValidationFailure) {
+              return retryProviderError as T;
+            }
+          }
         }
-        return null;
       }
+
+      return providerError?.message ? (providerError as T) : null;
     }
     if (providerError?.message) {
       return providerError as T;
@@ -312,12 +326,20 @@ async function tryProviderRequest<T>(
   }
 }
 
-function buildArrayParamsForMethod(method: string, params: unknown): unknown[] {
+function buildRetryParamCandidates(method: string, params: unknown): unknown[][] {
   if ((method === "mina_sign" || method === "mina_signMessage") && isMessageParam(params)) {
-    return [params.message];
+    return [[params.message]];
   }
 
-  return [params];
+  if (method === "mina_storePrivateCredential" && isCredentialParam(params)) {
+    return [[params.credential], [JSON.stringify(params.credential)]];
+  }
+
+  if (method === "mina_requestPresentation" && isPresentationParam(params)) {
+    return [[params.presentation], [JSON.stringify(params.presentation)]];
+  }
+
+  return [[params]];
 }
 
 function unwrapProviderResponse<T>(value: unknown): T {
@@ -377,6 +399,16 @@ function isMessageParam(value: unknown): value is { message: string } {
       "message" in value &&
       typeof (value as { message?: unknown }).message === "string"
   );
+}
+
+function isCredentialParam(value: unknown): value is { credential: unknown } {
+  return Boolean(value && typeof value === "object" && "credential" in value);
+}
+
+function isPresentationParam(
+  value: unknown
+): value is { presentation: { presentationRequest: unknown; zkAppAccount?: unknown } } {
+  return Boolean(value && typeof value === "object" && "presentation" in value);
 }
 
 function delay(milliseconds: number): Promise<void> {
