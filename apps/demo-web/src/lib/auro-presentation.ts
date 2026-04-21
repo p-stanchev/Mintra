@@ -37,11 +37,15 @@ export async function requestPresentationWithHolderBinding(params: {
   walletProviderName?: string;
   clientVersion?: string;
 }): Promise<PresentationEnvelope> {
-  const proof = await params.provider.requestPresentation({
-    presentation: {
-      presentationRequest: params.requestEnvelope.presentationRequest,
-    },
-  });
+  const proof = await withTimeout(
+    params.provider.requestPresentation({
+      presentation: {
+        presentationRequest: params.requestEnvelope.presentationRequest,
+      },
+    }),
+    120000,
+    `${params.provider.name} took too long to create the presentation. Reopen the wallet and try again.`
+  );
 
   if (isProviderError(proof) || !proof.presentation) {
     throw new Error(
@@ -55,7 +59,11 @@ export async function requestPresentationWithHolderBinding(params: {
     params.walletAddress
   );
 
-  const signed = await params.provider.signMessage({ message: holderBindingMessage });
+  const signed = await withTimeout(
+    params.provider.signMessage({ message: holderBindingMessage }),
+    30000,
+    `${params.provider.name} took too long to sign the holder-binding challenge. Reopen the wallet and try again.`
+  );
   if (isProviderError(signed) || !signed.signature || !signed.publicKey) {
     throw new Error(
       normalizeProviderError(
@@ -96,6 +104,25 @@ export async function requestPresentationWithHolderBinding(params: {
   });
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeout);
+        reject(error);
+      }
+    );
+  });
+}
+
 function normalizeProviderError(
   error: MinaProviderError | { message?: string } | unknown,
   fallback: string
@@ -105,6 +132,12 @@ function normalizeProviderError(
       (entry): entry is { message: string } =>
         Boolean(entry && typeof entry === "object" && "message" in entry && typeof (entry as { message?: unknown }).message === "string")
     )?.message;
+    if (firstMessage?.includes("Expected array, received object")) {
+      return "This wallet rejected the proof request format. Reopen the wallet and try again.";
+    }
+    if (firstMessage?.includes("Expected object, received string")) {
+      return "This wallet rejected the credential payload format. Reopen the wallet and try again.";
+    }
     if (firstMessage) return firstMessage;
   }
 
@@ -113,6 +146,9 @@ function normalizeProviderError(
     if ((error as { code?: number }).code === 1001) return "Reconnect the wallet and try again.";
     if ((error as { code?: number }).code === 1002) return "The request was rejected in the wallet.";
     if ((error as { code?: number }).code === 23001) return "The wallet rejected this origin. Reconnect and try again.";
+    if (error.message.includes("Unauthorized: signPayload")) {
+      return "Wrong password or locked wallet. Unlock Pallad and try again.";
+    }
     return error.message;
   }
 

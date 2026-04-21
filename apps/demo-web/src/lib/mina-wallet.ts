@@ -34,9 +34,13 @@ const WALLET_ID_ALIASES: Record<string, string> = {
 };
 
 const UNSUPPORTED_WALLET_IDS = new Set(["clorio"]);
+const announcedProviders = new Map<string, MinaAnnouncedProviderDetail>();
+let providerListenerAttached = false;
 
 export async function discoverMinaWallets(): Promise<MinaWalletAdapter[]> {
   if (typeof window === "undefined") return [];
+
+  ensureProviderAnnouncementListener();
 
   const wallets = new Map<string, MinaWalletAdapter>();
   const providerIds = new WeakMap<object, string>();
@@ -149,27 +153,28 @@ export function summarizeWallet(wallet: MinaWalletAdapter): MinaWalletSummary {
 }
 
 async function collectAnnouncedProviders(): Promise<MinaAnnouncedProviderDetail[]> {
-  const announced: MinaAnnouncedProviderDetail[] = [];
-  const seen = new Set<string>();
+  ensureProviderAnnouncementListener();
+  window.dispatchEvent(new Event("mina:requestProvider"));
+  // Pallad can answer later than Auro, so wait a bit and return the accumulated registry.
+  await delay(2000);
+  return Array.from(announcedProviders.values());
+}
+
+function ensureProviderAnnouncementListener() {
+  if (providerListenerAttached || typeof window === "undefined") return;
 
   const handler = (event: WindowEventMap["mina:announceProvider"]) => {
     const detail = event.detail;
     const provider = detail?.provider;
     if (!provider) return;
-    const id = normalizeWalletId(detail.info?.slug ?? detail.info?.name ?? `announced-${announced.length}`);
-    if (seen.has(id)) return;
-    seen.add(id);
-    announced.push(detail);
+    const id = normalizeWalletId(
+      detail.info?.slug ?? detail.info?.name ?? `announced-${announcedProviders.size}`
+    );
+    announcedProviders.set(id, detail);
   };
 
   window.addEventListener("mina:announceProvider", handler as EventListener);
-  window.dispatchEvent(new Event("mina:requestProvider"));
-  // Pallad follows the RFC-0008 announce flow, but some extensions answer a bit later
-  // than Auro after page load, so keep the listener alive longer.
-  await delay(1000);
-  window.removeEventListener("mina:announceProvider", handler as EventListener);
-
-  return announced;
+  providerListenerAttached = true;
 }
 
 function createAdapterFromProvider(params: {
@@ -290,7 +295,7 @@ async function tryProviderRequest<T>(
     });
     return unwrapProviderResponse<T>(response);
   } catch (error) {
-    const providerError = error as MinaProviderError | undefined;
+    const providerError = error as MinaProviderError | MinaProviderError[] | undefined;
     if (shouldRetryWithArrayParams(providerError, params)) {
       for (const retryParams of buildRetryParamCandidates(method, params)) {
         try {
@@ -300,9 +305,9 @@ async function tryProviderRequest<T>(
           });
           return unwrapProviderResponse<T>(retryResponse);
         } catch (retryError) {
-          const retryProviderError = retryError as MinaProviderError | undefined;
-          if (retryProviderError?.message) {
-            const message = retryProviderError.message.toLowerCase();
+          const retryProviderMessage = getProviderErrorMessage(retryError);
+          if (retryProviderMessage) {
+            const message = retryProviderMessage.toLowerCase();
             const looksLikeParamValidationFailure =
               message.includes("expected array") ||
               message.includes("expected object") ||
@@ -312,16 +317,18 @@ async function tryProviderRequest<T>(
               message.includes("required");
 
             if (!looksLikeParamValidationFailure) {
-              return retryProviderError as T;
+              return normalizeProviderErrorValue(retryError) as T;
             }
           }
         }
       }
 
-      return providerError?.message ? (providerError as T) : null;
+      return getProviderErrorMessage(providerError)
+        ? (normalizeProviderErrorValue(providerError) as T)
+        : null;
     }
-    if (providerError?.message) {
-      return providerError as T;
+    if (getProviderErrorMessage(providerError)) {
+      return normalizeProviderErrorValue(providerError) as T;
     }
     return null;
   }
@@ -386,10 +393,14 @@ function titleCase(value: string): string {
   return value.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function shouldRetryWithArrayParams(error: MinaProviderError | undefined, params: unknown): boolean {
+function shouldRetryWithArrayParams(
+  error: MinaProviderError | MinaProviderError[] | undefined,
+  params?: unknown
+): boolean {
   if (params === undefined) return false;
-  if (!error?.message) return false;
-  const message = error.message.toLowerCase();
+  const providerMessage = getProviderErrorMessage(error);
+  if (!providerMessage) return false;
+  const message = providerMessage.toLowerCase();
   return message.includes("expected array") && message.includes("received object");
 }
 
@@ -416,4 +427,45 @@ function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
     window.setTimeout(resolve, milliseconds);
   });
+}
+
+function getProviderErrorMessage(error: unknown): string | null {
+  if (Array.isArray(error)) {
+    const first = error.find(
+      (entry): entry is { message: string } =>
+        Boolean(
+          entry &&
+            typeof entry === "object" &&
+            "message" in entry &&
+            typeof (entry as { message?: unknown }).message === "string"
+        )
+    );
+    return first?.message ?? null;
+  }
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+
+  return null;
+}
+
+function normalizeProviderErrorValue(error: unknown): MinaProviderError {
+  if (Array.isArray(error)) {
+    return {
+      message: getProviderErrorMessage(error) ?? "Wallet request failed.",
+      data: error,
+    };
+  }
+
+  if (error && typeof error === "object") {
+    return error as MinaProviderError;
+  }
+
+  return { message: "Wallet request failed." };
 }

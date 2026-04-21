@@ -39,11 +39,17 @@ export function extractErrorMessage(err: unknown): string {
       (entry): entry is { message: string } =>
         Boolean(entry && typeof entry === "object" && "message" in entry && typeof (entry as { message?: unknown }).message === "string")
     )?.message;
+    if (firstMessage?.includes("Expected array, received object")) {
+      return "This wallet rejected the request format. Reopen the wallet and try again.";
+    }
     if (firstMessage) return firstMessage;
   }
   if (isProviderError(err)) {
     if (err.code === 4100) {
       return "Wrong password. Unlock the wallet and try again.";
+    }
+    if (err.message?.includes("Unauthorized: signPayload")) {
+      return "Wrong password or locked wallet. Unlock Pallad and try again.";
     }
     if (err.message) return err.message;
   }
