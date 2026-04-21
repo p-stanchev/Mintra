@@ -188,8 +188,15 @@ function createAdapterFromProvider(params: {
   const capabilities = {
     connect: Boolean(provider.requestAccounts || provider.getAccounts || provider.request),
     signMessage: Boolean(provider.signMessage || provider.request),
-    requestPresentation: Boolean(provider.requestPresentation || provider.request),
-    storeCredential: Boolean(provider.storePrivateCredential || provider.request),
+    // Pallad's public docs currently document provider discovery, account access,
+    // and signing methods, but not the private credential / presentation RPC shapes.
+    // Do not claim support for these flows unless the wallet exposes explicit helpers.
+    requestPresentation: preferRequestRpc
+      ? Boolean(provider.requestPresentation)
+      : Boolean(provider.requestPresentation || provider.request),
+    storeCredential: preferRequestRpc
+      ? Boolean(provider.storePrivateCredential)
+      : Boolean(provider.storePrivateCredential || provider.request),
   } satisfies Record<MinaWalletCapability, boolean>;
 
   return {
@@ -254,7 +261,17 @@ function createAdapterFromProvider(params: {
         return provider.requestPresentation(args);
       }
 
+      if (preferRequestRpc && provider.requestPresentation) {
+        return provider.requestPresentation(args);
+      }
+
       if (provider.request) {
+        if (preferRequestRpc) {
+          return {
+            code: -1,
+            message: `${params.name} does not expose documented Mina presentation requests in this browser build yet.`,
+          };
+        }
         const result = await tryProviderRequest<MinaPresentationResponse | MinaProviderError>(
           provider,
           "mina_requestPresentation",
@@ -273,7 +290,16 @@ function createAdapterFromProvider(params: {
         return provider.storePrivateCredential(args);
       }
 
+      if (preferRequestRpc && provider.storePrivateCredential) {
+        return provider.storePrivateCredential(args);
+      }
+
       if (provider.request) {
+        if (preferRequestRpc) {
+          throw new Error(
+            `${params.name} does not expose documented Mina credential storage in this browser build yet.`
+          );
+        }
         return tryProviderRequest(provider, "mina_storePrivateCredential", args);
       }
 

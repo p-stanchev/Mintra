@@ -31,6 +31,7 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
     () => wallets.find((wallet) => wallet.id === selectedWalletId) ?? null,
     [selectedWalletId, wallets]
   );
+  const actionWallet = selectedWallet ?? wallets.find((wallet) => wallet.id === walletProviderId) ?? null;
 
   useEffect(() => {
     setMounted(true);
@@ -86,8 +87,12 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
 
     const handleStorage = () => {
       setWalletAddress(readLinkedWalletAddress());
-      setWalletProviderId(readLinkedWalletProviderId());
+      const linkedProviderId = readLinkedWalletProviderId();
+      setWalletProviderId(linkedProviderId);
       setWalletProviderName(readLinkedWalletProviderName());
+      if (linkedProviderId) {
+        setSelectedWalletId(linkedProviderId);
+      }
     };
 
     window.addEventListener("storage", handleStorage);
@@ -166,7 +171,7 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
   }
 
   async function handleStoreInWallet() {
-    const providerId = walletProviderId ?? selectedWalletId;
+    const providerId = selectedWalletId || walletProviderId;
     if (!providerId) {
       setState("error");
       setMessage("No Mina wallet was selected.");
@@ -255,6 +260,13 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
       ? `${wallets.length} wallet${wallets.length === 1 ? "" : "s"} detected`
       : "No supported wallet found"
     : "Checking wallets";
+  const connectButtonLabel =
+    actionWallet && actionWallet.id !== walletProviderId
+      ? `Connect ${actionWallet.name}`
+      : walletAddress
+        ? `Reconnect ${walletProviderName ?? "wallet"}`
+        : `Connect ${actionWallet?.name ?? "wallet"}`;
+  const issueButtonLabel = `Issue to ${actionWallet?.name ?? walletProviderName ?? "wallet"}`;
 
   return (
     <div id="wallet-credential" className="scroll-mt-28 rounded-3xl border border-line bg-white p-6 shadow-card">
@@ -342,7 +354,7 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
             className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-fog disabled:cursor-not-allowed disabled:opacity-50"
           >
             {state === "connecting" ? <Loader2 className="h-4 w-4 animate-spin" /> : <LinkIcon className="h-4 w-4" />}
-            {walletAddress ? `Reconnect ${walletProviderName ?? "wallet"}` : "Connect wallet"}
+            {connectButtonLabel}
           </button>
 
           <button
@@ -360,7 +372,7 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
               ? "Issuing..."
               : state === "storing"
                 ? "Storing..."
-                : `Issue to ${walletProviderName ?? selectedWallet?.name ?? "wallet"}`}
+                : issueButtonLabel}
           </button>
         </div>
 
