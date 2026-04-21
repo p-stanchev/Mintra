@@ -48,7 +48,7 @@ export async function discoverMinaWallets(): Promise<MinaWalletAdapter[]> {
     if (UNSUPPORTED_WALLET_IDS.has(announcedId)) continue;
     const adapter = createAdapterFromProvider({
       id: announcedId,
-      name: announced.info?.name ?? inferWalletName(announced.info?.slug),
+      name: inferWalletName(announcedId),
       provider: announcedProvider,
       source: "announced",
     });
@@ -348,7 +348,13 @@ function inferWalletName(rawId: string | undefined): string {
 
 function normalizeWalletId(value: string): string {
   const normalized = value.trim().toLowerCase().replace(/\s+/g, "-");
-  return WALLET_ID_ALIASES[normalized] ?? normalized;
+  const aliased = WALLET_ID_ALIASES[normalized] ?? normalized;
+
+  if (aliased.includes("auro")) return "auro";
+  if (aliased.includes("pallad")) return "pallad";
+  if (aliased.includes("clorio")) return "clorio";
+
+  return aliased;
 }
 
 function titleCase(value: string): string {
