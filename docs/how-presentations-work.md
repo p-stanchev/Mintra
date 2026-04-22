@@ -24,6 +24,52 @@ A presentation is submitted as `mintra.presentation/v1` and includes:
 - replay protection fields
 - optional client metadata
 
+The request side of the protocol is also standardized:
+
+- `mintra.presentation-request/v1`
+- `mintra.challenge/v1`
+
+That is the canonical Mintra proof-request format a relying party issues before a wallet generates a presentation.
+
+## Standardized Proof Request Format
+
+At a high level, a Mintra request carries:
+
+- a proof product
+- a verifier policy
+- an audience
+- a verifier challenge
+- replay protection metadata
+- holder-binding requirements
+
+Conceptual shape:
+
+```json
+{
+  "version": "mintra.presentation-request/v1",
+  "proofProduct": {
+    "id": "proof_of_age_18"
+  },
+  "challenge": {
+    "version": "mintra.challenge/v1",
+    "challengeId": "uuid",
+    "nonce": "hex",
+    "verifier": "https://verifier.example",
+    "audience": "https://app.example",
+    "proofProductId": "proof_of_age_18",
+    "policy": {
+      "minAge": 18,
+      "requireKycPassed": true,
+      "countryAllowlist": [],
+      "countryBlocklist": [],
+      "maxCredentialAgeDays": 365
+    }
+  }
+}
+```
+
+This lets Mintra behave like a protocol surface, not just a demo implementation.
+
 ## Envelope Structure
 
 ```json

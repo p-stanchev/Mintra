@@ -498,6 +498,53 @@ The lower-level compatibility helpers still exist too:
 - `serializePresentationRequest(...)`
 - `verifyPresentationPolicy(...)`
 
+## Standardized Proof Request Format
+
+Mintra already defines its own verifier request standard:
+
+- `mintra.presentation-request/v1`
+- challenge payload: `mintra.challenge/v1`
+
+Conceptually, Mintra proof requests carry:
+
+- the proof product being requested
+- the verifier policy
+- the audience the proof is meant for
+- a single-use challenge with replay protection
+- holder-binding requirements
+
+At a high level, the request shape is:
+
+```json
+{
+  "version": "mintra.presentation-request/v1",
+  "proofProduct": {
+    "id": "proof_of_age_18"
+  },
+  "challenge": {
+    "version": "mintra.challenge/v1",
+    "challengeId": "uuid",
+    "nonce": "hex",
+    "audience": "https://app.example.com",
+    "proofProductId": "proof_of_age_18",
+    "policy": {
+      "minAge": 18,
+      "requireKycPassed": true,
+      "countryAllowlist": [],
+      "countryBlocklist": [],
+      "maxCredentialAgeDays": 365
+    }
+  }
+}
+```
+
+This is the standard Mintra is building around:
+
+- reusable wallet credential
+- verifier-bound proof request
+- verifier-bound proof presentation
+- normalized verification result
+
 ## Demo App Surfaces
 
 The demo web app now includes:

@@ -90,6 +90,13 @@ const result = await verifyResponse.json();
 
 `POST /api/presentation-request`
 
+Mintra’s standardized proof request format is:
+
+- envelope: `mintra.presentation-request/v1`
+- challenge: `mintra.challenge/v1`
+
+The verifier service returns that standardized request envelope over HTTP.
+
 ```json
 {
   "proofProductId": "proof_of_age_18",
@@ -125,6 +132,30 @@ Response:
   }
 }
 ```
+
+Conceptually, this is Mintra’s standard request object:
+
+```json
+{
+  "version": "mintra.presentation-request/v1",
+  "proofProduct": {
+    "id": "proof_of_age_18"
+  },
+  "challenge": {
+    "version": "mintra.challenge/v1",
+    "challengeId": "uuid",
+    "nonce": "hex",
+    "audience": "https://your-app.example",
+    "proofProductId": "proof_of_age_18",
+    "policy": {
+      "minAge": 18,
+      "requireKycPassed": true
+    }
+  }
+}
+```
+
+So yes, Mintra does define its own standardized proof-request format already. The current implementation exposes it as the request envelope returned by `createPresentationRequest(...)` and `POST /api/presentation-request`.
 
 The verifier stores the challenge server-side and expects a single verification attempt against it.
 
