@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
 import { requireWalletAuth } from "../auth";
 
-const CLAIM_FRESHNESS_DAYS = Number(process.env["MINTRA_CLAIM_FRESHNESS_DAYS"] ?? 7);
-const CLAIM_EXPIRING_SOON_DAYS = Number(process.env["MINTRA_CLAIM_EXPIRING_SOON_DAYS"] ?? 2);
+const CLAIM_FRESHNESS_DAYS = Number(process.env["MINTRA_CLAIM_FRESHNESS_DAYS"] ?? 365);
+const CLAIM_EXPIRING_SOON_DAYS = Number(process.env["MINTRA_CLAIM_EXPIRING_SOON_DAYS"] ?? 30);
 
 export const claimsRouter: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { userId: string } }>("/:userId", async (request, reply) => {

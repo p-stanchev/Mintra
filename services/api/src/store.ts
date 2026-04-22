@@ -6,7 +6,7 @@ import type { ClaimModelVersion, DerivedClaims, SourceCommitments } from "@mintr
 const MAX_VERIFICATIONS = 10_000;
 const MAX_CLAIMS = 10_000;
 const MAX_PROCESSED_WEBHOOKS = 50_000;
-const CLAIM_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const CLAIM_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 
 export type VerificationStatus =
   | "not_started"

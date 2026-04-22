@@ -130,7 +130,7 @@ function createRecord(
       requireKycPassed: true,
       countryAllowlist: [],
       countryBlocklist: [],
-      maxCredentialAgeDays: 30,
+      maxCredentialAgeDays: 365,
     },
     claimRequestRef: overrides.claimRequestRef ?? "request-ref",
     createdAt,
@@ -166,7 +166,7 @@ function createRecord(
             requireKycPassed: true,
             countryAllowlist: [],
             countryBlocklist: [],
-            maxCredentialAgeDays: 30,
+            maxCredentialAgeDays: 365,
           },
           replayProtection: {
             challengeId,

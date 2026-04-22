@@ -170,7 +170,7 @@ const PROOF_PRODUCTS: Record<ProofProductId, ProofProduct & { defaultPolicy: Nor
       requireKycPassed: true,
       countryAllowlist: [],
       countryBlocklist: [],
-      maxCredentialAgeDays: 30,
+      maxCredentialAgeDays: 365,
     },
   },
   proof_of_kyc_passed: {
@@ -188,7 +188,7 @@ const PROOF_PRODUCTS: Record<ProofProductId, ProofProduct & { defaultPolicy: Nor
       requireKycPassed: true,
       countryAllowlist: [],
       countryBlocklist: [],
-      maxCredentialAgeDays: 30,
+      maxCredentialAgeDays: 365,
     },
   },
   proof_of_country_code: {
@@ -207,7 +207,7 @@ const PROOF_PRODUCTS: Record<ProofProductId, ProofProduct & { defaultPolicy: Nor
       requireKycPassed: true,
       countryAllowlist: [],
       countryBlocklist: [],
-      maxCredentialAgeDays: 30,
+      maxCredentialAgeDays: 365,
     },
   },
 };
@@ -394,7 +394,7 @@ export async function buildAgeOver18PresentationRequest(
     {
       minAge: 18,
       requireKycPassed: true,
-      maxCredentialAgeDays: 30,
+      maxCredentialAgeDays: 365,
     },
     action
   );

@@ -37,7 +37,7 @@ That is the product direction:
     "requireKycPassed": true,
     "countryAllowlist": [],
     "countryBlocklist": [],
-    "maxCredentialAgeDays": 30
+    "maxCredentialAgeDays": 365
   }
 }
 ```
@@ -211,7 +211,7 @@ Success response:
     "verified": true,
     "issuedAt": 1776717714,
     "credentialAgeSeconds": 86400,
-    "maxAgeDays": 30
+    "maxAgeDays": 365
   },
   "verifiedAt": "2026-04-21T10:00:03.000Z"
 }

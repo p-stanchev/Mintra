@@ -5,7 +5,7 @@ import os from "node:os";
 import { createStore } from "../store";
 
 describe("Verification store claim expiry", () => {
-  it("drops claims older than 30 days during hydrate", async () => {
+  it("drops claims older than 1 year during hydrate", async () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "mintra-store-"));
     const stateFile = path.join(tempRoot, "state.json");
     const now = Date.now();
@@ -21,7 +21,7 @@ describe("Verification store claim expiry", () => {
             ageOver18: true,
             kycPassed: true,
             countryCode: "BG",
-            verifiedAt: new Date(now - 31 * 24 * 60 * 60 * 1000).toISOString(),
+            verifiedAt: new Date(now - 366 * 24 * 60 * 60 * 1000).toISOString(),
           },
         ],
         processedWebhooks: [],

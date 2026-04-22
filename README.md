@@ -161,7 +161,7 @@ Privacy and retention in the current demo:
 
 - users explicitly confirm consent before starting verification
 - Mintra stores only minimal normalized verification data needed for credential issuance and proof flows
-- normalized claims are retained for up to 30 days in the current setup
+- normalized claims are retained for up to 1 year in the current setup
 - export and delete-account workflows are planned, but not fully productized in the demo yet
 
 ### Prerequisites
@@ -279,7 +279,7 @@ Mintra now exposes productized proof types.
 - default policy:
   - `minAge: 18`
   - `requireKycPassed: true`
-  - `maxCredentialAgeDays: 30`
+  - `maxCredentialAgeDays: 365`
 
 ### `proof_of_kyc_passed`
 
@@ -287,7 +287,7 @@ Mintra now exposes productized proof types.
 - default policy:
   - `minAge: null`
   - `requireKycPassed: true`
-  - `maxCredentialAgeDays: 30`
+  - `maxCredentialAgeDays: 365`
 
 ### `proof_of_country_code`
 
@@ -295,7 +295,7 @@ Mintra now exposes productized proof types.
 - default policy:
   - `minAge: null`
   - `requireKycPassed: true`
-  - `maxCredentialAgeDays: 30`
+  - `maxCredentialAgeDays: 365`
 - supports country allow / block lists
 
 ## Relying Party Integration
@@ -371,7 +371,7 @@ This is an integration scaffold, not a claim that Mintra’s core architecture h
 ## Security Notes
 
 - Mintra stores normalized claims, not raw KYC artifacts.
-- Mintra claim retention is up to 30 days.
+- Mintra claim retention is up to 1 year.
 - Freshness can be enforced sooner by verifier policy.
 - Didit provider retention still applies independently.
 - `MINA_ISSUER_PRIVATE_KEY` should be treated as a high-value issuer secret.

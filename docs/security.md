@@ -86,7 +86,7 @@ Current limitation:
 
 ## Retention
 
-- Mintra normalized claims: up to 30 days
+- Mintra normalized claims: up to 1 year
 - Didit retention: provider-side and separate from Mintra
 
 ## Consent And Data Minimization

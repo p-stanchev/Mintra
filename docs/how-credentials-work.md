@@ -59,7 +59,7 @@ It does not yet prove cryptographically that each derived claim was generated co
 
 Mintra currently:
 
-- retains normalized claims for up to 30 days
+- retains normalized claims for up to 1 year
 - allows apps to require fresher credentials with verifier policy
 - supports re-verification even before retention expiry
 

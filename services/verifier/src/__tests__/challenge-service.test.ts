@@ -221,7 +221,7 @@ function createRequestEnvelope(
         requireKycPassed: true,
         countryAllowlist: [],
         countryBlocklist: [],
-        maxCredentialAgeDays: 30,
+        maxCredentialAgeDays: 365,
       },
       replayProtection: {
         challengeId,
