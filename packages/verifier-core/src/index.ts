@@ -1,9 +1,12 @@
 import countries from "i18n-iso-countries";
 import enLocale from "i18n-iso-countries/langs/en.json" with { type: "json" };
 import {
+  type AssuranceLevel,
   type ClaimModelVersion,
+  type CredentialTrust,
   type DerivedClaim,
   type DerivedClaims,
+  type EvidenceClass,
   type HolderBinding,
   type HolderBindingVerification,
   type PasskeyAssertion,
@@ -79,6 +82,7 @@ export interface CreatePresentationEnvelopeInput {
   proofMetadata?: {
     claimModelVersion?: ClaimModelVersion;
     derivedClaims?: DerivedClaims;
+    credentialTrust?: CredentialTrust;
     commitmentReferences?: string[];
     derivedFromCommittedSource?: boolean;
   };
@@ -125,6 +129,13 @@ export interface VerifyCommitmentRelationParams {
   commitmentKey: string;
 }
 
+export interface VerifyCredentialTrustParams {
+  credentialTrust: CredentialTrust | undefined;
+  allowDemoCredentials?: boolean;
+  minimumAssuranceLevel?: AssuranceLevel;
+  allowedEvidenceClasses?: EvidenceClass[];
+}
+
 export interface VerifyMintraPresentationParams {
   envelope: PresentationEnvelope;
   verifierIdentity: string;
@@ -133,6 +144,9 @@ export interface VerifyMintraPresentationParams {
   holderBindingVerifier?: HolderBindingVerifierAdapter;
   passkeyBindingVerifier?: PasskeyBindingVerifierAdapter;
   expectedPasskeyAuthentication?: PasskeyAuthenticationRequest | null;
+  allowDemoCredentials?: boolean;
+  minimumCredentialAssuranceLevel?: AssuranceLevel;
+  allowedEvidenceClasses?: EvidenceClass[];
   now?: number;
 }
 
@@ -510,6 +524,9 @@ export function createPresentationEnvelope(
       ...(input.proofMetadata?.derivedClaims === undefined
         ? {}
         : { derivedClaims: input.proofMetadata.derivedClaims }),
+      ...(input.proofMetadata?.credentialTrust === undefined
+        ? {}
+        : { credentialTrust: input.proofMetadata.credentialTrust }),
       ...(input.proofMetadata?.commitmentReferences === undefined
         ? {}
         : { commitmentReferences: input.proofMetadata.commitmentReferences }),
@@ -553,6 +570,50 @@ export function verifyCommitmentRelation(_params: VerifyCommitmentRelationParams
   return {
     verified: false,
     reason: "Commitment relation verification is a future zk integration hook and is not enforced yet",
+  };
+}
+
+export function verifyCredentialTrust(params: VerifyCredentialTrustParams) {
+  if (!params.credentialTrust) {
+    return {
+      verified: true,
+      reason: "Credential trust metadata was not provided",
+    };
+  }
+
+  if (params.allowDemoCredentials !== true && params.credentialTrust.demoCredential) {
+    return {
+      verified: false,
+      reason: "Demo credentials are not allowed for this verifier",
+      code: "demo_credential_not_allowed",
+    };
+  }
+
+  if (
+    params.allowedEvidenceClasses &&
+    !params.allowedEvidenceClasses.includes(params.credentialTrust.evidenceClass)
+  ) {
+    return {
+      verified: false,
+      reason: `Credential evidence class ${params.credentialTrust.evidenceClass} is not allowed`,
+      code: "credential_evidence_class_not_allowed",
+    };
+  }
+
+  if (params.minimumAssuranceLevel) {
+    const actual = rankAssuranceLevel(params.credentialTrust.assuranceLevel);
+    const minimum = rankAssuranceLevel(params.minimumAssuranceLevel);
+    if (actual < minimum) {
+      return {
+        verified: false,
+        reason: `Credential assurance level ${params.credentialTrust.assuranceLevel} is below ${params.minimumAssuranceLevel}`,
+        code: "credential_assurance_too_low",
+      };
+    }
+  }
+
+  return {
+    verified: true,
   };
 }
 
@@ -1005,12 +1066,58 @@ export async function verifyPresentation(
         countryCodeNumeric: proofOutput.countryCodeNumeric,
         issuedAt: proofOutput.issuedAt,
       },
+      ...(envelope.proof.credentialTrust === undefined
+        ? {}
+        : { credentialTrust: envelope.proof.credentialTrust }),
       holderBinding: { verified: false, reason: "Freshness check failed before holder binding" },
       audience,
       freshness,
       error: {
         code: "stale_credential",
         message: "Credential freshness requirement was not satisfied",
+      },
+      verifiedAt,
+    };
+  }
+
+  const credentialTrust = verifyCredentialTrust({
+    credentialTrust: envelope.proof.credentialTrust,
+    ...(params.allowDemoCredentials === undefined
+      ? {}
+      : { allowDemoCredentials: params.allowDemoCredentials }),
+    ...(params.minimumCredentialAssuranceLevel === undefined
+      ? {}
+      : { minimumAssuranceLevel: params.minimumCredentialAssuranceLevel }),
+    ...(params.allowedEvidenceClasses === undefined
+      ? {}
+      : { allowedEvidenceClasses: params.allowedEvidenceClasses }),
+  });
+  if (!credentialTrust.verified) {
+    return {
+      ok: false,
+      challenge: {
+        challengeId: envelope.challenge.challengeId,
+        proofProductId: envelope.challenge.proofProductId,
+        audience: envelope.challenge.audience,
+      },
+      ownerPublicKey: proofOutput.ownerPublicKey,
+      output: {
+        ageOver18: proofOutput.ageOver18,
+        ageOver21: proofOutput.ageOver21,
+        kycPassed: proofOutput.kycPassed,
+        countryCodeNumeric: proofOutput.countryCodeNumeric,
+        issuedAt: proofOutput.issuedAt,
+      },
+      ...(envelope.proof.credentialTrust === undefined
+        ? {}
+        : { credentialTrust: envelope.proof.credentialTrust }),
+      holderBinding: { verified: false, reason: "Credential trust policy failed before holder binding" },
+      audience,
+      freshness,
+      error: {
+        code: credentialTrust.code ?? "credential_trust_failed",
+        message: "Credential trust policy was not satisfied",
+        detail: credentialTrust.reason,
       },
       verifiedAt,
     };
@@ -1049,6 +1156,9 @@ export async function verifyPresentation(
         countryCodeNumeric: proofOutput.countryCodeNumeric,
         issuedAt: proofOutput.issuedAt,
       },
+      ...(envelope.proof.credentialTrust === undefined
+        ? {}
+        : { credentialTrust: envelope.proof.credentialTrust }),
       holderBinding,
       audience,
       freshness,
@@ -1076,6 +1186,9 @@ export async function verifyPresentation(
       countryCodeNumeric: proofOutput.countryCodeNumeric,
       issuedAt: proofOutput.issuedAt,
     },
+    ...(envelope.proof.credentialTrust === undefined
+      ? {}
+      : { credentialTrust: envelope.proof.credentialTrust }),
     holderBinding,
     audience,
     freshness,
@@ -1153,4 +1266,15 @@ async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
   const digest = await globalThis.crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+function rankAssuranceLevel(level: AssuranceLevel): number {
+  switch (level) {
+    case "low":
+      return 1;
+    case "medium":
+      return 2;
+    case "high":
+      return 3;
+  }
 }

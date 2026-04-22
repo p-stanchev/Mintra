@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { createDiditProvider } from "@mintra/provider-didit";
+import type { CredentialTrust } from "@mintra/sdk-types";
 import { WalletAuthStore, readBearerToken } from "./auth";
 import { createStore } from "./store";
 import { authRouter } from "./routes/auth";
@@ -18,6 +19,10 @@ export interface AppOptions {
   diditWebhookSecret?: string;
   diditWorkflowId?: string;
   minaIssuerPrivateKey?: string;
+  issuerEnvironment?: CredentialTrust["issuerEnvironment"];
+  issuerId?: string;
+  issuerDisplayName?: string;
+  issuerAssuranceLevel?: CredentialTrust["assuranceLevel"];
   logger?: boolean;
 }
 
@@ -36,7 +41,22 @@ export async function buildApp(opts: AppOptions = {}) {
   const diditWebhookSecret = opts.diditWebhookSecret ?? requireEnv("DIDIT_WEBHOOK_SECRET");
   const diditWorkflowId = opts.diditWorkflowId ?? requireEnv("DIDIT_WORKFLOW_ID");
   const minaKey = opts.minaIssuerPrivateKey ?? process.env["MINA_ISSUER_PRIVATE_KEY"];
+  const issuerEnvironment = opts.issuerEnvironment ??
+    (process.env["MINTRA_ISSUER_ENVIRONMENT"] === "demo" ? "demo" : "production");
   const nodeRequire = createRequire(__filename);
+  const credentialTrustDefaults: CredentialTrust = {
+    issuerEnvironment,
+    issuerId: opts.issuerId ??
+      process.env["MINTRA_ISSUER_ID"] ??
+      (issuerEnvironment === "demo" ? "mintra-demo-issuer" : "mintra-production-issuer"),
+    issuerDisplayName: opts.issuerDisplayName ??
+      process.env["MINTRA_ISSUER_DISPLAY_NAME"] ??
+      (issuerEnvironment === "demo" ? "Mintra Demo Issuer" : "Mintra"),
+    assuranceLevel: opts.issuerAssuranceLevel ??
+      (issuerEnvironment === "demo" ? "low" : "high"),
+    evidenceClass: "provider-normalized",
+    demoCredential: issuerEnvironment === "demo",
+  };
 
   const app = Fastify({ logger: opts.logger ?? true });
   const authStore = new WalletAuthStore();
@@ -113,6 +133,7 @@ export async function buildApp(opts: AppOptions = {}) {
   app.decorate("authStore", authStore);
   app.decorate("authAllowedOrigins", authAllowedOrigins);
   app.decorate("allowedCallbackOrigins", allowedCallbackOrigins);
+  app.decorate("credentialTrustDefaults", credentialTrustDefaults);
   app.addHook("onClose", async () => {
     await store.close();
     authStore.close();

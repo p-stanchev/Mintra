@@ -51,10 +51,12 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
             version: "v2",
             derivedClaims: claim.derivedClaims ?? {},
             sourceCommitments: claim.sourceCommitments ?? {},
+            ...(claim.credentialTrust === undefined ? {} : { credentialTrust: claim.credentialTrust }),
           }
         : {
             version: "v1",
             claims: normalizedClaims,
+            ...(claim.credentialTrust === undefined ? {} : { credentialTrust: claim.credentialTrust }),
           },
     });
 

@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { NormalizedClaimsSchema, VerificationRecordSchema } from "./verification";
-import { ClaimModelVersionSchema, DerivedClaimsSchema, SourceCommitmentsSchema } from "./claims";
+import {
+  ClaimModelVersionSchema,
+  CredentialTrustSchema,
+  DerivedClaimsSchema,
+  SourceCommitmentsSchema,
+} from "./claims";
 import { CredentialMetadataSchema } from "./mina";
 
 const MinaPublicKeySchema = z
@@ -29,6 +34,7 @@ export const GetClaimsResponseSchema = z.object({
   claimModelVersion: ClaimModelVersionSchema.optional(),
   derivedClaims: DerivedClaimsSchema.optional(),
   sourceCommitments: SourceCommitmentsSchema.optional(),
+  credentialTrust: CredentialTrustSchema.optional(),
   verifiedAt: z.string().datetime().nullable(),
   expiresAt: z.string().datetime().nullable(),
   freshnessStatus: z.enum(["verified", "expiring_soon", "expired", "unverified"]),

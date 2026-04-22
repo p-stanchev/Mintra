@@ -46,6 +46,7 @@ The zkApp extension path is also where Mintra’s privacy posture can deepen ove
 
 - selective disclosure for claims such as `age_over_18`
 - commitment-oriented claim representations
+- stronger claim assurance semantics such as `provider-normalized` vs `zk-proven`
 - stronger Mina-native zk verification paths for relying parties that need on-chain enforcement
 
 That roadmap keeps the current infrastructure-first model intact while leaving a credible path toward stronger privacy guarantees.

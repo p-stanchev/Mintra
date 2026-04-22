@@ -17,7 +17,13 @@ Mintra combines:
 4. Mina credential issuance
 5. selective presentation verification
 6. verifier-side replay and audience protection
+7. claim trust and issuer-environment metadata
 
 Mintra’s current core product is off-chain credential issuance and off-chain proof verification.
+
+That includes distinguishing:
+
+- production credentials vs demo credentials
+- provider-normalized vs locally-derived vs future zk-proven evidence
 
 Optional zkApp integrations sit on top of that core, rather than replacing it.

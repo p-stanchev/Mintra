@@ -248,7 +248,13 @@ function deriveClaimMaterial(event: NormalizedWebhookEvent): {
       "kyc_passed",
       true,
       ["kyc_review_commitment"],
-      "provider_decision == approved"
+      "provider_decision == approved",
+      {
+        derivationMethod: "didit.decision.approved",
+        derivationVersion: "didit/v3",
+        assuranceLevel: "high",
+        evidenceClass: "provider-normalized",
+      }
     );
   }
 
@@ -258,7 +264,13 @@ function deriveClaimMaterial(event: NormalizedWebhookEvent): {
       "age_over_18",
       true,
       ["dob_commitment"],
-      "derived from source age >= 18"
+      "derived from source age >= 18",
+      {
+        derivationMethod: "didit.age-threshold.gte-18",
+        derivationVersion: "didit/v3",
+        assuranceLevel: "high",
+        evidenceClass: "provider-normalized",
+      }
     );
   }
 
@@ -268,7 +280,13 @@ function deriveClaimMaterial(event: NormalizedWebhookEvent): {
       "age_over_21",
       true,
       ["dob_commitment"],
-      "derived from source age >= 21"
+      "derived from source age >= 21",
+      {
+        derivationMethod: "didit.age-threshold.gte-21",
+        derivationVersion: "didit/v3",
+        assuranceLevel: "high",
+        evidenceClass: "provider-normalized",
+      }
     );
   }
 
@@ -283,7 +301,13 @@ function deriveClaimMaterial(event: NormalizedWebhookEvent): {
       "country_code",
       countryCode,
       ["country_code_commitment"],
-      "normalized from provider country source"
+      "normalized from provider country source",
+      {
+        derivationMethod: "didit.country.normalize-iso2",
+        derivationVersion: "didit/v3",
+        assuranceLevel: "high",
+        evidenceClass: "provider-normalized",
+      }
     );
   }
 

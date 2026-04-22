@@ -1,5 +1,5 @@
 import type { NormalizedClaims } from "./verification";
-import type { ClaimModelVersion, DerivedClaims, SourceCommitments } from "./claims";
+import type { ClaimModelVersion, CredentialTrust, DerivedClaims, SourceCommitments } from "./claims";
 
 export interface CreateSessionInput {
   userId: string;
@@ -46,6 +46,7 @@ export interface ClaimMaterialization {
   normalizedClaims: NormalizedClaims;
   derivedClaims: DerivedClaims;
   sourceCommitments: SourceCommitments;
+  credentialTrust?: CredentialTrust;
 }
 
 export interface VerificationProvider {

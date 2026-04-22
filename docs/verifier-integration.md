@@ -137,7 +137,15 @@ The verifier returns a WebAuthn challenge plus a signed payload reference that b
     "proof": {
       "format": "mina-attestations/auro",
       "presentationJson": "...",
-      "presentationRequestJson": "..."
+      "presentationRequestJson": "...",
+      "credentialTrust": {
+        "issuerEnvironment": "production",
+        "issuerId": "mintra-production-issuer",
+        "issuerDisplayName": "Mintra",
+        "assuranceLevel": "high",
+        "evidenceClass": "provider-normalized",
+        "demoCredential": false
+      }
     },
     "holderBinding": {
       "method": "mina:signMessage",
@@ -199,6 +207,14 @@ Success response:
     "countryCodeNumeric": 100,
     "issuedAt": 1776717714
   },
+  "credentialTrust": {
+    "issuerEnvironment": "production",
+    "issuerId": "mintra-production-issuer",
+    "issuerDisplayName": "Mintra",
+    "assuranceLevel": "high",
+    "evidenceClass": "provider-normalized",
+    "demoCredential": false
+  },
   "holderBinding": {
     "verified": true
   },
@@ -229,6 +245,9 @@ Normalized failure codes now include:
 - `passkey_not_registered`
 - `passkey_mismatch`
 - `passkey_invalid_signature`
+- `demo_credential_not_allowed`
+- `credential_assurance_too_low`
+- `credential_evidence_class_not_allowed`
 
 That gives relying parties explicit verifier outcomes for replay-safe flows in multi-instance deployments.
 

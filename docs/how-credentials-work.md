@@ -52,6 +52,31 @@ Today, Mintra enforces the derived claims.
 
 It does not yet prove cryptographically that each derived claim was generated correctly from its commitment inside a zk circuit. That is future work.
 
+## Derived Claim Metadata
+
+Each derived claim can now carry structured metadata such as:
+
+- `derivedFrom`
+- `derivationMethod`
+- `derivationVersion`
+- `assuranceLevel`
+- `evidenceClass`
+
+That lets verifiers distinguish between:
+
+- provider-normalized claims
+- locally-derived claims
+- future zk-proven claims
+
+## Demo vs Production Credentials
+
+Issued credential metadata can now also label the issuer environment:
+
+- production credentials
+- demo credentials
+
+This matters because a verifier may want to reject demo credentials entirely in production while still allowing them in local testing or playground flows.
+
 ## Retention vs Freshness
 
 - retention: how long Mintra keeps normalized backend claims

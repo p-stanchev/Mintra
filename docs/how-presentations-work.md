@@ -36,6 +36,14 @@ A presentation is submitted as `mintra.presentation/v1` and includes:
     "presentationJson": "...",
     "presentationRequestJson": "...",
     "claimModelVersion": "v2",
+    "credentialTrust": {
+      "issuerEnvironment": "production",
+      "issuerId": "mintra-production-issuer",
+      "issuerDisplayName": "Mintra",
+      "assuranceLevel": "high",
+      "evidenceClass": "provider-normalized",
+      "demoCredential": false
+    },
     "commitmentReferences": ["dob_commitment", "country_code_commitment"],
     "derivedFromCommittedSource": true
   },
@@ -90,6 +98,12 @@ Examples:
 It does not expose raw date of birth or similar source identity fields.
 
 When commitment metadata is present, the verifier can understand that a claim is intended to be derived from committed source data. In the current implementation, this is a compatibility and future-zk hook, not full cryptographic proof of derivation.
+
+The presentation can also carry credential trust metadata so the verifier can apply policy such as:
+
+- reject demo credentials
+- require at least `medium` or `high` assurance
+- only accept specific evidence classes
 
 ## Passkey Extension
 

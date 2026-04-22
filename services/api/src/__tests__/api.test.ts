@@ -103,6 +103,10 @@ describe("Mintra API", () => {
           key: "age_over_18",
           value: true,
           derivedFrom: ["dob_commitment"],
+          derivationMethod: "didit.age-threshold.gte-18",
+          derivationVersion: "didit/v3",
+          assuranceLevel: "high",
+          evidenceClass: "provider-normalized",
           relation: "derived from source age >= 18",
         },
       },
@@ -113,6 +117,14 @@ describe("Mintra API", () => {
           encoding: "mintra.commitment/v1",
           value: "a".repeat(64),
         },
+      },
+      credentialTrust: {
+        issuerEnvironment: "production",
+        issuerId: "mintra-production-issuer",
+        issuerDisplayName: "Mintra",
+        assuranceLevel: "high",
+        evidenceClass: "provider-normalized",
+        demoCredential: false,
       },
     });
 
@@ -127,6 +139,7 @@ describe("Mintra API", () => {
     expect(data.claimModelVersion).toBe("v2");
     expect(data.derivedClaims.age_over_18.value).toBe(true);
     expect(data.sourceCommitments.dob_commitment.value).toBe("a".repeat(64));
+    expect(data.credentialTrust.demoCredential).toBe(false);
   });
 
   it("GET /api/verifications/:id/status returns 404 for unknown id", async () => {
@@ -200,6 +213,7 @@ describe("Mintra API", () => {
     expect(claims?.ageOver18).toBe(true);
     expect(claims?.claimModelVersion).toBe("v2");
     expect(claims?.sourceCommitments?.country_code_commitment?.value).toMatch(/^[a-f0-9]{64}$/);
+    expect(claims?.credentialTrust?.issuerEnvironment).toBe("production");
   });
 
   it("webhook maps Didit v3 approved payloads with age and issuing_state", async () => {
@@ -412,6 +426,10 @@ describe("Mintra API", () => {
           key: "age_over_18",
           value: true,
           derivedFrom: ["dob_commitment"],
+          derivationMethod: "didit.age-threshold.gte-18",
+          derivationVersion: "didit/v3",
+          assuranceLevel: "high",
+          evidenceClass: "provider-normalized",
           relation: "derived from source age >= 18",
         },
       },
@@ -422,6 +440,14 @@ describe("Mintra API", () => {
           encoding: "mintra.commitment/v1",
           value: "b".repeat(64),
         },
+      },
+      credentialTrust: {
+        issuerEnvironment: "production",
+        issuerId: "mintra-production-issuer",
+        issuerDisplayName: "Mintra",
+        assuranceLevel: "high",
+        evidenceClass: "provider-normalized",
+        demoCredential: false,
       },
     });
 
@@ -439,6 +465,7 @@ describe("Mintra API", () => {
     const data = JSON.parse(res.body);
     expect(data.credentialMetadata.version).toBe("v2");
     expect(data.credentialMetadata.sourceCommitments.dob_commitment.value).toBe("b".repeat(64));
+    expect(data.credentialMetadata.credentialTrust.demoCredential).toBe(false);
   });
 });
 

@@ -71,6 +71,7 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
     let claimModelVersion: string | undefined;
     let derivedClaims: unknown;
     let sourceCommitments: unknown;
+    let credentialTrust: unknown;
     if (record.status === "approved") {
       const claim = await app.store.getClaims(record.userId);
       if (claim) {
@@ -81,6 +82,7 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
         claimModelVersion = claim.claimModelVersion;
         derivedClaims = claim.derivedClaims;
         sourceCommitments = claim.sourceCommitments;
+        credentialTrust = claim.credentialTrust;
       }
     }
 
@@ -95,6 +97,7 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
       ...(claimModelVersion ? { claimModelVersion } : {}),
       ...(derivedClaims ? { derivedClaims } : {}),
       ...(sourceCommitments ? { sourceCommitments } : {}),
+      ...(credentialTrust ? { credentialTrust } : {}),
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),
     });

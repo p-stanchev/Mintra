@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { NormalizedClaims } from "./verification";
 import {
   ClaimModelVersionSchema,
+  CredentialTrustSchema,
   DerivedClaimsSchema,
   SourceCommitmentsSchema,
 } from "./claims";
@@ -18,6 +19,7 @@ export const CredentialV2Schema = z.object({
   version: z.literal("v2"),
   sourceCommitments: SourceCommitmentsSchema,
   derivedClaims: DerivedClaimsSchema,
+  credentialTrust: CredentialTrustSchema.optional(),
 });
 export type CredentialV2 = z.infer<typeof CredentialV2Schema>;
 
@@ -25,6 +27,7 @@ export const CredentialMetadataSchema = z.discriminatedUnion("version", [
   z.object({
     version: z.literal("v1"),
     claims: z.record(z.unknown()).optional(),
+    credentialTrust: CredentialTrustSchema.optional(),
   }),
   CredentialV2Schema,
 ]);

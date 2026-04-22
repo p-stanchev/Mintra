@@ -20,6 +20,7 @@
 - in-circuit proof verification for zkApps
 - on-chain revocation enforcement
 - zero trust in the underlying KYC provider
+- full cryptographic proof that every derived claim was computed correctly from committed source data
 
 ## Secrets
 
@@ -83,6 +84,29 @@ Current limitation:
 
 - Mintra does not yet cryptographically prove the relationship between a derived claim and its source commitment during verification
 - that commitment relation remains a future zk integration step
+
+## Can Someone Fake Data?
+
+Not by trivially editing a credential blob and still passing proper verifier checks.
+
+What protects Mintra today:
+
+- Mina-issued credentials are signed by the issuer
+- presentations are verified against the exact request
+- holder binding ties the presentation to the wallet holder
+- verifier challenge handling prevents simple replay
+
+Where trust mistakes can still happen:
+
+- accepting demo credentials in production
+- trusting a weak issuer or unapproved issuer
+- treating locally-derived claims as if they were zk-proven
+
+To reduce that risk, Mintra now carries:
+
+- issuer environment metadata
+- derived-claim assurance levels
+- evidence classes
 
 ## Retention
 

@@ -233,6 +233,9 @@ describe("DiditProvider.mapClaims", () => {
     expect(first.claimModelVersion).toBe("v2");
     expect(first.normalizedClaims.age_over_18).toBe(true);
     expect(first.derivedClaims["age_over_18"]?.value).toBe(true);
+    expect(first.derivedClaims["age_over_18"]?.derivationMethod).toBe("didit.age-threshold.gte-18");
+    expect(first.derivedClaims["age_over_18"]?.assuranceLevel).toBe("high");
+    expect(first.derivedClaims["age_over_18"]?.evidenceClass).toBe("provider-normalized");
     expect(first.derivedClaims["country_code"]?.value).toBe("AT");
     expect(first.sourceCommitments["dob_commitment"]?.value).toMatch(/^[a-f0-9]{64}$/);
     expect(first.sourceCommitments["country_code_commitment"]?.value).toMatch(/^[a-f0-9]{64}$/);

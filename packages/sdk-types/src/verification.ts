@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   ClaimModelVersionSchema,
+  CredentialTrustSchema,
   DerivedClaimsSchema,
   type DerivedClaims,
   SourceCommitmentsSchema,
@@ -33,6 +34,7 @@ export const VerificationRecordSchema = z.object({
   claimModelVersion: ClaimModelVersionSchema.optional(),
   derivedClaims: DerivedClaimsSchema.optional(),
   sourceCommitments: SourceCommitmentsSchema.optional(),
+  credentialTrust: CredentialTrustSchema.optional(),
   providerReference: z.string().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

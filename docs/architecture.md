@@ -81,7 +81,7 @@ Optional on top of that:
 1. The user authenticates with a signed Mina wallet challenge.
 2. The API creates a Didit session tied to the authenticated wallet.
 3. Didit completes the KYC workflow and posts a webhook to Mintra.
-4. Mintra stores only normalized claims and minimal verification metadata.
+4. Mintra stores normalized claims, commitment metadata, derived-claim trust metadata, and minimal verification metadata.
 5. Mintra signs a Mina credential and the user stores it in Auro.
 
 ## Presentation Flow
@@ -203,6 +203,8 @@ What is implemented now:
 
 - source commitments can be generated from sensitive fields
 - derived claims are computed from provider results
+- derived claims carry derivation method, version, assurance, and evidence metadata
+- credentials can be labeled as production or demo through issuer-environment metadata
 - Mintra persists derived claims and commitment metadata instead of raw source identity fields
 
 What is not implemented yet:

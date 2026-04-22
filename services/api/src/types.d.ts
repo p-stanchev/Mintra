@@ -1,4 +1,4 @@
-import type { CredentialMetadata } from "@mintra/sdk-types";
+import type { CredentialMetadata, CredentialTrust } from "@mintra/sdk-types";
 import type { VerificationStore } from "./store";
 import type { DiditProvider } from "@mintra/provider-didit";
 import type { WalletAuthStore } from "./auth";
@@ -20,6 +20,7 @@ declare module "fastify" {
     minaBridge: MinaBridgeLike | null;
     allowedCallbackOrigins: string[];
     authAllowedOrigins: string[];
+    credentialTrustDefaults: CredentialTrust;
   }
 
   interface FastifyRequest {

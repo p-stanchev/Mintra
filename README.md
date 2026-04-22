@@ -14,6 +14,7 @@ Mintra bridges real-world KYC into Mina credentials and reusable proof presentat
 - Mina credential issuance
 - off-chain presentation verification
 - holder binding
+- derived claim trust metadata
 - relying party integration
 
 It is **not** a zkApp-only product. zkApp support is an optional extension on top of the core infrastructure.
@@ -65,6 +66,14 @@ The current bridge step now implemented is a committed-claims foundation:
 - raw source identity fields are not retained by Mintra once commitments and derived claims are produced
 
 This is not full zk selective disclosure yet, but it is the data-model upgrade that future zk enforcement can build on.
+
+Mintra now also carries trust metadata alongside derived claims and issued credential metadata:
+
+- `derivationMethod`
+- `derivationVersion`
+- `assuranceLevel`
+- `evidenceClass`
+- issuer environment metadata such as whether a credential is a demo credential
 
 ## Proposed Architecture
 
@@ -193,7 +202,12 @@ DIDIT_WORKFLOW_ID=your_didit_workflow_id
 PORT=3001
 CORS_ORIGIN=http://localhost:3000
 MINA_ISSUER_PRIVATE_KEY=your_mina_private_key
+MINTRA_ISSUER_ENVIRONMENT=production
+MINTRA_ISSUER_ID=mintra-production-issuer
+MINTRA_ISSUER_DISPLAY_NAME=Mintra
 ```
+
+For demo issuers, set `MINTRA_ISSUER_ENVIRONMENT=demo`. That marks newly issued credentials as demo credentials so verifiers can reject them in production.
 
 ### Verifier config
 
@@ -373,10 +387,18 @@ This is an integration scaffold, not a claim that Mintra’s core architecture h
 - Mintra stores normalized claims, not raw KYC artifacts.
 - Mintra claim retention is up to 1 year.
 - Freshness can be enforced sooner by verifier policy.
+- derived claims now include structured provenance and assurance metadata
+- demo credentials can be labeled distinctly from production credentials
 - Didit provider retention still applies independently.
 - `MINA_ISSUER_PRIVATE_KEY` should be treated as a high-value issuer secret.
 - `services/verifier` should be deployed separately from `services/api`.
 - production verifier deployments should use `REDIS_URL` so challenge replay protection works across multiple instances.
+
+On fake data:
+
+- a correctly verified Mintra credential cannot simply be edited client-side and still pass verification
+- the real risk is trusting the wrong issuer, trusting demo credentials in production, or accepting weakly-derived metadata without policy checks
+- Mintra now exposes issuer and evidence metadata so verifiers can reject demo credentials or require stronger assurance
 
 More:
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   ClaimModelVersionSchema,
+  CredentialTrustSchema,
   DerivedClaimsSchema,
 } from "./claims";
 
@@ -171,6 +172,7 @@ export const PresentationProofSchema = z.object({
   presentationRequestJson: z.string().min(1),
   claimModelVersion: ClaimModelVersionSchema.optional(),
   derivedClaims: DerivedClaimsSchema.optional(),
+  credentialTrust: CredentialTrustSchema.optional(),
   commitmentReferences: z.array(z.string().min(1)).optional(),
   derivedFromCommittedSource: z.boolean().optional(),
 });
@@ -239,6 +241,7 @@ export const PresentationVerificationResultSchema = z.object({
   }),
   ownerPublicKey: MinaPublicKeySchema.optional(),
   output: PresentationVerificationOutputSchema.optional(),
+  credentialTrust: CredentialTrustSchema.optional(),
   holderBinding: HolderBindingVerificationSchema,
   audience: AudienceVerificationSchema,
   freshness: FreshnessVerificationSchema.optional(),

@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { ClaimModelVersion, DerivedClaims, SourceCommitments } from "@mintra/sdk-types";
+import type { ClaimModelVersion, CredentialTrust, DerivedClaims, SourceCommitments } from "@mintra/sdk-types";
 
 const MAX_VERIFICATIONS = 10_000;
 const MAX_CLAIMS = 10_000;
@@ -36,6 +36,7 @@ export interface ClaimsRecord {
   claimModelVersion: ClaimModelVersion;
   derivedClaims?: DerivedClaims;
   sourceCommitments?: SourceCommitments;
+  credentialTrust?: CredentialTrust;
   verifiedAt: Date;
 }
 
@@ -55,6 +56,7 @@ export interface VerificationStore {
       claimModelVersion?: ClaimModelVersion;
       derivedClaims?: DerivedClaims;
       sourceCommitments?: SourceCommitments;
+      credentialTrust?: CredentialTrust;
     }
   ): Promise<void>;
   getClaims(userId: string): Promise<ClaimsRecord | undefined>;
@@ -133,6 +135,7 @@ export class InMemoryStore implements VerificationStore {
       claimModelVersion?: ClaimModelVersion;
       derivedClaims?: DerivedClaims;
       sourceCommitments?: SourceCommitments;
+      credentialTrust?: CredentialTrust;
     }
   ): Promise<void> {
     if (!this.claims.has(userId) && this.claims.size >= MAX_CLAIMS) {
@@ -148,6 +151,7 @@ export class InMemoryStore implements VerificationStore {
       claimModelVersion: data.claimModelVersion ?? "v1",
       ...(data.derivedClaims === undefined ? {} : { derivedClaims: data.derivedClaims }),
       ...(data.sourceCommitments === undefined ? {} : { sourceCommitments: data.sourceCommitments }),
+      ...(data.credentialTrust === undefined ? {} : { credentialTrust: data.credentialTrust }),
       verifiedAt: new Date(),
     });
     this.schedulePersist();
@@ -215,6 +219,7 @@ export class InMemoryStore implements VerificationStore {
           claimModelVersion: "claimModelVersion" in claim ? claim.claimModelVersion : "v1",
           ...(claim.derivedClaims === undefined ? {} : { derivedClaims: claim.derivedClaims }),
           ...(claim.sourceCommitments === undefined ? {} : { sourceCommitments: claim.sourceCommitments }),
+          ...(claim.credentialTrust === undefined ? {} : { credentialTrust: claim.credentialTrust }),
           verifiedAt: new Date(claim.verifiedAt),
         };
         if (!isClaimExpired(hydratedClaim)) {
