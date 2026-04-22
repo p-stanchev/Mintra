@@ -159,15 +159,15 @@ export default function Home() {
         : "Wallet not linked";
 
   return (
-    <div className="space-y-8">
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_340px] lg:items-stretch">
-        <div className="reveal-up rounded-[24px] border border-line bg-white p-8 shadow-card sm:p-10">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-fog px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-slate">
+    <div className="space-y-6">
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_320px] lg:items-stretch">
+        <div className="reveal-up rounded-[28px] border border-line bg-white p-8 shadow-card sm:p-10 lg:p-12">
+          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-line bg-stone-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-slate">
             <Shield className="h-3.5 w-3.5" />
             Reusable Mina verification
           </div>
 
-          <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-ink sm:text-[3.35rem] sm:leading-[1.02]">
+          <h1 className="max-w-4xl text-4xl font-semibold tracking-tight text-ink sm:text-[3.45rem] sm:leading-[0.98]">
             Verify once. Link your wallet. Reuse the credential anywhere on Mina.
           </h1>
 
@@ -175,7 +175,7 @@ export default function Home() {
             Mintra turns a completed identity check into a wallet-bound Mina credential. Verify once, keep the credential in the wallet, and generate fresh verifier-bound proofs for any app that needs them.
           </p>
 
-          <div className="mt-8 grid gap-6 border-t border-line pt-6 lg:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="mt-9 grid gap-6 border-t border-line pt-7 lg:grid-cols-[minmax(0,1fr)_260px]">
             <div>
               <div className="flex flex-wrap gap-3">
                 {walletAddress ? (
@@ -197,25 +197,25 @@ export default function Home() {
                 )}
                 <Link
                   href="/protected"
-                  className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-fog"
+                  className="inline-flex items-center gap-2 rounded-xl border border-line bg-stone-50 px-5 py-3 text-sm font-medium text-ink transition hover:bg-white"
                 >
                   Protected route
                 </Link>
                 <Link
                   href="/playground"
-                  className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-fog"
+                  className="inline-flex items-center gap-2 rounded-xl border border-line bg-stone-50 px-5 py-3 text-sm font-medium text-ink transition hover:bg-white"
                 >
                   Playground
                 </Link>
                 <Link
                   href="/relying-party"
-                  className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-fog"
+                  className="inline-flex items-center gap-2 rounded-xl border border-line bg-stone-50 px-5 py-3 text-sm font-medium text-ink transition hover:bg-white"
                 >
                   Relying party
                 </Link>
               </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="mt-7 grid gap-3 sm:grid-cols-3">
                 <ActionStat
                   label="Wallet session"
                   value={walletAddress ? "Linked" : "Not linked"}
@@ -242,9 +242,9 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="rounded-[20px] border border-line bg-fog px-5 py-5">
+            <div className="rounded-[22px] border border-line bg-stone-50 px-5 py-5">
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Current flow</p>
-              <div className="mt-4 space-y-4">
+              <div className="mt-4 space-y-5">
                 <HeroStep index="01" title="Link wallet" body="Authenticate a Mina wallet before starting the verification flow." />
                 <HeroStep index="02" title="Complete KYC" body="Run the hosted Didit session once and return to Mintra." />
                 <HeroStep index="03" title="Issue credential" body="Store the resulting credential in a supported wallet for later proofs." />
@@ -253,7 +253,7 @@ export default function Home() {
           </div>
         </div>
 
-        <aside className="reveal-up reveal-delay-1 rounded-[24px] border border-line bg-white p-6 shadow-card">
+        <aside className="reveal-up reveal-delay-1 rounded-[28px] border border-line bg-white p-6 shadow-card lg:sticky lg:top-24 lg:h-fit">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Verification rail</p>
@@ -265,7 +265,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-5 space-y-3">
+          <div className="mt-6 overflow-hidden rounded-[20px] border border-line bg-stone-50 px-4">
             <MetricRow
               icon={<Wallet className="h-4 w-4" />}
               label="Wallet"
@@ -293,22 +293,22 @@ export default function Home() {
                       ? "Expiring soon"
                       : freshnessStatus === "expired"
                         ? "Expired"
-                        : "Not issued"
+                      : "Not issued"
               }
             />
           </div>
 
-          <div className="mt-5 rounded-[18px] border border-line bg-fog px-4 py-4">
+          <div className="mt-5 rounded-[20px] border border-line bg-stone-50 px-4 py-4">
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Status marker</p>
             <div className={`mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${freshnessTone}`}>
-            {isVerified ? <BadgeCheck className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-            {freshnessStatus === "verified"
-              ? "Verified"
-              : freshnessStatus === "expiring_soon"
-                ? "Expiring soon"
-                : freshnessStatus === "expired"
-                  ? "Expired — verify again"
-                  : "Not verified"}
+              {isVerified ? <BadgeCheck className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+              {freshnessStatus === "verified"
+                ? "Verified"
+                : freshnessStatus === "expiring_soon"
+                  ? "Expiring soon"
+                  : freshnessStatus === "expired"
+                    ? "Expired — verify again"
+                    : "Not verified"}
             </div>
             <p className="mt-3 text-sm leading-6 text-slate">
               {isVerified
@@ -360,8 +360,8 @@ export default function Home() {
         </section>
       )}
 
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
-        <div className="reveal-up reveal-delay-1 rounded-[24px] border border-line bg-white p-8 shadow-card">
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)]">
+        <div className="reveal-up reveal-delay-1 rounded-[28px] border border-line bg-white p-8 shadow-card">
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Claims and flow</p>
@@ -374,7 +374,7 @@ export default function Home() {
             )}
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_280px]">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.12fr)_290px]">
             <div>
               {claims && Object.keys(claims.claims).length > 0 ? (
                 <div className="space-y-3">
@@ -400,7 +400,7 @@ export default function Home() {
                   )}
                 </div>
               ) : (
-                <div className="rounded-[20px] border border-dashed border-line bg-fog px-6 py-8">
+                <div className="rounded-[22px] border border-dashed border-line bg-stone-50 px-6 py-8">
                   <p className="text-sm text-slate">
                     {walletAddress
                       ? freshnessStatus === "expired"
@@ -412,7 +412,7 @@ export default function Home() {
               )}
             </div>
 
-            <div className="rounded-[20px] border border-line bg-fog px-5 py-5">
+            <div className="rounded-[22px] border border-line bg-stone-50 px-5 py-5">
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Flow</p>
               <div className="mt-5 space-y-5">
                 <StepRow index="01" title="Verify identity" body="Complete the hosted KYC session once to derive normalized claims." />
@@ -437,7 +437,7 @@ export default function Home() {
 
 function ClaimRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between rounded-[18px] border border-line bg-fog px-4 py-3">
+    <div className="flex items-center justify-between rounded-[18px] border border-line bg-stone-50 px-4 py-3">
       <code className="text-sm text-slate">{label}</code>
       <code className={`text-sm font-medium ${value === "true" ? "text-emerald-700" : "text-ink"}`}>
         {value}
@@ -456,7 +456,7 @@ function MetricRow({
   value: string;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-[18px] border border-line bg-fog px-4 py-3">
+    <div className="flex items-center justify-between border-b border-line py-3 last:border-b-0">
       <div className="flex items-center gap-3 text-sm text-slate">
         <span className="text-ink">{icon}</span>
         <span>{label}</span>
@@ -469,7 +469,7 @@ function MetricRow({
 function StepRow({ index, title, body }: { index: string; title: string; body: string }) {
   return (
     <div className="flex gap-4">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-sm font-medium text-ink">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-sm font-medium text-ink shadow-sm">
         {index}
       </div>
       <div>
@@ -490,9 +490,9 @@ function ActionStat({
   detail: string;
 }) {
   return (
-    <div className="rounded-[18px] border border-line bg-fog px-4 py-4">
+    <div className="rounded-[20px] border border-line bg-stone-50 px-4 py-4">
       <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">{label}</p>
-      <p className="mt-2 text-base font-medium text-ink">{value}</p>
+      <p className="mt-2 text-lg font-medium tracking-tight text-ink">{value}</p>
       <p className="mt-1 text-sm leading-6 text-slate">{detail}</p>
     </div>
   );
@@ -509,7 +509,7 @@ function HeroStep({
 }) {
   return (
     <div className="flex gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-xs font-semibold text-ink">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-xs font-semibold text-ink shadow-sm">
         {index}
       </div>
       <div>

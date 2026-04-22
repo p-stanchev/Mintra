@@ -282,11 +282,11 @@ export function WalletCredentialCard({
   const issueButtonLabel = `Issue to ${actionWallet?.name ?? walletProviderName ?? "wallet"}`;
 
   return (
-    <div id="wallet-credential" className="scroll-mt-28 rounded-3xl border border-line bg-white p-6 shadow-card">
+    <div id="wallet-credential" className="scroll-mt-28 rounded-[28px] border border-line bg-white p-6 shadow-card sm:p-7">
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-fog px-3 py-1 text-xs font-medium text-slate">
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-line bg-stone-50 px-3 py-1 text-xs font-medium text-slate">
               <Wallet className="h-3.5 w-3.5" />
               Wallet credential
             </div>
@@ -307,7 +307,7 @@ export function WalletCredentialCard({
             type="button"
             onClick={() => setWalletMenuOpen((current) => !current)}
             disabled={!mounted || wallets.length === 0 || busy}
-            className="flex w-full items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 text-left text-sm text-ink outline-none transition hover:bg-fog focus:border-ink disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-between rounded-2xl border border-line bg-stone-50 px-4 py-3 text-left text-sm text-ink outline-none transition hover:bg-white focus:border-ink disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span>{selectedWallet?.name ?? "No supported wallet detected"}</span>
             <ChevronDown className={`h-4 w-4 text-slate transition ${walletMenuOpen ? "rotate-180" : ""}`} />
@@ -339,18 +339,18 @@ export function WalletCredentialCard({
         </div>
 
         {selectedWallet && (
-          <div className="rounded-2xl border border-line bg-fog px-4 py-3 text-sm text-slate">
+          <div className="rounded-[20px] border border-line bg-stone-50 px-4 py-4 text-sm text-slate">
             <p className="font-medium text-ink">{selectedWallet.name}</p>
-            <p className="mt-1">
+            <p className="mt-1 leading-6">
               Proofs: {selectedWallet.capabilities.requestPresentation ? "supported" : "not detected"} · Credential storage: {selectedWallet.capabilities.storeCredential ? "supported" : "not detected"}
             </p>
           </div>
         )}
 
         {walletAddress && (
-          <div className="rounded-2xl border border-line bg-fog px-4 py-3">
+          <div className="rounded-[20px] border border-line bg-stone-50 px-4 py-4">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate">Connected address</p>
-            <code className="mt-2 block break-all text-sm text-ink">
+            <code className="mt-2 block break-all text-sm leading-6 text-ink">
               {walletAddress}
             </code>
             {walletProviderName && (
@@ -369,7 +369,7 @@ export function WalletCredentialCard({
             type="button"
             onClick={() => void handleConnectWallet()}
             disabled={!mounted || wallets.length === 0 || busy}
-            className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition hover:bg-fog disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {state === "connecting" ? <Loader2 className="h-4 w-4 animate-spin" /> : <LinkIcon className="h-4 w-4" />}
             {connectButtonLabel}
@@ -379,7 +379,7 @@ export function WalletCredentialCard({
             type="button"
             onClick={() => void handleStoreInWallet()}
             disabled={!mounted || wallets.length === 0 || busy || !isVerified}
-            className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
           >
             {state === "issuing" || state === "storing" ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -407,22 +407,22 @@ export function WalletCredentialCard({
         )}
 
         {credentialTrust?.demoCredential && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             The current claim set is marked as a demo credential. It can be issued into a wallet for testing, but
             production verifiers should reject it unless demo credentials are explicitly allowed.
           </div>
         )}
 
         <div className="grid gap-3 text-sm text-slate sm:grid-cols-3">
-          <div className="rounded-2xl border border-line bg-fog px-4 py-3">
+          <div className="rounded-[18px] border border-line bg-stone-50 px-4 py-3">
             <p className="font-medium text-ink">1. Link wallet</p>
             <p className="mt-1 leading-6">Connect Auro or Pallad. Pallad is currently connection-only in this demo.</p>
           </div>
-          <div className="rounded-2xl border border-line bg-fog px-4 py-3">
+          <div className="rounded-[18px] border border-line bg-stone-50 px-4 py-3">
             <p className="font-medium text-ink">2. Verify</p>
             <p className="mt-1 leading-6">Scroll back up and complete the hosted identity check.</p>
           </div>
-          <div className="rounded-2xl border border-line bg-fog px-4 py-3">
+          <div className="rounded-[18px] border border-line bg-stone-50 px-4 py-3">
             <p className="font-medium text-ink">3. Store credential</p>
             <p className="mt-1 leading-6">Save the private credential into a wallet that exposes Mina credential storage.</p>
           </div>
