@@ -2,9 +2,8 @@
 
 import { mintra } from "@/lib/mintra";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, CheckCheck, Lock, Shield, Wallet } from "lucide-react";
+import { ArrowRight, BadgeCheck, CheckCheck, Clock3, Lock, Shield, Wallet } from "lucide-react";
 import { WalletCredentialCard } from "@/components/wallet-credential-card";
-import { HomeVerificationCard } from "@/components/home-verification-card";
 import {
   readAuthToken,
   readLinkedWalletAddress,
@@ -143,85 +142,139 @@ export default function Home() {
       : freshnessStatus === "expired"
         ? "Refresh KYC"
         : "Start verification";
+  const freshnessTone =
+    freshnessStatus === "verified"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : freshnessStatus === "expiring_soon"
+        ? "border-amber-200 bg-amber-50 text-amber-700"
+        : freshnessStatus === "expired"
+          ? "border-rose-200 bg-rose-50 text-rose-700"
+          : "border-line bg-fog text-stone-600";
+  const verificationSummary = isVerified
+    ? "Credential-ready"
+    : freshnessStatus === "expired"
+      ? "Refresh required"
+      : walletAddress
+        ? "Awaiting verification"
+        : "Wallet not linked";
 
   return (
     <div className="space-y-8">
-      <section className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-        <div className="reveal-up rounded-[32px] border border-line bg-white/90 p-8 shadow-card backdrop-blur-sm sm:p-10">
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full bg-fog px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-slate">
+      <section className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_340px] lg:items-stretch">
+        <div className="reveal-up rounded-[24px] border border-line bg-white p-8 shadow-card sm:p-10">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-fog px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-slate">
             <Shield className="h-3.5 w-3.5" />
             Reusable Mina verification
           </div>
 
-          <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
+          <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-ink sm:text-[3.35rem] sm:leading-[1.02]">
             Verify once. Link your wallet. Reuse the credential anywhere on Mina.
           </h1>
 
-          <p className="mt-5 max-w-2xl text-base leading-7 text-slate">
-            Mintra turns a completed identity check into a wallet-bound Mina credential. The main flow lives here: verify, connect a Mina wallet, then issue directly into Auro. Pallad connection works, but proof and credential flows are not supported in this demo yet.
+          <p className="mt-5 max-w-2xl text-[15px] leading-7 text-slate">
+            Mintra turns a completed identity check into a wallet-bound Mina credential. Verify once, keep the credential in the wallet, and generate fresh verifier-bound proofs for any app that needs them.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            {walletAddress ? (
-              <Link
-                href={isVerified ? `/claims/${walletAddress}` : "/verify"}
-                className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
-              >
-                {primaryActionLabel}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            ) : (
-              <a
-                href="#wallet-credential"
-                className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
-              >
-                Connect wallet first
-                <ArrowRight className="h-4 w-4" />
-              </a>
-            )}
-            <Link
-              href="/protected"
-              className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-fog"
-            >
-              View protected route
-            </Link>
-            <Link
-              href="/playground"
-              className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-fog"
-            >
-              Verifier Playground
-            </Link>
-            <Link
-              href="/relying-party"
-              className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-fog"
-            >
-              Relying Party Demo
-            </Link>
+          <div className="mt-8 grid gap-6 border-t border-line pt-6 lg:grid-cols-[minmax(0,1fr)_240px]">
+            <div>
+              <div className="flex flex-wrap gap-3">
+                {walletAddress ? (
+                  <Link
+                    href={isVerified ? `/claims/${walletAddress}` : "/verify"}
+                    className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+                  >
+                    {primaryActionLabel}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : (
+                  <a
+                    href="#wallet-credential"
+                    className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+                  >
+                    Connect wallet first
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                )}
+                <Link
+                  href="/protected"
+                  className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-fog"
+                >
+                  Protected route
+                </Link>
+                <Link
+                  href="/playground"
+                  className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-fog"
+                >
+                  Playground
+                </Link>
+                <Link
+                  href="/relying-party"
+                  className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-fog"
+                >
+                  Relying party
+                </Link>
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <ActionStat
+                  label="Wallet session"
+                  value={walletAddress ? "Linked" : "Not linked"}
+                  detail={walletProviderName ?? "Connect Auro to continue"}
+                />
+                <ActionStat
+                  label="Credential state"
+                  value={verificationSummary}
+                  detail={
+                    freshnessStatus === "verified"
+                      ? "Current and ready for proofs"
+                      : freshnessStatus === "expiring_soon"
+                        ? "Still valid but close to expiry"
+                        : freshnessStatus === "expired"
+                          ? "Verification must be refreshed"
+                          : "No usable credential yet"
+                  }
+                />
+                <ActionStat
+                  label="Primary wallet"
+                  value={walletProviderName ?? "Not selected"}
+                  detail="Auro supports proof + storage in the demo"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-[20px] border border-line bg-fog px-5 py-5">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Current flow</p>
+              <div className="mt-4 space-y-4">
+                <HeroStep index="01" title="Link wallet" body="Authenticate a Mina wallet before starting the verification flow." />
+                <HeroStep index="02" title="Complete KYC" body="Run the hosted Didit session once and return to Mintra." />
+                <HeroStep index="03" title="Issue credential" body="Store the resulting credential in a supported wallet for later proofs." />
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="reveal-up reveal-delay-1 rounded-[32px] border border-line bg-white/90 p-8 shadow-card backdrop-blur-sm">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate">Verification status</p>
-          <p className="mt-3 text-sm text-slate">
-            The homepage now drives a single sequence: connect wallet, return to the top, then verify.
-          </p>
-
-          <div className={`mt-8 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${freshnessStatus === "verified" ? "bg-emerald-50 text-emerald-700" : freshnessStatus === "expiring_soon" ? "bg-amber-50 text-amber-700" : freshnessStatus === "expired" ? "bg-rose-50 text-rose-700" : "bg-stone-100 text-stone-600"}`}>
-            {isVerified ? <BadgeCheck className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-            {freshnessStatus === "verified"
-              ? "Verified"
-              : freshnessStatus === "expiring_soon"
-                ? "Expiring soon"
-                : freshnessStatus === "expired"
-                  ? "Expired — verify again"
-                  : "Not verified"}
+        <aside className="reveal-up reveal-delay-1 rounded-[24px] border border-line bg-white p-6 shadow-card">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Verification rail</p>
+              <h2 className="mt-2 text-xl font-semibold tracking-tight text-ink">Current status</h2>
+            </div>
+            <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${freshnessTone}`}>
+              {freshnessStatus === "verified" ? <BadgeCheck className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+              {verificationSummary}
+            </div>
           </div>
 
-          <div className="mt-8 space-y-4">
+          <div className="mt-5 space-y-3">
+            <MetricRow
+              icon={<Wallet className="h-4 w-4" />}
+              label="Wallet"
+              value={walletAddress ? "Linked" : "Missing"}
+            />
             <MetricRow
               icon={<CheckCheck className="h-4 w-4" />}
-              label="KYC status"
-              value={loadingClaims ? "Loading" : claims?.claims.kyc_passed ? "Approved" : freshnessStatus === "expired" ? "Expired" : "Waiting"}
+              label="KYC"
+              value={loadingClaims ? "Loading" : claims?.claims.kyc_passed ? "Approved" : freshnessStatus === "expired" ? "Expired" : "Pending"}
             />
             <MetricRow
               icon={<Shield className="h-4 w-4" />}
@@ -229,13 +282,8 @@ export default function Home() {
               value={loadingClaims ? "Loading" : claims?.claims.age_over_18 ? "18+" : "Unavailable"}
             />
             <MetricRow
-              icon={<Wallet className="h-4 w-4" />}
-              label="Wallet flow"
-              value={walletAddress ? "Linked" : "Not linked"}
-            />
-            <MetricRow
-              icon={<Shield className="h-4 w-4" />}
-              label="Claim freshness"
+              icon={<Clock3 className="h-4 w-4" />}
+              label="Freshness"
               value={
                 loadingClaims
                   ? "Loading"
@@ -250,10 +298,34 @@ export default function Home() {
             />
           </div>
 
+          <div className="mt-5 rounded-[18px] border border-line bg-fog px-4 py-4">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Status marker</p>
+            <div className={`mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${freshnessTone}`}>
+            {isVerified ? <BadgeCheck className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+            {freshnessStatus === "verified"
+              ? "Verified"
+              : freshnessStatus === "expiring_soon"
+                ? "Expiring soon"
+                : freshnessStatus === "expired"
+                  ? "Expired — verify again"
+                  : "Not verified"}
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate">
+              {isVerified
+                ? "The wallet can issue a credential now. Use the claims view or the issuance panel below."
+                : freshnessStatus === "expired"
+                  ? "Your previous verification is no longer valid for product use."
+                  : walletAddress
+                    ? "Wallet is ready. Start or resume the verification flow."
+                    : "Connect a wallet first, then start verification."}
+            </p>
+          </div>
+
           {claims?.verifiedAt && (
-            <div className="mt-8 space-y-1 text-sm text-slate">
-              <p>Verified at {new Date(claims.verifiedAt).toLocaleString()}</p>
-              {claims.expiresAt && <p>Fresh until {new Date(claims.expiresAt).toLocaleString()}</p>}
+            <div className="mt-5 rounded-[18px] border border-line px-4 py-4 text-sm text-slate">
+              <p className="font-medium text-ink">Verification window</p>
+              <p className="mt-2">Verified at {new Date(claims.verifiedAt).toLocaleString()}</p>
+              {claims.expiresAt && <p className="mt-1">Fresh until {new Date(claims.expiresAt).toLocaleString()}</p>}
               {credentialTrustLabel && (
                 <div className={`mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${credentialTrustTone}`}>
                   <Shield className="h-3.5 w-3.5" />
@@ -262,11 +334,11 @@ export default function Home() {
               )}
             </div>
           )}
-        </div>
+        </aside>
       </section>
 
       {sessionExpired && (
-        <section className="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm">
+        <section className="rounded-[20px] border border-amber-200 bg-amber-50 px-6 py-4 text-sm">
           <p className="font-medium text-amber-800 mb-2">Wallet session expired</p>
           <p className="text-amber-700 mb-3">
             Reconnect {walletProviderName ?? "your wallet"} to reload your claims and resume the flow.
@@ -283,33 +355,17 @@ export default function Home() {
       )}
 
       {error && !sessionExpired && (
-        <section className="reveal-up rounded-3xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">
+        <section className="reveal-up rounded-[20px] border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700">
           {error}
         </section>
       )}
 
-      <HomeVerificationCard freshnessStatus={freshnessStatus} />
-      <WalletCredentialCard
-        userId={walletAddress ?? ""}
-        isVerified={isVerified}
-        credentialTrust={claims?.credentialTrust}
-      />
-
-      <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="reveal-up reveal-delay-1 rounded-[32px] border border-line bg-white/90 p-8 shadow-card backdrop-blur-sm">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate">Flow</p>
-          <div className="mt-6 space-y-5">
-            <StepRow index="01" title="Verify your identity" body="Complete the hosted KYC session once to derive normalized claims." />
-            <StepRow index="02" title="Link Mina Wallet" body="Connect the wallet from the main page so the credential can bind to your Mina public key." />
-            <StepRow index="03" title="Issue private credential" body="Mintra signs a Mina credential and stores it in the wallet for later proof requests." />
-          </div>
-        </div>
-
-        <div className="reveal-up reveal-delay-2 rounded-[32px] border border-line bg-white/90 p-8 shadow-card backdrop-blur-sm">
-          <div className="mb-6 flex items-center justify-between">
+      <section className="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
+        <div className="reveal-up reveal-delay-1 rounded-[24px] border border-line bg-white p-8 shadow-card">
+          <div className="mb-5 flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate">Active claims</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">Current verification state</h2>
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Claims and flow</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">Operational dashboard</h2>
             </div>
             {walletAddress && (
               <Link href={`/claims/${walletAddress}`} className="text-sm font-medium text-slate transition hover:text-ink">
@@ -318,40 +374,61 @@ export default function Home() {
             )}
           </div>
 
-          {claims && Object.keys(claims.claims).length > 0 ? (
-            <div className="space-y-3">
-              {credentialTrustLabel && (
-                <div className="flex items-center justify-between rounded-2xl border border-line bg-fog px-4 py-3">
-                  <code className="text-sm text-slate">credential_environment</code>
-                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${credentialTrustTone}`}>
-                    {credentialTrustLabel}
-                  </span>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_280px]">
+            <div>
+              {claims && Object.keys(claims.claims).length > 0 ? (
+                <div className="space-y-3">
+                  {credentialTrustLabel && (
+                    <div className="flex items-center justify-between rounded-[18px] border border-line bg-fog px-4 py-3">
+                      <code className="text-sm text-slate">credential_environment</code>
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${credentialTrustTone}`}>
+                        {credentialTrustLabel}
+                      </span>
+                    </div>
+                  )}
+                  {claims.claims.age_over_18 !== undefined && (
+                    <ClaimRow label="age_over_18" value={String(claims.claims.age_over_18)} />
+                  )}
+                  {claims.claims.age_over_21 !== undefined && (
+                    <ClaimRow label="age_over_21" value={String(claims.claims.age_over_21)} />
+                  )}
+                  {claims.claims.kyc_passed !== undefined && (
+                    <ClaimRow label="kyc_passed" value={String(claims.claims.kyc_passed)} />
+                  )}
+                  {claims.claims.country_code !== undefined && (
+                    <ClaimRow label="country_code" value={claims.claims.country_code} />
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-[20px] border border-dashed border-line bg-fog px-6 py-8">
+                  <p className="text-sm text-slate">
+                    {walletAddress
+                      ? freshnessStatus === "expired"
+                        ? "Your stored claim has expired for product use. Start a new verification to refresh it."
+                        : "No verified claims yet. Complete the verification flow first."
+                      : "Connect a wallet to start verification and load claims."}
+                  </p>
                 </div>
               )}
-              {claims.claims.age_over_18 !== undefined && (
-                <ClaimRow label="age_over_18" value={String(claims.claims.age_over_18)} />
-              )}
-              {claims.claims.age_over_21 !== undefined && (
-                <ClaimRow label="age_over_21" value={String(claims.claims.age_over_21)} />
-              )}
-              {claims.claims.kyc_passed !== undefined && (
-                <ClaimRow label="kyc_passed" value={String(claims.claims.kyc_passed)} />
-              )}
-              {claims.claims.country_code !== undefined && (
-                <ClaimRow label="country_code" value={claims.claims.country_code} />
-              )}
             </div>
-          ) : (
-            <div className="rounded-3xl border border-dashed border-line bg-fog px-6 py-8">
-              <p className="text-sm text-slate">
-                {walletAddress
-                  ? freshnessStatus === "expired"
-                    ? "Your stored claim has expired for product use. Start a new verification to refresh it."
-                    : "No verified claims yet. Complete the verification flow first."
-                  : "Connect a wallet to start verification and load claims."}
-              </p>
+
+            <div className="rounded-[20px] border border-line bg-fog px-5 py-5">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Flow</p>
+              <div className="mt-5 space-y-5">
+                <StepRow index="01" title="Verify identity" body="Complete the hosted KYC session once to derive normalized claims." />
+                <StepRow index="02" title="Link Mina wallet" body="Connect a wallet so the credential binds to the Mina public key." />
+                <StepRow index="03" title="Issue credential" body="Store the signed credential in-wallet for later proof requests." />
+              </div>
             </div>
-          )}
+          </div>
+        </div>
+
+        <div className="reveal-up reveal-delay-2">
+          <WalletCredentialCard
+            userId={walletAddress ?? ""}
+            isVerified={isVerified}
+            credentialTrust={claims?.credentialTrust}
+          />
         </div>
       </section>
     </div>
@@ -360,7 +437,7 @@ export default function Home() {
 
 function ClaimRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between rounded-2xl border border-line bg-fog px-4 py-3">
+    <div className="flex items-center justify-between rounded-[18px] border border-line bg-fog px-4 py-3">
       <code className="text-sm text-slate">{label}</code>
       <code className={`text-sm font-medium ${value === "true" ? "text-emerald-700" : "text-ink"}`}>
         {value}
@@ -379,7 +456,7 @@ function MetricRow({
   value: string;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-2xl border border-line bg-fog px-4 py-3">
+    <div className="flex items-center justify-between rounded-[18px] border border-line bg-fog px-4 py-3">
       <div className="flex items-center gap-3 text-sm text-slate">
         <span className="text-ink">{icon}</span>
         <span>{label}</span>
@@ -392,11 +469,51 @@ function MetricRow({
 function StepRow({ index, title, body }: { index: string; title: string; body: string }) {
   return (
     <div className="flex gap-4">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-fog text-sm font-medium text-ink">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-sm font-medium text-ink">
         {index}
       </div>
       <div>
         <p className="text-base font-medium text-ink">{title}</p>
+        <p className="mt-1 text-sm leading-6 text-slate">{body}</p>
+      </div>
+    </div>
+  );
+}
+
+function ActionStat({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-[18px] border border-line bg-fog px-4 py-4">
+      <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">{label}</p>
+      <p className="mt-2 text-base font-medium text-ink">{value}</p>
+      <p className="mt-1 text-sm leading-6 text-slate">{detail}</p>
+    </div>
+  );
+}
+
+function HeroStep({
+  index,
+  title,
+  body,
+}: {
+  index: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="flex gap-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-xs font-semibold text-ink">
+        {index}
+      </div>
+      <div>
+        <p className="text-sm font-medium text-ink">{title}</p>
         <p className="mt-1 text-sm leading-6 text-slate">{body}</p>
       </div>
     </div>
