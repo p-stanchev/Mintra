@@ -91,6 +91,44 @@ describe("Mintra API", () => {
     expect(data.verifiedAt).toBeNull();
   });
 
+  it("GET /api/claims/:userId returns claim commitments and derived claims for v2 records", async () => {
+    const verification = await app.store.createVerification(WALLET_1, "provider-session-v2-claims");
+    await app.store.upsertClaims(WALLET_1, verification.id, {
+      ageOver18: true,
+      kycPassed: true,
+      countryCode: "US",
+      claimModelVersion: "v2",
+      derivedClaims: {
+        age_over_18: {
+          key: "age_over_18",
+          value: true,
+          derivedFrom: ["dob_commitment"],
+          relation: "derived from source age >= 18",
+        },
+      },
+      sourceCommitments: {
+        dob_commitment: {
+          key: "dob_commitment",
+          algorithm: "sha256",
+          encoding: "mintra.commitment/v1",
+          value: "a".repeat(64),
+        },
+      },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/claims/${WALLET_1}`,
+      headers: authHeader(app, WALLET_1),
+    });
+
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.claimModelVersion).toBe("v2");
+    expect(data.derivedClaims.age_over_18.value).toBe(true);
+    expect(data.sourceCommitments.dob_commitment.value).toBe("a".repeat(64));
+  });
+
   it("GET /api/verifications/:id/status returns 404 for unknown id", async () => {
     const res = await app.inject({
       method: "GET",
@@ -160,6 +198,8 @@ describe("Mintra API", () => {
     const claims = await app.store.getClaims(WALLET_1);
     expect(claims?.kycPassed).toBe(true);
     expect(claims?.ageOver18).toBe(true);
+    expect(claims?.claimModelVersion).toBe("v2");
+    expect(claims?.sourceCommitments?.country_code_commitment?.value).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("webhook maps Didit v3 approved payloads with age and issuing_state", async () => {
@@ -351,6 +391,54 @@ describe("Mintra API", () => {
     });
 
     expect(res.statusCode).toBe(403);
+  });
+
+  it("POST /api/mina/issue-credential returns credential metadata for v2 claims", async () => {
+    app.minaBridge = {
+      issueCredential: async (req) => ({
+        credentialJson: "{}",
+        issuerPublicKey: WALLET_1,
+        credentialMetadata: req.credentialMetadata,
+      }),
+    };
+
+    const verification = await app.store.createVerification(WALLET_1, "provider-session-issue-v2");
+    await app.store.upsertClaims(WALLET_1, verification.id, {
+      ageOver18: true,
+      kycPassed: true,
+      claimModelVersion: "v2",
+      derivedClaims: {
+        age_over_18: {
+          key: "age_over_18",
+          value: true,
+          derivedFrom: ["dob_commitment"],
+          relation: "derived from source age >= 18",
+        },
+      },
+      sourceCommitments: {
+        dob_commitment: {
+          key: "dob_commitment",
+          algorithm: "sha256",
+          encoding: "mintra.commitment/v1",
+          value: "b".repeat(64),
+        },
+      },
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/mina/issue-credential",
+      headers: {
+        "content-type": "application/json",
+        ...authHeader(app, WALLET_1),
+      },
+      payload: JSON.stringify({ userId: WALLET_1, ownerPublicKey: WALLET_1 }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.credentialMetadata.version).toBe("v2");
+    expect(data.credentialMetadata.sourceCommitments.dob_commitment.value).toBe("b".repeat(64));
   });
 });
 

@@ -39,3 +39,13 @@ Placeholder / future work:
 - contract-side freshness enforcement
 
 The example contract shows where those integration points would live without pretending they already exist in production.
+
+## Privacy Roadmap Hook
+
+The zkApp extension path is also where Mintra’s privacy posture can deepen over time:
+
+- selective disclosure for claims such as `age_over_18`
+- commitment-oriented claim representations
+- stronger Mina-native zk verification paths for relying parties that need on-chain enforcement
+
+That roadmap keeps the current infrastructure-first model intact while leaving a credible path toward stronger privacy guarantees.

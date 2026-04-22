@@ -1,3 +1,4 @@
+import type { CredentialMetadata } from "@mintra/sdk-types";
 import type { VerificationStore } from "./store";
 import type { DiditProvider } from "@mintra/provider-didit";
 import type { WalletAuthStore } from "./auth";
@@ -7,7 +8,8 @@ interface MinaBridgeLike {
     userId: string;
     claims: Record<string, unknown>;
     ownerPublicKey: string;
-  }): Promise<{ credentialJson: string; issuerPublicKey: string }>;
+    credentialMetadata?: CredentialMetadata;
+  }): Promise<{ credentialJson: string; issuerPublicKey: string; credentialMetadata?: CredentialMetadata }>;
 }
 
 declare module "fastify" {

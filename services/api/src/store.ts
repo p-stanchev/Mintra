@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import type { ClaimModelVersion, DerivedClaims, SourceCommitments } from "@mintra/sdk-types";
 
 const MAX_VERIFICATIONS = 10_000;
 const MAX_CLAIMS = 10_000;
@@ -32,6 +33,9 @@ export interface ClaimsRecord {
   ageOver21: boolean | null;
   kycPassed: boolean | null;
   countryCode: string | null;
+  claimModelVersion: ClaimModelVersion;
+  derivedClaims?: DerivedClaims;
+  sourceCommitments?: SourceCommitments;
   verifiedAt: Date;
 }
 
@@ -43,7 +47,15 @@ export interface VerificationStore {
   upsertClaims(
     userId: string,
     verificationId: string,
-    data: { ageOver18?: boolean; ageOver21?: boolean; kycPassed?: boolean; countryCode?: string }
+    data: {
+      ageOver18?: boolean;
+      ageOver21?: boolean;
+      kycPassed?: boolean;
+      countryCode?: string;
+      claimModelVersion?: ClaimModelVersion;
+      derivedClaims?: DerivedClaims;
+      sourceCommitments?: SourceCommitments;
+    }
   ): Promise<void>;
   getClaims(userId: string): Promise<ClaimsRecord | undefined>;
   isWebhookProcessed(key: string): boolean;
@@ -113,7 +125,15 @@ export class InMemoryStore implements VerificationStore {
   async upsertClaims(
     userId: string,
     verificationId: string,
-    data: { ageOver18?: boolean; ageOver21?: boolean; kycPassed?: boolean; countryCode?: string }
+    data: {
+      ageOver18?: boolean;
+      ageOver21?: boolean;
+      kycPassed?: boolean;
+      countryCode?: string;
+      claimModelVersion?: ClaimModelVersion;
+      derivedClaims?: DerivedClaims;
+      sourceCommitments?: SourceCommitments;
+    }
   ): Promise<void> {
     if (!this.claims.has(userId) && this.claims.size >= MAX_CLAIMS) {
       throw new Error("Claims store capacity exceeded");
@@ -125,6 +145,9 @@ export class InMemoryStore implements VerificationStore {
       ageOver21: data.ageOver21 ?? null,
       kycPassed: data.kycPassed ?? null,
       countryCode: data.countryCode ?? null,
+      claimModelVersion: data.claimModelVersion ?? "v1",
+      ...(data.derivedClaims === undefined ? {} : { derivedClaims: data.derivedClaims }),
+      ...(data.sourceCommitments === undefined ? {} : { sourceCommitments: data.sourceCommitments }),
       verifiedAt: new Date(),
     });
     this.schedulePersist();
@@ -189,6 +212,9 @@ export class InMemoryStore implements VerificationStore {
         const hydratedClaim: ClaimsRecord = {
           ...claim,
           ageOver21: "ageOver21" in claim ? claim.ageOver21 : null,
+          claimModelVersion: "claimModelVersion" in claim ? claim.claimModelVersion : "v1",
+          ...(claim.derivedClaims === undefined ? {} : { derivedClaims: claim.derivedClaims }),
+          ...(claim.sourceCommitments === undefined ? {} : { sourceCommitments: claim.sourceCommitments }),
           verifiedAt: new Date(claim.verifiedAt),
         };
         if (!isClaimExpired(hydratedClaim)) {

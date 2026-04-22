@@ -218,4 +218,27 @@ describe("DiditProvider.mapClaims", () => {
     expect(claims.kyc_passed).toBeUndefined();
     expect(claims.age_over_18).toBeUndefined();
   });
+
+  it("materializes deterministic commitments and derived claims", async () => {
+    const provider = makeProvider();
+    const ts = nowTs();
+    const payload = makeApprovedPayload(ts);
+    const rawBody = Buffer.from(JSON.stringify(payload));
+    const sig = signV2(payload);
+    const event = await provider.parseWebhook({ rawBody, parsedBody: payload, signatureV2: sig, timestamp: ts });
+
+    const first = await provider.materializeClaims(event);
+    const second = await provider.materializeClaims(event);
+
+    expect(first.claimModelVersion).toBe("v2");
+    expect(first.normalizedClaims.age_over_18).toBe(true);
+    expect(first.derivedClaims["age_over_18"]?.value).toBe(true);
+    expect(first.derivedClaims["country_code"]?.value).toBe("AT");
+    expect(first.sourceCommitments["dob_commitment"]?.value).toMatch(/^[a-f0-9]{64}$/);
+    expect(first.sourceCommitments["country_code_commitment"]?.value).toMatch(/^[a-f0-9]{64}$/);
+    expect(first.sourceCommitments["dob_commitment"]?.value).toBe(second.sourceCommitments["dob_commitment"]?.value);
+    expect(first.sourceCommitments["country_code_commitment"]?.value).toBe(
+      second.sourceCommitments["country_code_commitment"]?.value
+    );
+  });
 });

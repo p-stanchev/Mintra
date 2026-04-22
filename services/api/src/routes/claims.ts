@@ -45,6 +45,9 @@ export const claimsRouter: FastifyPluginAsync = async (app) => {
     return reply.send({
       userId,
       claims: normalizedClaims,
+      ...(claim?.claimModelVersion ? { claimModelVersion: claim.claimModelVersion } : {}),
+      ...(claim?.derivedClaims ? { derivedClaims: claim.derivedClaims } : {}),
+      ...(claim?.sourceCommitments ? { sourceCommitments: claim.sourceCommitments } : {}),
       verifiedAt,
       expiresAt,
       freshnessStatus,

@@ -172,3 +172,41 @@ Mintra’s core value is not a single on-chain contract. It is the reusable veri
 - verifier-side consumption
 
 The zkApp layer is therefore optional and modular.
+
+## Minimal ZK / Privacy Direction
+
+Mintra’s privacy roadmap is intentionally lightweight but Mina-native:
+
+- selective disclosure over normalized claims
+  for example, proving `age_over_18` without exposing full date of birth
+- claim commitments
+  where appropriate, storing and transporting committed claim values instead of broader plaintext fields
+- future zk-proof compatibility
+  keeping credential formats, proof products, and verifier outputs structured so they can map into stronger zero-knowledge verification paths later
+
+This should be read as architectural direction rather than current full in-circuit functionality.
+
+## Committed Claims Foundation
+
+Mintra now distinguishes between three layers of verification data:
+
+1. source data
+   raw provider facts such as date of birth or issuing country
+2. source commitments
+   deterministic hashes of sensitive source values such as `dob_commitment`
+3. derived claims
+   product-facing outputs such as `age_over_18`, `age_over_21`, `kyc_passed`, and `country_code`
+
+The current implementation uses commitments plus derived claims as the storage and issuance foundation for future privacy upgrades.
+
+What is implemented now:
+
+- source commitments can be generated from sensitive fields
+- derived claims are computed from provider results
+- Mintra persists derived claims and commitment metadata instead of raw source identity fields
+
+What is not implemented yet:
+
+- zk proof of correct derivation from a commitment
+- in-circuit commitment checks
+- full cryptographic selective disclosure of source-field relations

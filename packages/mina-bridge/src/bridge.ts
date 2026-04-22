@@ -69,7 +69,13 @@ export class MinaBridge {
     const credentialJson = (Credential as any).toJSON(storedCredential) as string;
     const issuerPublicKey = issuerKey.toPublicKey().toBase58();
 
-    return { credentialJson, issuerPublicKey };
+    return {
+      credentialJson,
+      issuerPublicKey,
+      ...(request.credentialMetadata === undefined
+        ? {}
+        : { credentialMetadata: request.credentialMetadata }),
+    };
   }
 }
 

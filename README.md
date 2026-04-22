@@ -45,6 +45,27 @@ It is **not** a zkApp-only product. zkApp support is an optional extension on to
 - productionized verifier state anchoring for zkApps
 - published npm packages for the SDK packages in this monorepo
 
+## Minimal ZK / Privacy Roadmap Hook
+
+Mintra already aims to minimize what gets stored and exposed. The forward-looking privacy direction is:
+
+- selective disclosure:
+  prove `age_over_18` without exposing full date of birth
+- claim commitments:
+  move toward hash or commitment-based claim representations where useful
+- zk-proof compatibility:
+  keep credential and presentation formats aligned with future Mina-native zero-knowledge verification paths
+
+This is architectural intent, not a claim that full selective-disclosure zk proofs are already deployed in the current demo.
+
+The current bridge step now implemented is a committed-claims foundation:
+
+- sensitive source fields can be represented as commitments such as `dob_commitment`
+- public product-facing outputs are carried as derived claims such as `age_over_18`
+- raw source identity fields are not retained by Mintra once commitments and derived claims are produced
+
+This is not full zk selective disclosure yet, but it is the data-model upgrade that future zk enforcement can build on.
+
 ## Proposed Architecture
 
 ```text

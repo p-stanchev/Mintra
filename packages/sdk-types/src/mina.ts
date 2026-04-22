@@ -1,4 +1,10 @@
+import { z } from "zod";
 import type { NormalizedClaims } from "./verification";
+import {
+  ClaimModelVersionSchema,
+  DerivedClaimsSchema,
+  SourceCommitmentsSchema,
+} from "./claims";
 
 export interface MinaCredentialData {
   ageOver18: 0 | 1;
@@ -8,13 +14,31 @@ export interface MinaCredentialData {
   issuedAt: number;    // Unix timestamp seconds
 }
 
+export const CredentialV2Schema = z.object({
+  version: z.literal("v2"),
+  sourceCommitments: SourceCommitmentsSchema,
+  derivedClaims: DerivedClaimsSchema,
+});
+export type CredentialV2 = z.infer<typeof CredentialV2Schema>;
+
+export const CredentialMetadataSchema = z.discriminatedUnion("version", [
+  z.object({
+    version: z.literal("v1"),
+    claims: z.record(z.unknown()).optional(),
+  }),
+  CredentialV2Schema,
+]);
+export type CredentialMetadata = z.infer<typeof CredentialMetadataSchema>;
+
 export interface MinaIssuanceRequest {
   userId: string;
   claims: NormalizedClaims;
   ownerPublicKey: string; // Mina public key, Base58
+  credentialMetadata?: CredentialMetadata;
 }
 
 export interface MinaIssuanceResult {
   credentialJson: string; // serialized mina-attestations credential
   issuerPublicKey: string;
+  credentialMetadata?: CredentialMetadata;
 }

@@ -68,6 +68,9 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
     }
 
     let normalizedClaims: Record<string, unknown> = {};
+    let claimModelVersion: string | undefined;
+    let derivedClaims: unknown;
+    let sourceCommitments: unknown;
     if (record.status === "approved") {
       const claim = await app.store.getClaims(record.userId);
       if (claim) {
@@ -75,6 +78,9 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
         if (claim.ageOver21 !== null) normalizedClaims["age_over_21"] = claim.ageOver21;
         if (claim.kycPassed !== null) normalizedClaims["kyc_passed"] = claim.kycPassed;
         if (claim.countryCode !== null) normalizedClaims["country_code"] = claim.countryCode;
+        claimModelVersion = claim.claimModelVersion;
+        derivedClaims = claim.derivedClaims;
+        sourceCommitments = claim.sourceCommitments;
       }
     }
 
@@ -86,6 +92,9 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
       provider: record.provider,
       status: record.status,
       claims: normalizedClaims,
+      ...(claimModelVersion ? { claimModelVersion } : {}),
+      ...(derivedClaims ? { derivedClaims } : {}),
+      ...(sourceCommitments ? { sourceCommitments } : {}),
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),
     });

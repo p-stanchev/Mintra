@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  ClaimModelVersionSchema,
+  DerivedClaimsSchema,
+} from "./claims";
 
 export const MinaPublicKeySchema = z
   .string()
@@ -165,6 +169,10 @@ export const PresentationProofSchema = z.object({
   format: z.literal("mina-attestations/auro"),
   presentationJson: z.string().min(1),
   presentationRequestJson: z.string().min(1),
+  claimModelVersion: ClaimModelVersionSchema.optional(),
+  derivedClaims: DerivedClaimsSchema.optional(),
+  commitmentReferences: z.array(z.string().min(1)).optional(),
+  derivedFromCommittedSource: z.boolean().optional(),
 });
 export type PresentationProof = z.infer<typeof PresentationProofSchema>;
 

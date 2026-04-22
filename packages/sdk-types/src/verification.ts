@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  ClaimModelVersionSchema,
+  DerivedClaimsSchema,
+  type DerivedClaims,
+  SourceCommitmentsSchema,
+} from "./claims";
 
 export const VerificationStatusSchema = z.enum([
   "not_started",
@@ -24,8 +30,32 @@ export const VerificationRecordSchema = z.object({
   provider: z.literal("didit"),
   status: VerificationStatusSchema,
   claims: NormalizedClaimsSchema,
+  claimModelVersion: ClaimModelVersionSchema.optional(),
+  derivedClaims: DerivedClaimsSchema.optional(),
+  sourceCommitments: SourceCommitmentsSchema.optional(),
   providerReference: z.string().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
 export type VerificationRecord = z.infer<typeof VerificationRecordSchema>;
+
+export function normalizedClaimsFromDerivedClaims(
+  derivedClaims: DerivedClaims | undefined
+): NormalizedClaims {
+  if (!derivedClaims) return {};
+
+  const claims: NormalizedClaims = {};
+  const ageOver18 = derivedClaims["age_over_18"]?.value;
+  const ageOver21 = derivedClaims["age_over_21"]?.value;
+  const kycPassed = derivedClaims["kyc_passed"]?.value;
+  const countryCode = derivedClaims["country_code"]?.value;
+
+  if (typeof ageOver18 === "boolean") claims.age_over_18 = ageOver18;
+  if (typeof ageOver21 === "boolean") claims.age_over_21 = ageOver21;
+  if (typeof kycPassed === "boolean") claims.kyc_passed = kycPassed;
+  if (typeof countryCode === "string" && countryCode.length === 2) {
+    claims.country_code = countryCode.toUpperCase();
+  }
+
+  return claims;
+}

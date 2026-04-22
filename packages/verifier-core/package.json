@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "dev": "tsup src/index.ts --format esm,cjs --dts --watch"
   },
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "tsup": "^8.0.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
   }
 }

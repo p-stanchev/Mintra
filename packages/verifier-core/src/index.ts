@@ -1,6 +1,9 @@
 import countries from "i18n-iso-countries";
 import enLocale from "i18n-iso-countries/langs/en.json" with { type: "json" };
 import {
+  type ClaimModelVersion,
+  type DerivedClaim,
+  type DerivedClaims,
   type HolderBinding,
   type HolderBindingVerification,
   type PasskeyAssertion,
@@ -73,6 +76,12 @@ export interface CreatePresentationEnvelopeInput {
   presentationJson: string;
   holderBinding: HolderBinding;
   passkeyBinding?: PasskeyAssertion;
+  proofMetadata?: {
+    claimModelVersion?: ClaimModelVersion;
+    derivedClaims?: DerivedClaims;
+    commitmentReferences?: string[];
+    derivedFromCommittedSource?: boolean;
+  };
   metadata?: {
     walletProvider?: string;
     clientVersion?: string;
@@ -104,6 +113,16 @@ export interface VerifyFreshnessParams {
   issuedAt: number;
   maxAgeDays: number | null;
   now?: number;
+}
+
+export interface VerifyDerivedClaimParams {
+  claim: DerivedClaim | undefined;
+  expectedValue?: string | number | boolean | undefined;
+}
+
+export interface VerifyCommitmentRelationParams {
+  claimKey: string;
+  commitmentKey: string;
 }
 
 export interface VerifyMintraPresentationParams {
@@ -485,6 +504,18 @@ export function createPresentationEnvelope(
       format: "mina-attestations/auro",
       presentationJson: input.presentationJson,
       presentationRequestJson: input.requestEnvelope.presentationRequestJson,
+      ...(input.proofMetadata?.claimModelVersion === undefined
+        ? {}
+        : { claimModelVersion: input.proofMetadata.claimModelVersion }),
+      ...(input.proofMetadata?.derivedClaims === undefined
+        ? {}
+        : { derivedClaims: input.proofMetadata.derivedClaims }),
+      ...(input.proofMetadata?.commitmentReferences === undefined
+        ? {}
+        : { commitmentReferences: input.proofMetadata.commitmentReferences }),
+      ...(input.proofMetadata?.derivedFromCommittedSource === undefined
+        ? {}
+        : { derivedFromCommittedSource: input.proofMetadata.derivedFromCommittedSource }),
     },
     holderBinding: input.holderBinding,
     ...(input.passkeyBinding === undefined ? {} : { passkeyBinding: input.passkeyBinding }),
@@ -494,6 +525,35 @@ export function createPresentationEnvelope(
       submittedAt: new Date().toISOString(),
     },
   });
+}
+
+export function verifyDerivedClaim(params: VerifyDerivedClaimParams) {
+  if (!params.claim) {
+    return {
+      verified: false,
+      reason: "Derived claim is missing",
+    };
+  }
+
+  if (params.expectedValue === undefined) {
+    return {
+      verified: true,
+    };
+  }
+
+  return {
+    verified: params.claim.value === params.expectedValue,
+    ...(params.claim.value === params.expectedValue
+      ? {}
+      : { reason: `Derived claim did not match expected value for ${params.claim.key}` }),
+  };
+}
+
+export function verifyCommitmentRelation(_params: VerifyCommitmentRelationParams) {
+  return {
+    verified: false,
+    reason: "Commitment relation verification is a future zk integration hook and is not enforced yet",
+  };
 }
 
 export async function serializePresentationRequest(
@@ -834,6 +894,96 @@ export async function verifyPresentation(
     };
   }
 
+  if (envelope.proof.derivedClaims) {
+    const proofProductId = envelope.challenge.proofProductId;
+    const derivedClaims = envelope.proof.derivedClaims;
+
+    if (proofProductId === "proof_of_age_18") {
+      const ageCheck = verifyDerivedClaim({
+        claim: derivedClaims["age_over_18"],
+        expectedValue: true,
+      });
+      const kycCheck = verifyDerivedClaim({
+        claim: derivedClaims["kyc_passed"],
+        expectedValue: envelope.challenge.policy.requireKycPassed ? true : undefined,
+      });
+
+      if (!ageCheck.verified || !kycCheck.verified) {
+        return {
+          ok: false,
+          challenge: {
+            challengeId: envelope.challenge.challengeId,
+            proofProductId: envelope.challenge.proofProductId,
+            audience: envelope.challenge.audience,
+          },
+          ownerPublicKey: proofOutput.ownerPublicKey,
+          holderBinding: { verified: false, reason: "Derived claim validation failed before holder binding" },
+          audience,
+          error: {
+            code: "derived_claim_mismatch",
+            message: "Derived claims did not satisfy the requested policy",
+            detail: ageCheck.reason ?? kycCheck.reason,
+          },
+          verifiedAt,
+        };
+      }
+    }
+
+    if (proofProductId === "proof_of_kyc_passed") {
+      const kycCheck = verifyDerivedClaim({
+        claim: derivedClaims["kyc_passed"],
+        expectedValue: true,
+      });
+      if (!kycCheck.verified) {
+        return {
+          ok: false,
+          challenge: {
+            challengeId: envelope.challenge.challengeId,
+            proofProductId: envelope.challenge.proofProductId,
+            audience: envelope.challenge.audience,
+          },
+          ownerPublicKey: proofOutput.ownerPublicKey,
+          holderBinding: { verified: false, reason: "Derived claim validation failed before holder binding" },
+          audience,
+          error: {
+            code: "derived_claim_mismatch",
+            message: "Derived claims did not satisfy the requested policy",
+            detail: kycCheck.reason,
+          },
+          verifiedAt,
+        };
+      }
+    }
+
+    if (proofProductId === "proof_of_country_code" && derivedClaims["country_code"]) {
+      const countryCheck = verifyDerivedClaim({
+        claim: derivedClaims["country_code"],
+        expectedValue: normalizeCountryToIso2(
+          numericToAlpha2(proofOutput.countryCodeNumeric.toString()) ?? proofOutput.countryCodeNumeric.toString()
+        ) ?? proofOutput.countryCodeNumeric,
+      });
+      if (!countryCheck.verified) {
+        return {
+          ok: false,
+          challenge: {
+            challengeId: envelope.challenge.challengeId,
+            proofProductId: envelope.challenge.proofProductId,
+            audience: envelope.challenge.audience,
+          },
+          ownerPublicKey: proofOutput.ownerPublicKey,
+          holderBinding: { verified: false, reason: "Derived claim validation failed before holder binding" },
+          audience,
+          error: {
+            code: "derived_claim_mismatch",
+            message: "Derived claims did not satisfy the requested policy",
+            detail: countryCheck.reason,
+          },
+          verifiedAt,
+        };
+      }
+    }
+  }
+
   const freshness = verifyFreshness({
     issuedAt: proofOutput.issuedAt,
     maxAgeDays: envelope.challenge.policy.maxCredentialAgeDays,
@@ -972,6 +1122,11 @@ function normalizeCountryToIso2(value: string | undefined): string | undefined {
 
 function alpha2ToNumeric(alpha2: string): number {
   return Number(countries.alpha2ToNumeric(alpha2) ?? 0);
+}
+
+function numericToAlpha2(value: string): string | undefined {
+  if (!/^\d+$/.test(value)) return undefined;
+  return countries.numericToAlpha2(value.padStart(3, "0")) ?? undefined;
 }
 
 function normalizeMaxCredentialAgeDays(value: number | null | undefined): number | null {

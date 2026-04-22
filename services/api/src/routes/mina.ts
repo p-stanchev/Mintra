@@ -46,6 +46,16 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
       userId,
       claims: normalizedClaims,
       ownerPublicKey,
+      credentialMetadata: claim.claimModelVersion === "v2"
+        ? {
+            version: "v2",
+            derivedClaims: claim.derivedClaims ?? {},
+            sourceCommitments: claim.sourceCommitments ?? {},
+          }
+        : {
+            version: "v1",
+            claims: normalizedClaims,
+          },
     });
 
     app.log.info("mina.credential_issued");

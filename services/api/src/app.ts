@@ -125,7 +125,14 @@ export async function buildApp(opts: AppOptions = {}) {
   });
   app.decorate("diditProvider", diditProvider);
 
-  let minaBridge: { issueCredential(req: { userId: string; claims: Record<string, unknown>; ownerPublicKey: string }): Promise<{ credentialJson: string; issuerPublicKey: string }> } | null = null;
+  let minaBridge: {
+    issueCredential(req: {
+      userId: string;
+      claims: Record<string, unknown>;
+      ownerPublicKey: string;
+      credentialMetadata?: unknown;
+    }): Promise<{ credentialJson: string; issuerPublicKey: string; credentialMetadata?: unknown }>;
+  } | null = null;
   try {
     // @ts-ignore optional workspace package loaded only when configured
     const { createMinaBridge } = nodeRequire("@mintra/mina-bridge");

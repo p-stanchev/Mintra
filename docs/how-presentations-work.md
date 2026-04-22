@@ -10,6 +10,7 @@ A presentation is submitted as `mintra.presentation/v1` and includes:
 
 - challenge metadata
 - proof payload
+- derived claim metadata when available
 - wallet holder-binding material
 - optional passkey holder-binding material
 - replay protection fields
@@ -33,7 +34,10 @@ A presentation is submitted as `mintra.presentation/v1` and includes:
   "proof": {
     "format": "mina-attestations/auro",
     "presentationJson": "...",
-    "presentationRequestJson": "..."
+    "presentationRequestJson": "...",
+    "claimModelVersion": "v2",
+    "commitmentReferences": ["dob_commitment", "country_code_commitment"],
+    "derivedFromCommittedSource": true
   },
   "holderBinding": {
     "method": "mina:signMessage",
@@ -72,6 +76,20 @@ A presentation is submitted as `mintra.presentation/v1` and includes:
 7. Verify the freshness policy.
 8. Verify the wallet holder-binding signature.
 9. If passkeys are required, verify the WebAuthn assertion against the stored passkey binding.
+
+## Derived Claims And Commitments
+
+The presentation layer is designed to expose only the derived claims needed for a product decision.
+
+Examples:
+
+- `age_over_18`
+- `kyc_passed`
+- `country_code`
+
+It does not expose raw date of birth or similar source identity fields.
+
+When commitment metadata is present, the verifier can understand that a claim is intended to be derived from committed source data. In the current implementation, this is a compatibility and future-zk hook, not full cryptographic proof of derivation.
 
 ## Passkey Extension
 

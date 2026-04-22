@@ -2,12 +2,18 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import countries from "i18n-iso-countries";
 import enLocale from "i18n-iso-countries/langs/en.json" with { type: "json" };
 import type {
+  ClaimMaterialization,
   VerificationProvider,
   CreateSessionInput,
   CreateSessionResult,
   IncomingWebhook,
   NormalizedWebhookEvent,
   NormalizedClaims,
+} from "@mintra/sdk-types";
+import {
+  commitDOB,
+  commitString,
+  createDerivedClaim,
 } from "@mintra/sdk-types";
 import { DiditSessionResponseSchema, DiditWebhookPayloadSchema } from "./schemas";
 
@@ -147,36 +153,40 @@ export class DiditProvider implements VerificationProvider {
   }
 
   mapClaims(event: NormalizedWebhookEvent): NormalizedClaims {
-    const approved = normalizeStatus(event.rawStatus) === "approved";
+    const materialized = deriveClaimMaterial(event);
+    return materialized.normalizedClaims;
+  }
+
+  async materializeClaims(event: NormalizedWebhookEvent): Promise<ClaimMaterialization> {
+    const materialized = deriveClaimMaterial(event);
+    const sourceCommitments: ClaimMaterialization["sourceCommitments"] = {};
+
     const idVerif = event.decision.id_verification as typeof event.decision.id_verification & {
-      age?: number | string;
       date_of_birth?: string;
+      country?: string;
       issuing_state?: string;
       issuing_country?: string;
     };
-    const age = normalizeAge(idVerif.age);
 
-    const claims: NormalizedClaims = {};
+    if (typeof idVerif.date_of_birth === "string" && idVerif.date_of_birth.trim()) {
+      sourceCommitments["dob_commitment"] = await commitDOB(idVerif.date_of_birth);
+    }
 
-    if (approved) {
-      claims.kyc_passed = true;
+    const countryCode = materialized.normalizedClaims.country_code;
+    if (countryCode) {
+      sourceCommitments["country_code_commitment"] = await commitString(
+        "country_code_commitment",
+        countryCode
+      );
     }
-    if (age !== null && age >= 18) {
-      claims.age_over_18 = true;
-    }
-    if (age !== null && age >= 21) {
-      claims.age_over_21 = true;
-    }
-    const countryCode = normalizeCountryToIso2(
-      idVerif.country,
-      idVerif.issuing_country,
-      idVerif.issuing_state
-    );
-    if (countryCode) claims.country_code = countryCode;
 
-    return claims;
+    return {
+      claimModelVersion: "v2",
+      normalizedClaims: materialized.normalizedClaims,
+      derivedClaims: materialized.derivedClaims,
+      sourceCommitments,
+    };
   }
-
   private verifySignature(request: IncomingWebhook & { parsedBody: unknown }): void {
     const { parsedBody, signatureV2, timestamp } = request;
 
@@ -214,6 +224,73 @@ export class DiditProvider implements VerificationProvider {
     if (expectedBuf.length !== 32 || receivedBuf.length !== 32) return false;
     return timingSafeEqual(expectedBuf, receivedBuf);
   }
+}
+
+function deriveClaimMaterial(event: NormalizedWebhookEvent): {
+  normalizedClaims: NormalizedClaims;
+  derivedClaims: ClaimMaterialization["derivedClaims"];
+} {
+  const approved = normalizeStatus(event.rawStatus) === "approved";
+  const idVerif = event.decision.id_verification as typeof event.decision.id_verification & {
+    age?: number | string;
+    date_of_birth?: string;
+    issuing_state?: string;
+    issuing_country?: string;
+  };
+  const age = normalizeAge(idVerif.age);
+
+  const claims: NormalizedClaims = {};
+  const derivedClaims: ClaimMaterialization["derivedClaims"] = {};
+
+  if (approved) {
+    claims.kyc_passed = true;
+    derivedClaims["kyc_passed"] = createDerivedClaim(
+      "kyc_passed",
+      true,
+      ["kyc_review_commitment"],
+      "provider_decision == approved"
+    );
+  }
+
+  if (age !== null && age >= 18) {
+    claims.age_over_18 = true;
+    derivedClaims["age_over_18"] = createDerivedClaim(
+      "age_over_18",
+      true,
+      ["dob_commitment"],
+      "derived from source age >= 18"
+    );
+  }
+
+  if (age !== null && age >= 21) {
+    claims.age_over_21 = true;
+    derivedClaims["age_over_21"] = createDerivedClaim(
+      "age_over_21",
+      true,
+      ["dob_commitment"],
+      "derived from source age >= 21"
+    );
+  }
+
+  const countryCode = normalizeCountryToIso2(
+    idVerif.country,
+    idVerif.issuing_country,
+    idVerif.issuing_state
+  );
+  if (countryCode) {
+    claims.country_code = countryCode;
+    derivedClaims["country_code"] = createDerivedClaim(
+      "country_code",
+      countryCode,
+      ["country_code_commitment"],
+      "normalized from provider country source"
+    );
+  }
+
+  return {
+    normalizedClaims: claims,
+    derivedClaims,
+  };
 }
 
 function shortenFloats(data: unknown): unknown {

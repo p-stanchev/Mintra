@@ -57,7 +57,8 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
     }
 
     if (internalStatus === "approved") {
-      const normalizedClaims = app.diditProvider.mapClaims(event);
+      const materializedClaims = await app.diditProvider.materializeClaims(event);
+      const normalizedClaims = materializedClaims.normalizedClaims;
       app.log.info({
         verificationId: verification.id,
         hasDateOfBirth: !!event.decision.id_verification?.date_of_birth,
@@ -70,6 +71,9 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
         ...(normalizedClaims.age_over_21 !== undefined ? { ageOver21: normalizedClaims.age_over_21 } : {}),
         ...(normalizedClaims.kyc_passed !== undefined ? { kycPassed: normalizedClaims.kyc_passed } : {}),
         ...(normalizedClaims.country_code !== undefined ? { countryCode: normalizedClaims.country_code } : {}),
+        claimModelVersion: materializedClaims.claimModelVersion,
+        derivedClaims: materializedClaims.derivedClaims,
+        sourceCommitments: materializedClaims.sourceCommitments,
       });
       app.log.info({ verificationId: verification.id }, "webhook.claims_stored");
     }

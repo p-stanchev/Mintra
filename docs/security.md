@@ -48,6 +48,8 @@ Mintra stores:
 - verification IDs
 - wallet/user IDs
 - normalized claims
+- source commitment metadata
+- derived claim metadata
 - verification timestamps
 - webhook dedupe markers
 - verifier challenge records
@@ -59,6 +61,28 @@ Mintra does not store:
 - selfies
 - raw identity payloads
 - full provider webhook payloads
+
+## Commitments And Derived Claims
+
+Mintra now distinguishes between:
+
+- source data:
+  the sensitive provider fields
+- source commitments:
+  deterministic hashes of selected sensitive fields
+- derived claims:
+  product-facing values such as `age_over_18`
+
+Security benefit:
+
+- Mintra can keep only commitments plus derived claims without retaining raw source identity fields
+- verifier flows can continue to operate on minimal public claims
+- future zk selective-disclosure work has a concrete data-model foundation
+
+Current limitation:
+
+- Mintra does not yet cryptographically prove the relationship between a derived claim and its source commitment during verification
+- that commitment relation remains a future zk integration step
 
 ## Retention
 

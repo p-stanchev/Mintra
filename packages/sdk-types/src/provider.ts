@@ -1,4 +1,5 @@
 import type { NormalizedClaims } from "./verification";
+import type { ClaimModelVersion, DerivedClaims, SourceCommitments } from "./claims";
 
 export interface CreateSessionInput {
   userId: string;
@@ -40,8 +41,16 @@ export interface NormalizedWebhookEvent {
   decision: WebhookDecision;
 }
 
+export interface ClaimMaterialization {
+  claimModelVersion: ClaimModelVersion;
+  normalizedClaims: NormalizedClaims;
+  derivedClaims: DerivedClaims;
+  sourceCommitments: SourceCommitments;
+}
+
 export interface VerificationProvider {
   createSession(input: CreateSessionInput): Promise<CreateSessionResult>;
   parseWebhook(request: IncomingWebhook): Promise<NormalizedWebhookEvent>;
   mapClaims(event: NormalizedWebhookEvent): NormalizedClaims;
+  materializeClaims(event: NormalizedWebhookEvent): Promise<ClaimMaterialization>;
 }

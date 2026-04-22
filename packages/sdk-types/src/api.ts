@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { NormalizedClaimsSchema, VerificationRecordSchema } from "./verification";
+import { ClaimModelVersionSchema, DerivedClaimsSchema, SourceCommitmentsSchema } from "./claims";
+import { CredentialMetadataSchema } from "./mina";
 
 const MinaPublicKeySchema = z
   .string()
@@ -24,6 +26,9 @@ export type GetStatusResponse = z.infer<typeof GetStatusResponseSchema>;
 export const GetClaimsResponseSchema = z.object({
   userId: z.string(),
   claims: NormalizedClaimsSchema,
+  claimModelVersion: ClaimModelVersionSchema.optional(),
+  derivedClaims: DerivedClaimsSchema.optional(),
+  sourceCommitments: SourceCommitmentsSchema.optional(),
   verifiedAt: z.string().datetime().nullable(),
   expiresAt: z.string().datetime().nullable(),
   freshnessStatus: z.enum(["verified", "expiring_soon", "expired", "unverified"]),
@@ -39,6 +44,7 @@ export type IssueMinaCredentialRequest = z.infer<typeof IssueMinaCredentialReque
 export const IssueMinaCredentialResponseSchema = z.object({
   credentialJson: z.string(),
   issuerPublicKey: z.string(),
+  credentialMetadata: CredentialMetadataSchema.optional(),
 });
 export type IssueMinaCredentialResponse = z.infer<typeof IssueMinaCredentialResponseSchema>;
 
