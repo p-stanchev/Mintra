@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="site-grid" aria-hidden="true" />
         </div>
         <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-6 sm:px-8">
-          <header className="glass-panel relative mb-10 flex items-center justify-between border-b border-line/80 pb-5">
+          <header className="glass-panel relative z-[120] isolate mb-10 flex items-center justify-between border-b border-line/80 pb-5">
             <a href="/" className="text-lg font-semibold tracking-tight text-ink">
               Mintra
             </a>

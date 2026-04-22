@@ -35,6 +35,8 @@ export const GetClaimsResponseSchema = z.object({
   derivedClaims: DerivedClaimsSchema.optional(),
   sourceCommitments: SourceCommitmentsSchema.optional(),
   credentialTrust: CredentialTrustSchema.optional(),
+  isDemoCredential: z.boolean().optional(),
+  documentExpiresAt: z.string().datetime().nullable().optional(),
   verifiedAt: z.string().datetime().nullable(),
   expiresAt: z.string().datetime().nullable(),
   freshnessStatus: z.enum(["verified", "expiring_soon", "expired", "unverified"]),

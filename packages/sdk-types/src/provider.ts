@@ -18,6 +18,8 @@ export interface WebhookDecision {
     document_type?: string;
     country?: string;
     date_of_birth?: string;
+    expiration_date?: string;
+    nationality?: string;
     issuing_state?: string;
     issuing_country?: string;
   };
@@ -47,6 +49,10 @@ export interface ClaimMaterialization {
   derivedClaims: DerivedClaims;
   sourceCommitments: SourceCommitments;
   credentialTrust?: CredentialTrust;
+  dateOfBirth?: string;
+  documentExpiresAt?: string;
+  nationality?: string;
+  documentType?: string;
 }
 
 export interface VerificationProvider {

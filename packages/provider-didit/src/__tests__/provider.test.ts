@@ -39,7 +39,14 @@ function makeApprovedPayload(ts: string) {
     vendor_data: "user-001",
     timestamp: Number(ts),
     decision: {
-      id_verification: { status: "APPROVED", age: 34, document_type: "PASSPORT", country: "AT", date_of_birth: "1990-06-15" },
+      id_verification: {
+        status: "APPROVED",
+        document_type: "PASSPORT",
+        country: "AT",
+        date_of_birth: "1990-06-15",
+        expiration_date: "2031-06-02",
+        nationality: "AUT",
+      },
       face_match: { status: "APPROVED" },
       liveness: { status: "APPROVED" },
     },
@@ -125,6 +132,8 @@ describe("DiditProvider.mapClaims", () => {
     expect(claims.kyc_passed).toBe(true);
     expect(claims.age_over_18).toBe(true);
     expect(claims.country_code).toBe("AT");
+    expect(claims.nationality).toBe("AUT");
+    expect(claims.document_type).toBe("PASSPORT");
   });
 
   it("maps a declined event with no positive claims", async () => {
@@ -150,7 +159,6 @@ describe("DiditProvider.mapClaims", () => {
       decision: {
         id_verification: {
           status: "APPROVED",
-          age: 17,
           document_type: "IDENTITY_CARD",
           country: "BGR",
           date_of_birth: "2008-10-30", // 17 years old as of 2026
@@ -168,13 +176,13 @@ describe("DiditProvider.mapClaims", () => {
     expect(claims.age_over_18).toBeUndefined();
   });
 
-  it("does not grant age_over_18 when explicit age is absent from webhook", async () => {
+  it("does not grant age_over_18 when date_of_birth is absent from webhook", async () => {
     const provider = makeProvider();
     const ts = nowTs();
     const payload = {
       ...makeApprovedPayload(ts),
       decision: {
-        id_verification: { status: "APPROVED", country: "AT" }, // no age
+        id_verification: { status: "APPROVED", country: "AT" }, // no dob
         face_match: { status: "APPROVED" },
       },
     };
@@ -187,13 +195,13 @@ describe("DiditProvider.mapClaims", () => {
     expect(claims.age_over_18).toBeUndefined();
   });
 
-  it("grants age_over_18 when Didit sends age as a string", async () => {
+  it("grants age_over_18 when Didit sends date_of_birth", async () => {
     const provider = makeProvider();
     const ts = nowTs();
     const payload = {
       ...makeApprovedPayload(ts),
       decision: {
-        id_verification: { status: "APPROVED", age: "21", country: "AT" },
+        id_verification: { status: "APPROVED", country: "AT", date_of_birth: "2000-01-01" },
         face_match: { status: "APPROVED" },
       },
     };
@@ -239,6 +247,10 @@ describe("DiditProvider.mapClaims", () => {
     expect(first.derivedClaims["country_code"]?.value).toBe("AT");
     expect(first.sourceCommitments["dob_commitment"]?.value).toMatch(/^[a-f0-9]{64}$/);
     expect(first.sourceCommitments["country_code_commitment"]?.value).toMatch(/^[a-f0-9]{64}$/);
+    expect(first.dateOfBirth).toBe("1990-06-15");
+    expect(first.documentExpiresAt).toBe("2031-06-02");
+    expect(first.nationality).toBe("AUT");
+    expect(first.documentType).toBe("PASSPORT");
     expect(first.sourceCommitments["dob_commitment"]?.value).toBe(second.sourceCommitments["dob_commitment"]?.value);
     expect(first.sourceCommitments["country_code_commitment"]?.value).toBe(
       second.sourceCommitments["country_code_commitment"]?.value

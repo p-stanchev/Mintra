@@ -22,6 +22,8 @@ export const NormalizedClaimsSchema = z.object({
   age_over_21: z.boolean().optional(),
   kyc_passed: z.boolean().optional(),
   country_code: z.string().length(2).toUpperCase().optional(),
+  nationality: z.string().min(2).max(3).toUpperCase().optional(),
+  document_type: z.string().min(1).optional(),
 });
 export type NormalizedClaims = z.infer<typeof NormalizedClaimsSchema>;
 

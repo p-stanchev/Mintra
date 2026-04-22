@@ -140,6 +140,42 @@ describe("Mintra API", () => {
     expect(data.derivedClaims.age_over_18.value).toBe(true);
     expect(data.sourceCommitments.dob_commitment.value).toBe("a".repeat(64));
     expect(data.credentialTrust.demoCredential).toBe(false);
+    expect(data.isDemoCredential).toBe(false);
+  });
+
+  it("GET /api/claims/:userId recomputes age thresholds from date_of_birth and caps expiry by document expiry", async () => {
+    const verification = await app.store.createVerification(WALLET_1, "provider-session-dob-expiry");
+    await app.store.upsertClaims(WALLET_1, verification.id, {
+      kycPassed: true,
+      countryCode: "BG",
+      dateOfBirth: "2006-01-01",
+      documentExpiresAt: "2026-05-01",
+      nationality: "BGR",
+      documentType: "PASSPORT",
+      credentialTrust: {
+        issuerEnvironment: "production",
+        issuerId: "mintra-production-issuer",
+        issuerDisplayName: "Mintra",
+        assuranceLevel: "high",
+        evidenceClass: "provider-normalized",
+        demoCredential: false,
+      },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/claims/${WALLET_1}`,
+      headers: authHeader(app, WALLET_1),
+    });
+
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.claims.age_over_18).toBe(true);
+    expect(data.claims.age_over_21).toBeUndefined();
+    expect(data.claims.nationality).toBe("BGR");
+    expect(data.claims.document_type).toBe("PASSPORT");
+    expect(data.documentExpiresAt).toBe("2026-05-01T23:59:59.999Z");
+    expect(data.expiresAt).toBe("2026-05-01T23:59:59.999Z");
   });
 
   it("GET /api/verifications/:id/status returns 404 for unknown id", async () => {
@@ -193,7 +229,16 @@ describe("Mintra API", () => {
       webhook_type: "status.updated",
       vendor_data: WALLET_1,
       timestamp,
-      decision: { id_verification: { status: "APPROVED", age: 28, country: "US" } },
+      decision: {
+        id_verification: {
+          status: "APPROVED",
+          country: "US",
+          date_of_birth: "1996-01-01",
+          expiration_date: "2030-01-01",
+          nationality: "USA",
+          document_type: "PASSPORT",
+        },
+      },
     };
 
     const res = await app.inject({
@@ -210,7 +255,10 @@ describe("Mintra API", () => {
 
     const claims = await app.store.getClaims(WALLET_1);
     expect(claims?.kycPassed).toBe(true);
-    expect(claims?.ageOver18).toBe(true);
+    expect(claims?.dateOfBirth).toBe("1996-01-01");
+    expect(claims?.documentExpiresAt?.toISOString()).toBe("2030-01-01T00:00:00.000Z");
+    expect(claims?.nationality).toBe("USA");
+    expect(claims?.documentType).toBe("PASSPORT");
     expect(claims?.claimModelVersion).toBe("v2");
     expect(claims?.sourceCommitments?.country_code_commitment?.value).toMatch(/^[a-f0-9]{64}$/);
     expect(claims?.credentialTrust?.issuerEnvironment).toBe("production");
@@ -234,6 +282,8 @@ describe("Mintra API", () => {
           age: 44,
           document_type: "Identity Card",
           date_of_birth: "1980-01-01",
+          expiration_date: "2032-01-01",
+          nationality: "ESP",
           issuing_state: "ESP",
         },
         liveness: {
@@ -260,7 +310,10 @@ describe("Mintra API", () => {
 
     const claims = await app.store.getClaims(WALLET_2);
     expect(claims?.kycPassed).toBe(true);
-    expect(claims?.ageOver18).toBe(true);
+    expect(claims?.dateOfBirth).toBe("1980-01-01");
+    expect(claims?.documentExpiresAt?.toISOString()).toBe("2032-01-01T00:00:00.000Z");
+    expect(claims?.nationality).toBe("ESP");
+    expect(claims?.documentType).toBe("Identity Card");
     expect(claims?.countryCode).toBe("ES");
   });
 
@@ -314,7 +367,7 @@ describe("Mintra API", () => {
       webhook_type: "status.updated",
       vendor_data: WALLET_1,
       timestamp,
-      decision: { id_verification: { status: "APPROVED", age: 23, country: "DE" } },
+      decision: { id_verification: { status: "APPROVED", country: "DE", date_of_birth: "2001-01-01" } },
     };
 
     const res = await app.inject({

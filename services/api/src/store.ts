@@ -33,6 +33,10 @@ export interface ClaimsRecord {
   ageOver21: boolean | null;
   kycPassed: boolean | null;
   countryCode: string | null;
+  nationality?: string | null;
+  documentType?: string | null;
+  dateOfBirth?: string | null;
+  documentExpiresAt?: Date | null;
   claimModelVersion: ClaimModelVersion;
   derivedClaims?: DerivedClaims;
   sourceCommitments?: SourceCommitments;
@@ -53,6 +57,10 @@ export interface VerificationStore {
       ageOver21?: boolean;
       kycPassed?: boolean;
       countryCode?: string;
+      nationality?: string;
+      documentType?: string;
+      dateOfBirth?: string;
+      documentExpiresAt?: string;
       claimModelVersion?: ClaimModelVersion;
       derivedClaims?: DerivedClaims;
       sourceCommitments?: SourceCommitments;
@@ -132,6 +140,10 @@ export class InMemoryStore implements VerificationStore {
       ageOver21?: boolean;
       kycPassed?: boolean;
       countryCode?: string;
+      nationality?: string;
+      documentType?: string;
+      dateOfBirth?: string;
+      documentExpiresAt?: string;
       claimModelVersion?: ClaimModelVersion;
       derivedClaims?: DerivedClaims;
       sourceCommitments?: SourceCommitments;
@@ -148,6 +160,10 @@ export class InMemoryStore implements VerificationStore {
       ageOver21: data.ageOver21 ?? null,
       kycPassed: data.kycPassed ?? null,
       countryCode: data.countryCode ?? null,
+      ...(data.nationality === undefined ? {} : { nationality: data.nationality }),
+      ...(data.documentType === undefined ? {} : { documentType: data.documentType }),
+      ...(data.dateOfBirth === undefined ? {} : { dateOfBirth: data.dateOfBirth }),
+      ...(data.documentExpiresAt === undefined ? {} : { documentExpiresAt: new Date(data.documentExpiresAt) }),
       claimModelVersion: data.claimModelVersion ?? "v1",
       ...(data.derivedClaims === undefined ? {} : { derivedClaims: data.derivedClaims }),
       ...(data.sourceCommitments === undefined ? {} : { sourceCommitments: data.sourceCommitments }),
@@ -217,6 +233,10 @@ export class InMemoryStore implements VerificationStore {
           ...claim,
           ageOver21: "ageOver21" in claim ? claim.ageOver21 : null,
           claimModelVersion: "claimModelVersion" in claim ? claim.claimModelVersion : "v1",
+          ...(claim.nationality === undefined ? {} : { nationality: claim.nationality }),
+          ...(claim.documentType === undefined ? {} : { documentType: claim.documentType }),
+          ...(claim.dateOfBirth === undefined ? {} : { dateOfBirth: claim.dateOfBirth }),
+          ...(claim.documentExpiresAt === undefined ? {} : { documentExpiresAt: new Date(claim.documentExpiresAt) }),
           ...(claim.derivedClaims === undefined ? {} : { derivedClaims: claim.derivedClaims }),
           ...(claim.sourceCommitments === undefined ? {} : { sourceCommitments: claim.sourceCommitments }),
           ...(claim.credentialTrust === undefined ? {} : { credentialTrust: claim.credentialTrust }),

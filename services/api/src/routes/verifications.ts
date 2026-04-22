@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { StartVerificationRequestSchema } from "@mintra/sdk-types";
 import { requireWalletAuth } from "../auth";
+import { buildNormalizedClaims } from "../claim-state";
 
 const USER_ID_RE = /^[a-zA-Z0-9_\-.@:]{1,128}$/;
 
@@ -75,10 +76,7 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
     if (record.status === "approved") {
       const claim = await app.store.getClaims(record.userId);
       if (claim) {
-        if (claim.ageOver18 !== null) normalizedClaims["age_over_18"] = claim.ageOver18;
-        if (claim.ageOver21 !== null) normalizedClaims["age_over_21"] = claim.ageOver21;
-        if (claim.kycPassed !== null) normalizedClaims["kyc_passed"] = claim.kycPassed;
-        if (claim.countryCode !== null) normalizedClaims["country_code"] = claim.countryCode;
+        normalizedClaims = buildNormalizedClaims(claim);
         claimModelVersion = claim.claimModelVersion;
         derivedClaims = claim.derivedClaims;
         sourceCommitments = claim.sourceCommitments;

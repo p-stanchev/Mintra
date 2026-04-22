@@ -29,6 +29,8 @@ function buildIdVerif(
     document_type?: string | undefined;
     country?: string | undefined;
     date_of_birth?: string | undefined;
+    expiration_date?: string | undefined;
+    nationality?: string | undefined;
     issuing_state?: string | undefined;
     issuing_country?: string | undefined;
   } | undefined
@@ -38,6 +40,8 @@ function buildIdVerif(
   document_type?: string;
   country?: string;
   date_of_birth?: string;
+  expiration_date?: string;
+  nationality?: string;
   issuing_state?: string;
   issuing_country?: string;
 } {
@@ -48,6 +52,8 @@ function buildIdVerif(
     document_type?: string;
     country?: string;
     date_of_birth?: string;
+    expiration_date?: string;
+    nationality?: string;
     issuing_state?: string;
     issuing_country?: string;
   } = {
@@ -57,6 +63,8 @@ function buildIdVerif(
   if (raw.document_type !== undefined) result.document_type = raw.document_type;
   if (raw.country !== undefined) result.country = raw.country;
   if (raw.date_of_birth !== undefined) result.date_of_birth = raw.date_of_birth;
+  if (raw.expiration_date !== undefined) result.expiration_date = raw.expiration_date;
+  if (raw.nationality !== undefined) result.nationality = raw.nationality;
   if (raw.issuing_state !== undefined) result.issuing_state = raw.issuing_state;
   if (raw.issuing_country !== undefined) result.issuing_country = raw.issuing_country;
   return result;
@@ -163,6 +171,9 @@ export class DiditProvider implements VerificationProvider {
 
     const idVerif = event.decision.id_verification as typeof event.decision.id_verification & {
       date_of_birth?: string;
+      expiration_date?: string;
+      nationality?: string;
+      document_type?: string;
       country?: string;
       issuing_state?: string;
       issuing_country?: string;
@@ -185,6 +196,12 @@ export class DiditProvider implements VerificationProvider {
       normalizedClaims: materialized.normalizedClaims,
       derivedClaims: materialized.derivedClaims,
       sourceCommitments,
+      ...(normalizeDateOnly(idVerif.date_of_birth) ? { dateOfBirth: normalizeDateOnly(idVerif.date_of_birth)! } : {}),
+      ...(normalizeDateOnly(idVerif.expiration_date) ? { documentExpiresAt: normalizeDateOnly(idVerif.expiration_date)! } : {}),
+      ...(normalizeCountryToIso3(idVerif.nationality) ? { nationality: normalizeCountryToIso3(idVerif.nationality)! } : {}),
+      ...(typeof idVerif.document_type === "string" && idVerif.document_type.trim()
+        ? { documentType: idVerif.document_type.trim() }
+        : {}),
     };
   }
   private verifySignature(request: IncomingWebhook & { parsedBody: unknown }): void {
@@ -234,10 +251,12 @@ function deriveClaimMaterial(event: NormalizedWebhookEvent): {
   const idVerif = event.decision.id_verification as typeof event.decision.id_verification & {
     age?: number | string;
     date_of_birth?: string;
+    expiration_date?: string;
+    nationality?: string;
     issuing_state?: string;
     issuing_country?: string;
   };
-  const age = normalizeAge(idVerif.age);
+  const dob = normalizeDateOnly(idVerif.date_of_birth);
 
   const claims: NormalizedClaims = {};
   const derivedClaims: ClaimMaterialization["derivedClaims"] = {};
@@ -258,7 +277,7 @@ function deriveClaimMaterial(event: NormalizedWebhookEvent): {
     );
   }
 
-  if (age !== null && age >= 18) {
+  if (dob && hasReachedAge(dob, 18)) {
     claims.age_over_18 = true;
     derivedClaims["age_over_18"] = createDerivedClaim(
       "age_over_18",
@@ -274,7 +293,7 @@ function deriveClaimMaterial(event: NormalizedWebhookEvent): {
     );
   }
 
-  if (age !== null && age >= 21) {
+  if (dob && hasReachedAge(dob, 21)) {
     claims.age_over_21 = true;
     derivedClaims["age_over_21"] = createDerivedClaim(
       "age_over_21",
@@ -309,6 +328,15 @@ function deriveClaimMaterial(event: NormalizedWebhookEvent): {
         evidenceClass: "provider-normalized",
       }
     );
+  }
+
+  const nationality = normalizeCountryToIso3(idVerif.nationality);
+  if (nationality) {
+    claims.nationality = nationality;
+  }
+
+  if (typeof idVerif.document_type === "string" && idVerif.document_type.trim()) {
+    claims.document_type = idVerif.document_type.trim();
   }
 
   return {
@@ -360,15 +388,29 @@ function normalizeStatus(status: string | undefined): string {
   return (status ?? "").trim().toLowerCase();
 }
 
-function normalizeAge(age: number | string | undefined): number | null {
-  if (typeof age === "number") {
-    return Number.isFinite(age) ? age : null;
-  }
-  if (typeof age === "string") {
-    const parsed = Number(age);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
+function normalizeDateOnly(value: string | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
+}
+
+function hasReachedAge(dateOfBirth: string, ageYears: number, now = new Date()): boolean {
+  const dob = new Date(`${dateOfBirth}T00:00:00.000Z`);
+  if (Number.isNaN(dob.getTime())) return false;
+
+  const thresholdYear = now.getUTCFullYear() - ageYears;
+  const thresholdMonth = now.getUTCMonth();
+  const thresholdDay = now.getUTCDate();
+
+  const dobYear = dob.getUTCFullYear();
+  const dobMonth = dob.getUTCMonth();
+  const dobDay = dob.getUTCDate();
+
+  if (dobYear < thresholdYear) return true;
+  if (dobYear > thresholdYear) return false;
+  if (dobMonth < thresholdMonth) return true;
+  if (dobMonth > thresholdMonth) return false;
+  return dobDay <= thresholdDay;
 }
 
 function normalizeCountryToIso2(...values: Array<string | undefined>): string | undefined {
@@ -386,4 +428,13 @@ function normalizeCountryToIso2(...values: Array<string | undefined>): string | 
   }
 
   return undefined;
+}
+
+function normalizeCountryToIso3(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toUpperCase();
+  if (!normalized) return undefined;
+  if (normalized.length === 3) return normalized;
+  const alpha2 = normalizeCountryToIso2(normalized);
+  return alpha2 ? countries.alpha2ToAlpha3(alpha2)?.toUpperCase() : undefined;
 }

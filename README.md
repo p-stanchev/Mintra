@@ -179,6 +179,28 @@ Privacy and retention in the current demo:
 - normalized claims are retained for up to 30 days in the current setup
 - export and delete-account workflows are planned, but not fully productized in the demo yet
 
+Current claim model:
+
+- `date_of_birth` is the backend source of truth for age thresholds
+- `age_over_18` and `age_over_21` are recomputed server-side from DOB instead of being treated as permanently frozen provider outputs
+- `expiresAt` is capped by the earlier of:
+  - the verifier freshness window
+  - the document expiration date, when Didit provides one
+- Mintra can also retain minimal extra metadata that is useful for policy decisions:
+  - `document_type`
+  - `nationality`
+  - `documentExpiresAt`
+- claim responses now also expose `isDemoCredential` as a simple boolean alias in addition to nested trust metadata
+
+What Mintra intentionally does not retain:
+
+- names
+- document numbers
+- addresses
+- raw media or biometric assets
+
+Names are intentionally excluded because they do not improve Mintra's proof products, but they do materially increase privacy, compliance, deletion, and breach-risk scope.
+
 ### Prerequisites
 
 - Node.js `>=20`
@@ -395,8 +417,12 @@ This is an integration scaffold, not a claim that Mintra’s core architecture h
 - Mintra stores normalized claims, not raw KYC artifacts.
 - Mintra claim retention is up to 30 days.
 - Freshness can be enforced sooner by verifier policy.
+- age thresholds are recomputed server-side from stored DOB instead of trusting a static provider age snapshot
+- claim freshness can be capped by document expiration when that data is available
+- `document_type`, `nationality`, and `documentExpiresAt` can be used for verifier policy without storing names or document numbers
 - derived claims now include structured provenance and assurance metadata
 - demo credentials can be labeled distinctly from production credentials
+- `isDemoCredential` is exposed as a simple response field for integrators
 - Didit provider retention still applies independently.
 - `MINA_ISSUER_PRIVATE_KEY` should be treated as a high-value issuer secret.
 - `services/verifier` should be deployed separately from `services/api`.

@@ -76,6 +76,8 @@ export const demoRouter: FastifyPluginAsync = async (app) => {
       },
       claimModelVersion: "v1",
       credentialTrust,
+      isDemoCredential: true,
+      documentExpiresAt: null,
       verifiedAt: verifiedAt.toISOString(),
       expiresAt: expiresAtDate.toISOString(),
       freshnessStatus,

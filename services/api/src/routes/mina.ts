@@ -3,6 +3,7 @@ import {
   IssueMinaCredentialRequestSchema,
 } from "@mintra/sdk-types";
 import { isValidMinaPublicKey, requireFreshWalletAuth } from "../auth";
+import { buildNormalizedClaims } from "../claim-state";
 
 export const minaRouter: FastifyPluginAsync = async (app) => {
   app.post("/issue-credential", async (request, reply) => {
@@ -35,12 +36,7 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
       return reply.status(403).send({ error: "No approved verification found for this user" });
     }
 
-    const normalizedClaims = {
-      ...(claim.ageOver18 !== null ? { age_over_18: claim.ageOver18 } : {}),
-      ...(claim.ageOver21 !== null ? { age_over_21: claim.ageOver21 } : {}),
-      ...(claim.kycPassed !== null ? { kyc_passed: claim.kycPassed } : {}),
-      ...(claim.countryCode !== null ? { country_code: claim.countryCode } : {}),
-    };
+    const normalizedClaims = buildNormalizedClaims(claim);
 
     const result = await app.minaBridge.issueCredential({
       userId,

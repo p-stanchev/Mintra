@@ -46,7 +46,7 @@ export function Nav() {
 
       {/* Mobile dropdown */}
       {open && (
-        <div className="absolute left-0 right-0 top-[73px] z-50 border-b border-line bg-white px-6 py-4 shadow-sm sm:hidden">
+        <div className="absolute left-0 right-0 top-[73px] z-[140] rounded-b-2xl border border-line border-t-0 bg-white px-6 py-4 shadow-card sm:hidden">
           <nav className="flex flex-col gap-1">
             {links.map((l) => (
               <a
