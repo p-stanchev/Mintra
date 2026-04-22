@@ -53,8 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <p className="mt-3 text-sm leading-6 text-slate">
                   By starting verification, the user consents to the KYC provider processing the identity check and to
                   Mintra storing only minimal normalized verification data needed for credential issuance and proof
-                  flows. The current demo keeps normalized claims for up to 30 days, which matches the shortest Didit
-                  retention window available in this setup. Export and deletion workflows are product roadmap items, not
+                  flows. The current demo keeps normalized claims for up to 1 year. Export and deletion workflows are product roadmap items, not
                   full demo features yet.
                 </p>
               </details>

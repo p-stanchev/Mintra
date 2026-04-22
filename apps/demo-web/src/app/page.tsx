@@ -127,6 +127,15 @@ export default function Home() {
   const freshnessStatus = claims?.freshnessStatus ?? "unverified";
   const isFresh = freshnessStatus === "verified" || freshnessStatus === "expiring_soon";
   const isVerified = isFresh && (claims?.claims.age_over_18 === true || claims?.claims.kyc_passed === true);
+  const credentialTrust = claims?.credentialTrust;
+  const credentialTrustLabel = credentialTrust
+    ? credentialTrust.demoCredential
+      ? "Demo credential"
+      : "Production credential"
+    : null;
+  const credentialTrustTone = credentialTrust?.demoCredential
+    ? "bg-amber-50 text-amber-700"
+    : "bg-emerald-50 text-emerald-700";
   const primaryActionLabel = !walletAddress
     ? "Connect wallet first"
     : isVerified
@@ -245,6 +254,12 @@ export default function Home() {
             <div className="mt-8 space-y-1 text-sm text-slate">
               <p>Verified at {new Date(claims.verifiedAt).toLocaleString()}</p>
               {claims.expiresAt && <p>Fresh until {new Date(claims.expiresAt).toLocaleString()}</p>}
+              {credentialTrustLabel && (
+                <div className={`mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${credentialTrustTone}`}>
+                  <Shield className="h-3.5 w-3.5" />
+                  {credentialTrustLabel}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -301,6 +316,14 @@ export default function Home() {
 
           {claims && Object.keys(claims.claims).length > 0 ? (
             <div className="space-y-3">
+              {credentialTrustLabel && (
+                <div className="flex items-center justify-between rounded-2xl border border-line bg-fog px-4 py-3">
+                  <code className="text-sm text-slate">credential_environment</code>
+                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${credentialTrustTone}`}>
+                    {credentialTrustLabel}
+                  </span>
+                </div>
+              )}
               {claims.claims.age_over_18 !== undefined && (
                 <ClaimRow label="age_over_18" value={String(claims.claims.age_over_18)} />
               )}

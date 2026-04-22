@@ -98,6 +98,12 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
   const ownsRoute = walletAddress === userId;
   const hasClaims = data && Object.keys(data.claims).length > 0;
   const freshnessStatus = data?.freshnessStatus ?? "unverified";
+  const credentialTrust = data?.credentialTrust;
+  const credentialTrustLabel = credentialTrust
+    ? credentialTrust.demoCredential
+      ? "Demo credential"
+      : "Production credential"
+    : null;
   const refreshLabel =
     freshnessStatus === "verified"
       ? "Start new verification"
@@ -182,6 +188,16 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
               results are shown — no raw identity documents are stored.
             </p>
 
+            {credentialTrustLabel && (
+              <div style={{ marginBottom: 16 }}>
+                <span
+                  className={credentialTrust?.demoCredential ? "badge badge-warn" : "badge badge-success"}
+                >
+                  {credentialTrustLabel}
+                </span>
+              </div>
+            )}
+
             <div className="stack" style={{ gap: 8 }}>
               {Object.entries(data.claims).map(([key, value]) => (
                 <div
@@ -222,6 +238,13 @@ export function ClaimsPageContent({ userId }: { userId: string }) {
               <div style={{ marginTop: 16, fontSize: 12, color: "var(--muted)" }}>
                 <p>Verified at: {new Date(data.verifiedAt).toLocaleString()}</p>
                 {data.expiresAt && <p>Fresh until: {new Date(data.expiresAt).toLocaleString()}</p>}
+                {credentialTrust && (
+                  <>
+                    <p>Issuer: {credentialTrust.issuerDisplayName}</p>
+                    <p>Evidence class: {credentialTrust.evidenceClass}</p>
+                    <p>Assurance level: {credentialTrust.assuranceLevel}</p>
+                  </>
+                )}
               </div>
             )}
           </div>

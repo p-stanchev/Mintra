@@ -405,6 +405,29 @@ More:
 - [docs/security.md](./docs/security.md)
 - [docs/security-considerations.md](./docs/security-considerations.md)
 
+## Can Data Be Faked?
+
+Not easily, if the verifier is performing the full Mintra flow correctly.
+
+What is hard to fake:
+
+- an issuer-signed Mina credential
+- a valid presentation proof derived from that credential
+- holder binding, if the verifier checks the wallet signature
+- replay-protected verifier challenges, if the verifier consumes them correctly
+
+What can still go wrong:
+
+- a verifier accepts demo credentials in production
+- a verifier trusts the wrong issuer
+- a verifier skips holder-binding, audience, freshness, or replay checks
+- a verifier treats `provider-normalized` claims as if they were already `zk-proven`
+
+Important limitation:
+
+- Mintra does not yet cryptographically prove in-circuit that every derived claim was correctly computed from committed source data
+- that means issuer trust still matters, even though client-side blob editing should not pass proper verification
+
 ## Publishing Status
 
 `@mintra/sdk-js`, `@mintra/sdk-types`, and `@mintra/verifier-core` exist in this monorepo today, but they are **not published to npm yet**.
