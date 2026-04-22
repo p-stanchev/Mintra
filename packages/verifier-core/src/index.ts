@@ -315,6 +315,12 @@ export async function buildPresentationRequest(
     ageOver21: Field,
     kycPassed: Field,
     countryCode: Field,
+    nationalityCode: Field,
+    documentExpiresAt: Field,
+    isDemoCredential: Field,
+    credentialMode: Field,
+    assuranceLevel: Field,
+    evidenceClass: Field,
     issuedAt: Field,
   };
   const credential = Credential.Native(credentialShape);
@@ -391,6 +397,12 @@ export async function buildPresentationRequest(
           ageOver21: Operation.property(credential, "ageOver21"),
           kycPassed: Operation.property(credential, "kycPassed"),
           countryCode: Operation.property(credential, "countryCode"),
+          nationalityCode: Operation.property(credential, "nationalityCode"),
+          documentExpiresAt: Operation.property(credential, "documentExpiresAt"),
+          isDemoCredential: Operation.property(credential, "isDemoCredential"),
+          credentialMode: Operation.property(credential, "credentialMode"),
+          assuranceLevel: Operation.property(credential, "assuranceLevel"),
+          evidenceClass: Operation.property(credential, "evidenceClass"),
           issuedAt: Operation.property(credential, "issuedAt"),
           owner: Operation.owner,
         }),
@@ -650,6 +662,12 @@ export async function verifyPresentationPolicy(
     ageOver21: verified.ageOver21.toString() === "1",
     kycPassed: verified.kycPassed.toString() === "1",
     countryCodeNumeric: Number(verified.countryCode.toString()),
+    nationalityCodeNumeric: Number(verified.nationalityCode.toString()),
+    documentExpiresAt: Number(verified.documentExpiresAt.toString()),
+    isDemoCredential: verified.isDemoCredential.toString() === "1",
+    credentialMode: Number(verified.credentialMode.toString()),
+    assuranceLevel: Number(verified.assuranceLevel.toString()),
+    evidenceClass: Number(verified.evidenceClass.toString()),
     issuedAt: Number(verified.issuedAt.toString()),
     ownerPublicKey: verified.owner.toBase58(),
   };
@@ -1059,13 +1077,7 @@ export async function verifyPresentation(
         audience: envelope.challenge.audience,
       },
       ownerPublicKey: proofOutput.ownerPublicKey,
-      output: {
-        ageOver18: proofOutput.ageOver18,
-        ageOver21: proofOutput.ageOver21,
-        kycPassed: proofOutput.kycPassed,
-        countryCodeNumeric: proofOutput.countryCodeNumeric,
-        issuedAt: proofOutput.issuedAt,
-      },
+      output: buildVerifierOutput(proofOutput),
       ...(envelope.proof.credentialTrust === undefined
         ? {}
         : { credentialTrust: envelope.proof.credentialTrust }),
@@ -1101,13 +1113,7 @@ export async function verifyPresentation(
         audience: envelope.challenge.audience,
       },
       ownerPublicKey: proofOutput.ownerPublicKey,
-      output: {
-        ageOver18: proofOutput.ageOver18,
-        ageOver21: proofOutput.ageOver21,
-        kycPassed: proofOutput.kycPassed,
-        countryCodeNumeric: proofOutput.countryCodeNumeric,
-        issuedAt: proofOutput.issuedAt,
-      },
+      output: buildVerifierOutput(proofOutput),
       ...(envelope.proof.credentialTrust === undefined
         ? {}
         : { credentialTrust: envelope.proof.credentialTrust }),
@@ -1149,13 +1155,7 @@ export async function verifyPresentation(
         audience: envelope.challenge.audience,
       },
       ownerPublicKey: proofOutput.ownerPublicKey,
-      output: {
-        ageOver18: proofOutput.ageOver18,
-        ageOver21: proofOutput.ageOver21,
-        kycPassed: proofOutput.kycPassed,
-        countryCodeNumeric: proofOutput.countryCodeNumeric,
-        issuedAt: proofOutput.issuedAt,
-      },
+      output: buildVerifierOutput(proofOutput),
       ...(envelope.proof.credentialTrust === undefined
         ? {}
         : { credentialTrust: envelope.proof.credentialTrust }),
@@ -1179,13 +1179,7 @@ export async function verifyPresentation(
       audience: envelope.challenge.audience,
     },
     ownerPublicKey: proofOutput.ownerPublicKey,
-    output: {
-      ageOver18: proofOutput.ageOver18,
-      ageOver21: proofOutput.ageOver21,
-      kycPassed: proofOutput.kycPassed,
-      countryCodeNumeric: proofOutput.countryCodeNumeric,
-      issuedAt: proofOutput.issuedAt,
-    },
+    output: buildVerifierOutput(proofOutput),
     ...(envelope.proof.credentialTrust === undefined
       ? {}
       : { credentialTrust: envelope.proof.credentialTrust }),
@@ -1200,6 +1194,22 @@ export async function verifyAgeOver18Presentation(
   params: VerifyPresentationParams
 ): Promise<VerifiedPresentationOutput> {
   return verifyPresentationPolicy(params);
+}
+
+function buildVerifierOutput(proofOutput: Omit<VerifiedPresentationOutput, "ownerPublicKey">) {
+  return {
+    ageOver18: proofOutput.ageOver18,
+    ageOver21: proofOutput.ageOver21,
+    kycPassed: proofOutput.kycPassed,
+    countryCodeNumeric: proofOutput.countryCodeNumeric,
+    nationalityCodeNumeric: proofOutput.nationalityCodeNumeric,
+    documentExpiresAt: proofOutput.documentExpiresAt,
+    isDemoCredential: proofOutput.isDemoCredential,
+    credentialMode: proofOutput.credentialMode,
+    assuranceLevel: proofOutput.assuranceLevel,
+    evidenceClass: proofOutput.evidenceClass,
+    issuedAt: proofOutput.issuedAt,
+  };
 }
 
 function normalizeCountryList(values: string[] | undefined): string[] {

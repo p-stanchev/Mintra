@@ -52,7 +52,6 @@ export interface ClaimMaterialization {
   dateOfBirth?: string;
   documentExpiresAt?: string;
   nationality?: string;
-  documentType?: string;
 }
 
 export interface VerificationProvider {

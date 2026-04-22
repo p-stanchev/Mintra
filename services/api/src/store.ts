@@ -34,7 +34,6 @@ export interface ClaimsRecord {
   kycPassed: boolean | null;
   countryCode: string | null;
   nationality?: string | null;
-  documentType?: string | null;
   dateOfBirth?: string | null;
   documentExpiresAt?: Date | null;
   claimModelVersion: ClaimModelVersion;
@@ -58,7 +57,6 @@ export interface VerificationStore {
       kycPassed?: boolean;
       countryCode?: string;
       nationality?: string;
-      documentType?: string;
       dateOfBirth?: string;
       documentExpiresAt?: string;
       claimModelVersion?: ClaimModelVersion;
@@ -141,7 +139,6 @@ export class InMemoryStore implements VerificationStore {
       kycPassed?: boolean;
       countryCode?: string;
       nationality?: string;
-      documentType?: string;
       dateOfBirth?: string;
       documentExpiresAt?: string;
       claimModelVersion?: ClaimModelVersion;
@@ -161,7 +158,6 @@ export class InMemoryStore implements VerificationStore {
       kycPassed: data.kycPassed ?? null,
       countryCode: data.countryCode ?? null,
       ...(data.nationality === undefined ? {} : { nationality: data.nationality }),
-      ...(data.documentType === undefined ? {} : { documentType: data.documentType }),
       ...(data.dateOfBirth === undefined ? {} : { dateOfBirth: data.dateOfBirth }),
       ...(data.documentExpiresAt === undefined ? {} : { documentExpiresAt: new Date(data.documentExpiresAt) }),
       claimModelVersion: data.claimModelVersion ?? "v1",
@@ -234,7 +230,6 @@ export class InMemoryStore implements VerificationStore {
           ageOver21: "ageOver21" in claim ? claim.ageOver21 : null,
           claimModelVersion: "claimModelVersion" in claim ? claim.claimModelVersion : "v1",
           ...(claim.nationality === undefined ? {} : { nationality: claim.nationality }),
-          ...(claim.documentType === undefined ? {} : { documentType: claim.documentType }),
           ...(claim.dateOfBirth === undefined ? {} : { dateOfBirth: claim.dateOfBirth }),
           ...(claim.documentExpiresAt === undefined ? {} : { documentExpiresAt: new Date(claim.documentExpiresAt) }),
           ...(claim.derivedClaims === undefined ? {} : { derivedClaims: claim.derivedClaims }),

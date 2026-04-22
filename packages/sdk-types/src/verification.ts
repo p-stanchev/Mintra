@@ -23,7 +23,7 @@ export const NormalizedClaimsSchema = z.object({
   kyc_passed: z.boolean().optional(),
   country_code: z.string().length(2).toUpperCase().optional(),
   nationality: z.string().min(2).max(3).toUpperCase().optional(),
-  document_type: z.string().min(1).optional(),
+  document_expires_at: z.string().optional(),
 });
 export type NormalizedClaims = z.infer<typeof NormalizedClaimsSchema>;
 

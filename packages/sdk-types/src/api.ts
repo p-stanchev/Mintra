@@ -62,6 +62,8 @@ export const IssueDemoClaimsRequestSchema = z.object({
   ageOver21: z.boolean(),
   kycPassed: z.boolean(),
   countryCode: z.string().regex(/^[A-Za-z]{2}$/, "Expected ISO alpha-2 country code").optional(),
+  nationality: z.string().regex(/^[A-Za-z]{2,3}$/, "Expected ISO alpha-2 or alpha-3 nationality code").optional(),
+  documentExpiresAt: z.string().date().optional(),
 });
 export type IssueDemoClaimsRequest = z.infer<typeof IssueDemoClaimsRequestSchema>;
 

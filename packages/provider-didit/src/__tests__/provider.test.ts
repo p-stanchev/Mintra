@@ -133,7 +133,6 @@ describe("DiditProvider.mapClaims", () => {
     expect(claims.age_over_18).toBe(true);
     expect(claims.country_code).toBe("AT");
     expect(claims.nationality).toBe("AUT");
-    expect(claims.document_type).toBe("PASSPORT");
   });
 
   it("maps a declined event with no positive claims", async () => {
@@ -250,7 +249,6 @@ describe("DiditProvider.mapClaims", () => {
     expect(first.dateOfBirth).toBe("1990-06-15");
     expect(first.documentExpiresAt).toBe("2031-06-02");
     expect(first.nationality).toBe("AUT");
-    expect(first.documentType).toBe("PASSPORT");
     expect(first.sourceCommitments["dob_commitment"]?.value).toBe(second.sourceCommitments["dob_commitment"]?.value);
     expect(first.sourceCommitments["country_code_commitment"]?.value).toBe(
       second.sourceCommitments["country_code_commitment"]?.value

@@ -72,7 +72,6 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
         ...(normalizedClaims.kyc_passed !== undefined ? { kycPassed: normalizedClaims.kyc_passed } : {}),
         ...(normalizedClaims.country_code !== undefined ? { countryCode: normalizedClaims.country_code } : {}),
         ...(normalizedClaims.nationality !== undefined ? { nationality: normalizedClaims.nationality } : {}),
-        ...(normalizedClaims.document_type !== undefined ? { documentType: normalizedClaims.document_type } : {}),
         ...(materializedClaims.dateOfBirth !== undefined ? { dateOfBirth: materializedClaims.dateOfBirth } : {}),
         ...(materializedClaims.documentExpiresAt !== undefined ? { documentExpiresAt: materializedClaims.documentExpiresAt } : {}),
         claimModelVersion: materializedClaims.claimModelVersion,

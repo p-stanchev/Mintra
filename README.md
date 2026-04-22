@@ -187,10 +187,19 @@ Current claim model:
   - the verifier freshness window
   - the document expiration date, when Didit provides one
 - Mintra can also retain minimal extra metadata that is useful for policy decisions:
-  - `document_type`
   - `nationality`
   - `documentExpiresAt`
 - claim responses now also expose `isDemoCredential` as a simple boolean alias in addition to nested trust metadata
+- issued wallet credentials stay policy-oriented and compact:
+  - `ageOver18`
+  - `ageOver21`
+  - `kycPassed`
+  - `countryCode`
+  - `nationalityCode`
+  - `documentExpiresAt`
+  - `issuedAt`
+  - demo / trust fields such as `isDemoCredential`, `credentialMode`, `assuranceLevel`, and `evidenceClass`
+- `documentType` was intentionally left out of the wallet credential to keep the payload tighter and avoid carrying low-value identity detail
 
 What Mintra intentionally does not retain:
 
@@ -395,6 +404,7 @@ The demo web app now includes:
   - age-gated route using the verifier service
 - `/demo-issuer`
   - synthetic demo claim generation without calling Didit
+  - editable demo fields for age flags, KYC status, country code, nationality, and document expiry
 - `/playground`
   - dynamic proof product and policy builder
 - `/relying-party`
@@ -419,7 +429,7 @@ This is an integration scaffold, not a claim that Mintra’s core architecture h
 - Freshness can be enforced sooner by verifier policy.
 - age thresholds are recomputed server-side from stored DOB instead of trusting a static provider age snapshot
 - claim freshness can be capped by document expiration when that data is available
-- `document_type`, `nationality`, and `documentExpiresAt` can be used for verifier policy without storing names or document numbers
+- `nationality` and `documentExpiresAt` can be used for verifier policy without storing names or document numbers
 - derived claims now include structured provenance and assurance metadata
 - demo credentials can be labeled distinctly from production credentials
 - `isDemoCredential` is exposed as a simple response field for integrators

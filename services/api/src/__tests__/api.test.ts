@@ -151,7 +151,6 @@ describe("Mintra API", () => {
       dateOfBirth: "2006-01-01",
       documentExpiresAt: "2026-05-01",
       nationality: "BGR",
-      documentType: "PASSPORT",
       credentialTrust: {
         issuerEnvironment: "production",
         issuerId: "mintra-production-issuer",
@@ -173,7 +172,6 @@ describe("Mintra API", () => {
     expect(data.claims.age_over_18).toBe(true);
     expect(data.claims.age_over_21).toBeUndefined();
     expect(data.claims.nationality).toBe("BGR");
-    expect(data.claims.document_type).toBe("PASSPORT");
     expect(data.documentExpiresAt).toBe("2026-05-01T23:59:59.999Z");
     expect(data.expiresAt).toBe("2026-05-01T23:59:59.999Z");
   });
@@ -258,7 +256,6 @@ describe("Mintra API", () => {
     expect(claims?.dateOfBirth).toBe("1996-01-01");
     expect(claims?.documentExpiresAt?.toISOString()).toBe("2030-01-01T00:00:00.000Z");
     expect(claims?.nationality).toBe("USA");
-    expect(claims?.documentType).toBe("PASSPORT");
     expect(claims?.claimModelVersion).toBe("v2");
     expect(claims?.sourceCommitments?.country_code_commitment?.value).toMatch(/^[a-f0-9]{64}$/);
     expect(claims?.credentialTrust?.issuerEnvironment).toBe("production");
@@ -313,7 +310,6 @@ describe("Mintra API", () => {
     expect(claims?.dateOfBirth).toBe("1980-01-01");
     expect(claims?.documentExpiresAt?.toISOString()).toBe("2032-01-01T00:00:00.000Z");
     expect(claims?.nationality).toBe("ESP");
-    expect(claims?.documentType).toBe("Identity Card");
     expect(claims?.countryCode).toBe("ES");
   });
 
@@ -535,6 +531,8 @@ describe("Mintra API", () => {
         ageOver21: false,
         kycPassed: true,
         countryCode: "bg",
+        nationality: "bgr",
+        documentExpiresAt: "2028-08-01",
       }),
     });
 
@@ -544,12 +542,16 @@ describe("Mintra API", () => {
       age_over_18: true,
       kyc_passed: true,
       country_code: "BG",
+      nationality: "BGR",
+      document_expires_at: "2028-08-01T00:00:00.000Z",
     });
     expect(data.credentialTrust.demoCredential).toBe(true);
     expect(data.credentialTrust.issuerEnvironment).toBe("demo");
 
     const claims = await app.store.getClaims(WALLET_1);
     expect(claims?.countryCode).toBe("BG");
+    expect(claims?.nationality).toBe("BGR");
+    expect(claims?.documentExpiresAt?.toISOString()).toBe("2028-08-01T00:00:00.000Z");
     expect(claims?.credentialTrust?.demoCredential).toBe(true);
     expect(claims?.credentialTrust?.evidenceClass).toBe("locally-derived");
   });

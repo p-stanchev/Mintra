@@ -18,7 +18,7 @@ export function buildNormalizedClaims(claim: ClaimsRecord): NormalizedClaims {
   if (claim.kycPassed !== null) normalized.kyc_passed = claim.kycPassed;
   if (claim.countryCode !== null) normalized.country_code = claim.countryCode;
   if (claim.nationality) normalized.nationality = claim.nationality;
-  if (claim.documentType) normalized.document_type = claim.documentType;
+  if (claim.documentExpiresAt) normalized.document_expires_at = claim.documentExpiresAt.toISOString();
 
   return normalized;
 }

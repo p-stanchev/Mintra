@@ -14,6 +14,8 @@ export const demoRouter: FastifyPluginAsync = async (app) => {
       ageOver21: boolean;
       kycPassed: boolean;
       countryCode?: string;
+      nationality?: string;
+      documentExpiresAt?: string;
     };
 
     try {
@@ -34,6 +36,10 @@ export const demoRouter: FastifyPluginAsync = async (app) => {
     }
 
     const countryCode = body.countryCode?.toUpperCase() ?? null;
+    const nationality = body.nationality?.toUpperCase() ?? null;
+    const documentExpiresAt = body.documentExpiresAt
+      ? `${body.documentExpiresAt}T00:00:00.000Z`
+      : undefined;
     const credentialTrust = {
       issuerEnvironment: "demo" as const,
       issuerId: "mintra-demo-issuer",
@@ -48,6 +54,8 @@ export const demoRouter: FastifyPluginAsync = async (app) => {
       ageOver21: body.ageOver21,
       kycPassed: body.kycPassed,
       ...(countryCode ? { countryCode } : {}),
+      ...(nationality ? { nationality } : {}),
+      ...(documentExpiresAt ? { documentExpiresAt } : {}),
       claimModelVersion: "v1",
       credentialTrust,
     });
@@ -73,11 +81,13 @@ export const demoRouter: FastifyPluginAsync = async (app) => {
         ...(body.ageOver21 ? { age_over_21: true } : {}),
         ...(body.kycPassed ? { kyc_passed: true } : {}),
         ...(countryCode ? { country_code: countryCode } : {}),
+        ...(nationality ? { nationality } : {}),
+        ...(documentExpiresAt ? { document_expires_at: documentExpiresAt } : {}),
       },
       claimModelVersion: "v1",
       credentialTrust,
       isDemoCredential: true,
-      documentExpiresAt: null,
+      documentExpiresAt: documentExpiresAt ?? null,
       verifiedAt: verifiedAt.toISOString(),
       expiresAt: expiresAtDate.toISOString(),
       freshnessStatus,

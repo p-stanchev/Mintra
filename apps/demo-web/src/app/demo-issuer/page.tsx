@@ -15,6 +15,8 @@ export default function DemoIssuerPage() {
   const [ageOver21, setAgeOver21] = useState(false);
   const [kycPassed, setKycPassed] = useState(true);
   const [countryCode, setCountryCode] = useState("BG");
+  const [nationality, setNationality] = useState("BGR");
+  const [documentExpiresAt, setDocumentExpiresAt] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DemoClaimsResponse | null>(null);
@@ -57,6 +59,8 @@ export default function DemoIssuerPage() {
         ageOver21,
         kycPassed,
         countryCode: countryCode.trim().toUpperCase() || undefined,
+        nationality: nationality.trim().toUpperCase() || undefined,
+        documentExpiresAt: documentExpiresAt || undefined,
       });
       setResult(response);
     } catch (err) {
@@ -72,6 +76,8 @@ export default function DemoIssuerPage() {
       setAgeOver18(true);
       setAgeOver21(false);
       setKycPassed(true);
+      setCountryCode("BG");
+      setNationality("BGR");
       return;
     }
 
@@ -79,12 +85,16 @@ export default function DemoIssuerPage() {
       setAgeOver18(true);
       setAgeOver21(true);
       setKycPassed(true);
+      setCountryCode("DE");
+      setNationality("DEU");
       return;
     }
 
     setAgeOver18(false);
     setAgeOver21(false);
     setKycPassed(true);
+    setCountryCode("US");
+    setNationality("USA");
   }
 
   return (
@@ -213,6 +223,28 @@ export default function DemoIssuerPage() {
                 className="mt-3 w-full border-0 bg-transparent p-0 text-sm text-ink outline-none"
               />
             </label>
+
+            <label className="rounded-2xl border border-line bg-fog px-4 py-4 text-sm text-ink">
+              <span className="block text-xs font-medium uppercase tracking-[0.18em] text-slate">Nationality</span>
+              <input
+                value={nationality}
+                onChange={(event) => setNationality(event.target.value.toUpperCase().slice(0, 3))}
+                placeholder="BGR"
+                className="mt-3 w-full border-0 bg-transparent p-0 text-sm text-ink outline-none"
+              />
+            </label>
+
+            <label className="rounded-2xl border border-line bg-fog px-4 py-4 text-sm text-ink sm:col-span-2">
+              <span className="block text-xs font-medium uppercase tracking-[0.18em] text-slate">
+                Document expires at
+              </span>
+              <input
+                type="date"
+                value={documentExpiresAt}
+                onChange={(event) => setDocumentExpiresAt(event.target.value)}
+                className="mt-3 w-full border-0 bg-transparent p-0 text-sm text-ink outline-none"
+              />
+            </label>
           </div>
 
           {error && (
@@ -270,9 +302,9 @@ export default function DemoIssuerPage() {
 
               <div className="space-y-3">
                 {Object.entries(result.claims).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between rounded-2xl border border-line bg-fog px-4 py-3">
+                  <div key={key} className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-fog px-4 py-3">
                     <code className="text-sm text-slate">{key}</code>
-                    <code className="text-sm font-medium text-ink">{String(value)}</code>
+                    <code className="break-all text-right text-sm font-medium text-ink">{String(value)}</code>
                   </div>
                 ))}
               </div>

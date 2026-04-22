@@ -40,7 +40,8 @@ export class MinaBridge {
     const owner = PublicKey.fromBase58(request.ownerPublicKey);
     const credData = claimsToCredentialData(
       request.claims,
-      Math.floor(Date.now() / 1000)
+      Math.floor(Date.now() / 1000),
+      request.credentialMetadata
     );
 
     const data = {
@@ -48,6 +49,12 @@ export class MinaBridge {
       ageOver21: Field(credData.ageOver21),
       kycPassed: Field(credData.kycPassed),
       countryCode: Field(credData.countryCode),
+      nationalityCode: Field(credData.nationalityCode),
+      documentExpiresAt: Field(credData.documentExpiresAt),
+      isDemoCredential: Field(credData.isDemoCredential),
+      credentialMode: Field(credData.credentialMode),
+      assuranceLevel: Field(credData.assuranceLevel),
+      evidenceClass: Field(credData.evidenceClass),
       issuedAt: Field(credData.issuedAt),
     };
 

@@ -197,6 +197,12 @@ export const PresentationVerificationOutputSchema = z.object({
   ageOver21: z.boolean(),
   kycPassed: z.boolean(),
   countryCodeNumeric: z.number().int().nonnegative(),
+  nationalityCodeNumeric: z.number().int().nonnegative(),
+  documentExpiresAt: z.number().int().nonnegative(),
+  isDemoCredential: z.boolean(),
+  credentialMode: z.number().int().nonnegative(),
+  assuranceLevel: z.number().int().nonnegative(),
+  evidenceClass: z.number().int().nonnegative(),
   issuedAt: z.number().int().nonnegative(),
 });
 export type PresentationVerificationOutput = z.infer<typeof PresentationVerificationOutputSchema>;

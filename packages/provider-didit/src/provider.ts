@@ -199,9 +199,6 @@ export class DiditProvider implements VerificationProvider {
       ...(normalizeDateOnly(idVerif.date_of_birth) ? { dateOfBirth: normalizeDateOnly(idVerif.date_of_birth)! } : {}),
       ...(normalizeDateOnly(idVerif.expiration_date) ? { documentExpiresAt: normalizeDateOnly(idVerif.expiration_date)! } : {}),
       ...(normalizeCountryToIso3(idVerif.nationality) ? { nationality: normalizeCountryToIso3(idVerif.nationality)! } : {}),
-      ...(typeof idVerif.document_type === "string" && idVerif.document_type.trim()
-        ? { documentType: idVerif.document_type.trim() }
-        : {}),
     };
   }
   private verifySignature(request: IncomingWebhook & { parsedBody: unknown }): void {
@@ -333,10 +330,6 @@ function deriveClaimMaterial(event: NormalizedWebhookEvent): {
   const nationality = normalizeCountryToIso3(idVerif.nationality);
   if (nationality) {
     claims.nationality = nationality;
-  }
-
-  if (typeof idVerif.document_type === "string" && idVerif.document_type.trim()) {
-    claims.document_type = idVerif.document_type.trim();
   }
 
   return {
