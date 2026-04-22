@@ -32,5 +32,5 @@ Each product has:
 
 ## Backend Examples
 
-- [Fastify example](./examples/fastify-presentation-route.ts)
-- [Next.js route example](./examples/next-presentation-route.ts)
+- [Fastify example](./fastify-presentation-route.md)
+- [Next.js route example](./next-presentation-route.md)

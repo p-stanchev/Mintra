@@ -132,7 +132,9 @@ apps/
 docs/
   architecture.md
   consume-proofs.md
+  fastify-presentation-route.md
   how-credentials-work.md
+  next-presentation-route.md
   how-presentations-work.md
   off-chain-verification.md
   preventing-proof-sharing.md
@@ -141,9 +143,6 @@ docs/
   verifier-integration.md
   what-is-mintra.md
   zkapp-integration.md
-  examples/
-    fastify-presentation-route.ts
-    next-presentation-route.ts
 examples/
   zkapp-age-gate/
 packages/
@@ -370,8 +369,8 @@ Docs:
 
 Backend examples:
 
-- [docs/examples/fastify-presentation-route.ts](./docs/examples/fastify-presentation-route.ts)
-- [docs/examples/next-presentation-route.ts](./docs/examples/next-presentation-route.ts)
+- [docs/fastify-presentation-route.md](./docs/fastify-presentation-route.md)
+- [docs/next-presentation-route.md](./docs/next-presentation-route.md)
 
 ## SDK Upgrade
 
