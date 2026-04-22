@@ -11,10 +11,19 @@ import {
 } from "@/lib/wallet-session";
 import { authenticateWallet, extractErrorMessage, resetWalletSession } from "@/lib/wallet-auth";
 import { discoverMinaWallets, getWalletById, summarizeWallet, type MinaWalletSummary } from "@/lib/mina-wallet";
+import type { CredentialTrust } from "@mintra/sdk-types";
 
 type WalletState = "idle" | "connecting" | "connected" | "issuing" | "storing" | "done" | "error";
 
-export function WalletCredentialCard({ userId, isVerified }: { userId: string; isVerified: boolean }) {
+export function WalletCredentialCard({
+  userId,
+  isVerified,
+  credentialTrust,
+}: {
+  userId: string;
+  isVerified: boolean;
+  credentialTrust?: CredentialTrust;
+}) {
   const [state, setState] = useState<WalletState>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -244,7 +253,11 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
       await provider.storePrivateCredential({ credential: parsedCredential });
 
       setState("done");
-      setMessage(`Credential saved to ${provider.name}.`);
+      setMessage(
+        issued.credentialMetadata?.credentialTrust?.demoCredential
+          ? `Demo credential saved to ${provider.name}.`
+          : `Credential saved to ${provider.name}.`
+      );
     } catch (err) {
       if (err instanceof Error && /authentication/i.test(err.message)) {
         await resetWalletSession();
@@ -343,6 +356,11 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
             {walletProviderName && (
               <p className="mt-2 text-sm text-slate">Connected through {walletProviderName}</p>
             )}
+            {credentialTrust?.demoCredential && (
+              <div className="mt-3 inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-medium uppercase tracking-[0.14em] text-amber-700">
+                Demo credential source
+              </div>
+            )}
           </div>
         )}
 
@@ -386,6 +404,13 @@ export function WalletCredentialCard({ userId, isVerified }: { userId: string; i
           <p className="text-sm text-slate">
             Verification must be completed before wallet issuance is enabled.
           </p>
+        )}
+
+        {credentialTrust?.demoCredential && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            The current claim set is marked as a demo credential. It can be issued into a wallet for testing, but
+            production verifiers should reject it unless demo credentials are explicitly allowed.
+          </div>
         )}
 
         <div className="grid gap-3 text-sm text-slate sm:grid-cols-3">

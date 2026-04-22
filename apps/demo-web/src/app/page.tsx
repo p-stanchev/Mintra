@@ -289,7 +289,11 @@ export default function Home() {
       )}
 
       <HomeVerificationCard freshnessStatus={freshnessStatus} />
-      <WalletCredentialCard userId={walletAddress ?? ""} isVerified={isVerified} />
+      <WalletCredentialCard
+        userId={walletAddress ?? ""}
+        isVerified={isVerified}
+        credentialTrust={claims?.credentialTrust}
+      />
 
       <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="reveal-up reveal-delay-1 rounded-[32px] border border-line bg-white/90 p-8 shadow-card backdrop-blur-sm">

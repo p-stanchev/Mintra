@@ -18,6 +18,7 @@ export default function DemoIssuerPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DemoClaimsResponse | null>(null);
+  const credentialTrust = result?.credentialTrust;
 
   useEffect(() => {
     const sync = () => {
@@ -251,6 +252,21 @@ export default function DemoIssuerPage() {
                   Verified at {result.verifiedAt ? new Date(result.verifiedAt).toLocaleString() : "now"}
                 </p>
               </div>
+
+              {credentialTrust && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                  <div className="mb-3 inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-[0.16em] text-amber-700">
+                    Demo credential
+                  </div>
+                  <div className="space-y-2 text-sm text-amber-900">
+                    <p>Issuer environment: {credentialTrust.issuerEnvironment}</p>
+                    <p>Issuer: {credentialTrust.issuerDisplayName}</p>
+                    <p>Assurance level: {credentialTrust.assuranceLevel}</p>
+                    <p>Evidence class: {credentialTrust.evidenceClass}</p>
+                    <p>Demo flag: {String(credentialTrust.demoCredential)}</p>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3">
                 {Object.entries(result.claims).map(([key, value]) => (
