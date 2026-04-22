@@ -166,11 +166,17 @@ Supported wallet status in the current demo:
 
 Clorio is not supported in the current Mintra demo flow.
 
+Credential trust model in the current demo:
+
+- Didit-based verification is treated as production verification
+- `/demo-issuer` creates synthetic demo claims without calling Didit
+- demo-issued claims are marked as demo credentials and should be rejected by production verifier policy unless explicitly allowed
+
 Privacy and retention in the current demo:
 
 - users explicitly confirm consent before starting verification
 - Mintra stores only minimal normalized verification data needed for credential issuance and proof flows
-- normalized claims are retained for up to 1 year in the current setup
+- normalized claims are retained for up to 30 days in the current setup
 - export and delete-account workflows are planned, but not fully productized in the demo yet
 
 ### Prerequisites
@@ -207,7 +213,7 @@ MINTRA_ISSUER_ID=mintra-production-issuer
 MINTRA_ISSUER_DISPLAY_NAME=Mintra
 ```
 
-For demo issuers, set `MINTRA_ISSUER_ENVIRONMENT=demo`. That marks newly issued credentials as demo credentials so verifiers can reject them in production.
+Didit-backed credentials should stay production. If you want synthetic test credentials, use the `/demo-issuer` page instead of changing the API issuer environment.
 
 ### Verifier config
 
@@ -365,6 +371,8 @@ The demo web app now includes:
 
 - `/protected`
   - age-gated route using the verifier service
+- `/demo-issuer`
+  - synthetic demo claim generation without calling Didit
 - `/playground`
   - dynamic proof product and policy builder
 - `/relying-party`
@@ -385,7 +393,7 @@ This is an integration scaffold, not a claim that Mintra’s core architecture h
 ## Security Notes
 
 - Mintra stores normalized claims, not raw KYC artifacts.
-- Mintra claim retention is up to 1 year.
+- Mintra claim retention is up to 30 days.
 - Freshness can be enforced sooner by verifier policy.
 - derived claims now include structured provenance and assurance metadata
 - demo credentials can be labeled distinctly from production credentials

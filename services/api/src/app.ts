@@ -11,6 +11,7 @@ import { verificationsRouter } from "./routes/verifications";
 import { webhooksRouter } from "./routes/webhooks";
 import { claimsRouter } from "./routes/claims";
 import { minaRouter } from "./routes/mina";
+import { demoRouter } from "./routes/demo";
 
 export interface AppOptions {
   corsOrigin?: string;
@@ -171,6 +172,7 @@ export async function buildApp(opts: AppOptions = {}) {
   await app.register(webhooksRouter, { prefix: "/api/providers" });
   await app.register(claimsRouter, { prefix: "/api/claims" });
   await app.register(minaRouter, { prefix: "/api/mina" });
+  await app.register(demoRouter, { prefix: "/api/demo" });
 
   app.get("/health", async () => ({ ok: true, service: "mintra-api" }));
 

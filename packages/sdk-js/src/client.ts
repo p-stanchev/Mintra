@@ -9,6 +9,8 @@ import type {
   VerifyWalletAuthResponse,
   IssueMinaCredentialRequest,
   IssueMinaCredentialResponse,
+  IssueDemoClaimsRequest,
+  IssueDemoClaimsResponse,
 } from "@mintra/sdk-types";
 import {
   StartVerificationResponseSchema,
@@ -17,6 +19,7 @@ import {
   CreateWalletAuthChallengeResponseSchema,
   VerifyWalletAuthResponseSchema,
   IssueMinaCredentialResponseSchema,
+  IssueDemoClaimsResponseSchema,
 } from "@mintra/sdk-types";
 import type { ZodSchema } from "./types";
 
@@ -144,6 +147,19 @@ export function createMintraClient(config: MintraClientConfig) {
         "/api/mina/issue-credential",
         { method: "POST", body: JSON.stringify(input) },
         IssueMinaCredentialResponseSchema,
+        config.apiKey,
+        readAuthToken()
+      );
+    },
+
+    async issueDemoClaims(
+      input: IssueDemoClaimsRequest
+    ): Promise<IssueDemoClaimsResponse> {
+      return request(
+        baseUrl,
+        "/api/demo/issue-claims",
+        { method: "POST", body: JSON.stringify(input) },
+        IssueDemoClaimsResponseSchema,
         config.apiKey,
         readAuthToken()
       );

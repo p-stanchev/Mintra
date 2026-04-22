@@ -54,6 +54,18 @@ export const IssueMinaCredentialResponseSchema = z.object({
 });
 export type IssueMinaCredentialResponse = z.infer<typeof IssueMinaCredentialResponseSchema>;
 
+export const IssueDemoClaimsRequestSchema = z.object({
+  userId: MinaPublicKeySchema,
+  ageOver18: z.boolean(),
+  ageOver21: z.boolean(),
+  kycPassed: z.boolean(),
+  countryCode: z.string().regex(/^[A-Za-z]{2}$/, "Expected ISO alpha-2 country code").optional(),
+});
+export type IssueDemoClaimsRequest = z.infer<typeof IssueDemoClaimsRequestSchema>;
+
+export const IssueDemoClaimsResponseSchema = GetClaimsResponseSchema;
+export type IssueDemoClaimsResponse = z.infer<typeof IssueDemoClaimsResponseSchema>;
+
 export const CreateWalletAuthChallengeRequestSchema = z.object({
   walletAddress: MinaPublicKeySchema,
 });

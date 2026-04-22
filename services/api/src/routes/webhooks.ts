@@ -74,7 +74,14 @@ export const webhooksRouter: FastifyPluginAsync = async (app) => {
         claimModelVersion: materializedClaims.claimModelVersion,
         derivedClaims: materializedClaims.derivedClaims,
         sourceCommitments: materializedClaims.sourceCommitments,
-        credentialTrust: materializedClaims.credentialTrust ?? app.credentialTrustDefaults,
+        credentialTrust: materializedClaims.credentialTrust ?? {
+          issuerEnvironment: "production",
+          issuerId: app.credentialTrustDefaults.issuerId,
+          issuerDisplayName: app.credentialTrustDefaults.issuerDisplayName,
+          assuranceLevel: "high",
+          evidenceClass: "provider-normalized",
+          demoCredential: false,
+        },
       });
       app.log.info({ verificationId: verification.id }, "webhook.claims_stored");
     }

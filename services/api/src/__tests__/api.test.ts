@@ -467,6 +467,58 @@ describe("Mintra API", () => {
     expect(data.credentialMetadata.sourceCommitments.dob_commitment.value).toBe("b".repeat(64));
     expect(data.credentialMetadata.credentialTrust.demoCredential).toBe(false);
   });
+
+  it("POST /api/demo/issue-claims creates synthetic demo claims for the authenticated wallet", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/demo/issue-claims",
+      headers: {
+        "content-type": "application/json",
+        ...authHeader(app, WALLET_1),
+      },
+      payload: JSON.stringify({
+        userId: WALLET_1,
+        ageOver18: true,
+        ageOver21: false,
+        kycPassed: true,
+        countryCode: "bg",
+      }),
+    });
+
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.claims).toEqual({
+      age_over_18: true,
+      kyc_passed: true,
+      country_code: "BG",
+    });
+    expect(data.credentialTrust.demoCredential).toBe(true);
+    expect(data.credentialTrust.issuerEnvironment).toBe("demo");
+
+    const claims = await app.store.getClaims(WALLET_1);
+    expect(claims?.countryCode).toBe("BG");
+    expect(claims?.credentialTrust?.demoCredential).toBe(true);
+    expect(claims?.credentialTrust?.evidenceClass).toBe("locally-derived");
+  });
+
+  it("POST /api/demo/issue-claims rejects mismatched wallets", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/demo/issue-claims",
+      headers: {
+        "content-type": "application/json",
+        ...authHeader(app, WALLET_1),
+      },
+      payload: JSON.stringify({
+        userId: WALLET_2,
+        ageOver18: true,
+        ageOver21: false,
+        kycPassed: true,
+      }),
+    });
+
+    expect(res.statusCode).toBe(403);
+  });
 });
 
 function shortenFloats(data: unknown): unknown {
