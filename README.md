@@ -19,6 +19,10 @@ Mintra bridges real-world KYC into Mina credentials and reusable proof presentat
 
 It is **not** a zkApp-only product. zkApp support is an optional extension on top of the core infrastructure.
 
+Core product message:
+
+**Verify once with Mintra. Reuse the credential everywhere. Generate verifier-bound proofs for each app.**
+
 ## What Is Implemented
 
 - Next.js demo frontend
@@ -361,6 +365,98 @@ The recommended integration is:
 
 Mintra is designed so other services can verify on **their own backend** instead of calling Mintra’s claims API at proof time.
 
+The important distinction is:
+
+- the Mintra **credential** is reusable across many apps
+- each **presentation proof** should be fresh and verifier-bound to the app requesting it
+
+So a user verifies once, keeps the credential in their wallet, and then generates a different proof for each relying party that asks for one.
+
+### Add KYC To Your App In 10 Lines
+
+This is the real verifier-core shape today:
+
+```ts
+import { verifyPresentation } from "@mintra/verifier-core";
+
+const result = await verifyPresentation({
+  envelope: presentationEnvelope,
+  verifierIdentity: "https://app.example.com",
+  expectedAudience: "https://app.example.com",
+  expectedOwnerPublicKey: walletAddress,
+  holderBindingVerifier,
+});
+
+if (result.ok && result.output?.kycPassed) {
+  // allow access
+}
+```
+
+Replace `https://app.example.com` with the real relying-party app or backend origin that is performing verification. Another site should use its own domain and request its own fresh proof from the same wallet credential.
+
+### Gate Age Verification In 5 Minutes
+
+```ts
+import { createPresentationRequest, verifyPresentation } from "@mintra/verifier-core";
+
+const request = await createPresentationRequest({
+  proofProductId: "proof_of_age_18",
+  audience: "https://app.example.com",
+  verifier: "https://verifier.example.com",
+  walletAddress,
+});
+
+const result = await verifyPresentation({
+  envelope: presentationEnvelope,
+  verifierIdentity: "https://app.example.com",
+  expectedAudience: "https://app.example.com",
+  expectedOwnerPublicKey: walletAddress,
+  holderBindingVerifier,
+});
+
+if (result.ok && result.output?.ageOver18) {
+  // unlock feature
+}
+```
+
+### 5-Minute Integration
+
+Use the verifier service if you want an HTTP integration instead of calling the package directly:
+
+```ts
+const requestResponse = await fetch("https://verifier.example.com/api/presentation-request", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    proofProductId: "proof_of_age_18",
+    expectedOwnerPublicKey: walletAddress,
+    policy: {
+      minAge: 18,
+      requireKycPassed: true,
+    },
+  }),
+});
+
+const { requestEnvelope } = await requestResponse.json();
+
+// frontend: ask wallet to build and return a presentationEnvelope
+
+const verifyResponse = await fetch("https://verifier.example.com/api/verify-presentation", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    presentationEnvelope,
+    expectedOwnerPublicKey: walletAddress,
+  }),
+});
+
+const result = await verifyResponse.json();
+
+if (result.ok && result.output?.ageOver18 && result.output?.kycPassed) {
+  // allow access
+}
+```
+
 Docs:
 
 - [docs/consume-proofs.md](./docs/consume-proofs.md)
@@ -386,6 +482,13 @@ Backend examples:
 - `buildHolderBindingMessage(...)`
 - `buildPasskeySignedPayload(...)`
 - `listProofProducts()`
+
+The easiest path for developers is:
+
+1. call `createPresentationRequest(...)` on the backend
+2. let the frontend collect a `presentationEnvelope`
+3. call `verifyPresentation(...)` on the backend
+4. trust the normalized `result.ok` and `result.output`
 
 The lower-level compatibility helpers still exist too:
 

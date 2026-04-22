@@ -9,6 +9,69 @@ That is the product direction:
 - the relying party creates its own presentation request
 - the relying party verifies the returned presentation itself
 
+## Quickest Integration Path
+
+For most developers, the mental model is:
+
+1. backend calls `createPresentationRequest(...)`
+2. frontend gets a wallet-produced `presentationEnvelope`
+3. backend calls `verifyPresentation(...)`
+4. backend checks `result.ok` and the normalized output fields
+
+Minimal package example:
+
+```ts
+import {
+  createPresentationRequest,
+  verifyPresentation,
+} from "@mintra/verifier-core";
+
+const request = await createPresentationRequest({
+  proofProductId: "proof_of_age_18",
+  audience: "https://app.example.com",
+  verifier: "https://verifier.example.com",
+  walletAddress,
+});
+
+const result = await verifyPresentation({
+  envelope: presentationEnvelope,
+  verifierIdentity: "https://app.example.com",
+  expectedAudience: "https://app.example.com",
+  expectedOwnerPublicKey: walletAddress,
+  holderBindingVerifier,
+});
+
+if (result.ok && result.output?.ageOver18 && result.output?.kycPassed) {
+  // allow access
+}
+```
+
+Minimal verifier-service example:
+
+```ts
+const requestResponse = await fetch("https://verifier.example.com/api/presentation-request", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    proofProductId: "proof_of_age_18",
+    expectedOwnerPublicKey: walletAddress,
+  }),
+});
+
+const { requestEnvelope } = await requestResponse.json();
+
+const verifyResponse = await fetch("https://verifier.example.com/api/verify-presentation", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    presentationEnvelope,
+    expectedOwnerPublicKey: walletAddress,
+  }),
+});
+
+const result = await verifyResponse.json();
+```
+
 ## Verifier Endpoints
 
 `services/verifier` exposes:

@@ -13,6 +13,15 @@ Full anti-sharing is hard. Mintra implements a realistic server-verifiable layer
 - optional or required passkey assertion over the same challenge and proof hash
 - verifier-side passkey binding storage keyed to the wallet / subject
 
+This does not stop credential portability.
+
+It is supposed to stop proof forwarding.
+
+In Mintra:
+
+- the credential should be reusable across many apps
+- each app should still request a fresh proof bound to its own verifier challenge
+
 ## Why the Holder-Binding Step Matters
 
 Without holder binding, anyone who obtains a raw presentation blob could try forwarding it.

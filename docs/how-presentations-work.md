@@ -4,6 +4,14 @@ Mintra presentations are first-class artifacts.
 
 They are not just raw proof strings.
 
+The reusable thing in Mintra is the wallet credential, not one exact proof blob.
+
+The intended flow is:
+
+- verify once
+- keep the credential in the wallet
+- generate a new verifier-bound presentation for each app that requests proof
+
 ## Format
 
 A presentation is submitted as `mintra.presentation/v1` and includes:
@@ -84,6 +92,8 @@ A presentation is submitted as `mintra.presentation/v1` and includes:
 7. Verify the freshness policy.
 8. Verify the wallet holder-binding signature.
 9. If passkeys are required, verify the WebAuthn assertion against the stored passkey binding.
+
+This is what allows a credential to be reused across many relying parties while still preventing one old presentation from being copied to a different app.
 
 ## Derived Claims And Commitments
 
