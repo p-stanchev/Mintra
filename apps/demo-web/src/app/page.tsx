@@ -308,19 +308,19 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.18fr)_320px]">
+          <div className="mt-8 grid gap-6 2xl:grid-cols-[minmax(360px,1.18fr)_320px]">
             <div className="min-w-0 space-y-6">
               <div className="rounded-[24px] border border-line bg-fog/80 p-5">
                 <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Next step</p>
                 <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-[220px] flex-1">
                     <p className="text-2xl font-semibold tracking-tight text-ink">{primaryAction.label}</p>
                     <p className="mt-2 max-w-xl text-sm leading-6 text-slate">{primaryAction.body}</p>
                   </div>
                   {primaryAction.anchor ? (
                     <a
                       href={primaryAction.href}
-                      className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+                      className="inline-flex shrink-0 items-center gap-2 self-start rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
                     >
                       {primaryAction.label}
                       <ArrowRight className="h-4 w-4" />
@@ -328,7 +328,7 @@ export default function Home() {
                   ) : (
                     <Link
                       href={primaryAction.href}
-                      className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+                      className="inline-flex shrink-0 items-center gap-2 self-start rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
                     >
                       {primaryAction.label}
                       <ArrowRight className="h-4 w-4" />
@@ -337,7 +337,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3">
                 <SurfaceStat
                   label="Wallet"
                   value={walletAddress ? "Linked" : "Missing"}
@@ -576,10 +576,14 @@ export default function Home() {
 
 function SurfaceStat({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-[20px] border border-line bg-stone-50/70 px-4 py-4">
-      <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">{label}</p>
-      <p className="mt-2 text-lg font-medium tracking-tight text-ink">{value}</p>
-      <p className="mt-1 text-sm leading-6 text-slate">{detail}</p>
+    <div className="min-w-0 rounded-[20px] border border-line bg-stone-50/70 px-4 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-[140px] flex-1">
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">{label}</p>
+          <p className="mt-2 text-lg font-medium tracking-tight text-ink">{value}</p>
+        </div>
+        <p className="max-w-[220px] text-sm leading-6 text-slate">{detail}</p>
+      </div>
     </div>
   );
 }
