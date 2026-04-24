@@ -10,21 +10,61 @@ import {
 } from "@/lib/wallet-session";
 import { authenticateWallet, resetWalletSession } from "@/lib/wallet-auth";
 import { getWalletById } from "@/lib/mina-wallet";
+import { extractUiErrorMessage } from "@/lib/errors";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
+  Building2,
   CheckCheck,
   ChevronRight,
   Clock3,
   Lock,
   Shield,
   Wallet,
+  X,
 } from "lucide-react";
 
 type ClaimsResponse = Awaited<ReturnType<typeof mintra.getClaims>>;
+type VerifyModalState = "idle" | "choosing" | "loading" | "redirecting" | "error";
+
+type ProviderOption = {
+  id: string;
+  name: string;
+  description: string;
+  available: boolean;
+  badge?: string;
+};
+
+const PROVIDERS: ProviderOption[] = [
+  {
+    id: "didit",
+    name: "Didit",
+    description: "Active provider in the current demo flow.",
+    available: true,
+    badge: "Live",
+  },
+  {
+    id: "persona",
+    name: "Persona",
+    description: "Planned provider integration.",
+    available: false,
+  },
+  {
+    id: "sumsub",
+    name: "Sumsub",
+    description: "Planned provider integration.",
+    available: false,
+  },
+  {
+    id: "veriff",
+    name: "Veriff",
+    description: "Planned provider integration.",
+    available: false,
+  },
+];
 
 const claimDescriptions: Record<string, string> = {
   credential_environment: "Marks whether this credential is demo-only or production-ready.",
@@ -63,6 +103,10 @@ export default function Home() {
   const [reconnecting, setReconnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [loadingClaims, setLoadingClaims] = useState(true);
+  const [verifyModalOpen, setVerifyModalOpen] = useState(false);
+  const [verifyModalState, setVerifyModalState] = useState<VerifyModalState>("idle");
+  const [verifyConsentChecked, setVerifyConsentChecked] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
 
   useEffect(() => {
     const syncWallet = () => {
@@ -157,6 +201,45 @@ export default function Home() {
       setDisconnecting(false);
     }
   }, []);
+
+  const handleOpenVerifyModal = useCallback(() => {
+    if (!walletAddress) {
+      return;
+    }
+    setVerifyModalOpen(true);
+    setVerifyModalState("choosing");
+    setVerifyError(null);
+  }, [walletAddress]);
+
+  const handleCloseVerifyModal = useCallback(() => {
+    if (verifyModalState === "loading" || verifyModalState === "redirecting") {
+      return;
+    }
+    setVerifyModalOpen(false);
+    setVerifyError(null);
+  }, [verifyModalState]);
+
+  const handleStartVerification = useCallback(
+    async (providerId: string) => {
+      if (providerId !== "didit" || !verifyConsentChecked || !walletAddress) {
+        return;
+      }
+
+      try {
+        setVerifyModalState("loading");
+        setVerifyError(null);
+
+        const session = await mintra.startVerification({ userId: walletAddress });
+        sessionStorage.setItem("mintra.sessionId", session.sessionId);
+        setVerifyModalState("redirecting");
+        window.location.href = session.verificationUrl;
+      } catch (err: unknown) {
+        setVerifyModalState("error");
+        setVerifyError(extractUiErrorMessage(err, "Unknown error"));
+      }
+    },
+    [verifyConsentChecked, walletAddress]
+  );
 
   const freshnessStatus = claims?.freshnessStatus ?? "unverified";
   const isFresh = freshnessStatus === "verified" || freshnessStatus === "expiring_soon";
@@ -287,6 +370,10 @@ export default function Home() {
                 : "Not issued",
     },
   ];
+  const activeProvider = useMemo(
+    () => PROVIDERS.find((provider) => provider.available) ?? PROVIDERS[0],
+    []
+  );
 
   return (
     <div className="space-y-8">
@@ -324,23 +411,33 @@ export default function Home() {
                       <p className="text-2xl font-semibold tracking-tight text-ink">{primaryAction.label}</p>
                       <p className="mt-2 max-w-xl text-sm leading-6 text-slate">{primaryAction.body}</p>
                     </div>
-                    {primaryAction.anchor ? (
-                      <a
-                        href={primaryAction.href}
-                        className="inline-flex shrink-0 items-center gap-2 self-start rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+                    <div className="flex shrink-0 flex-wrap gap-3 self-start">
+                      {primaryAction.anchor ? (
+                        <a
+                          href={primaryAction.href}
+                          className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+                        >
+                          {primaryAction.label}
+                          <ArrowRight className="h-4 w-4" />
+                        </a>
+                      ) : (
+                        <Link
+                          href={primaryAction.href}
+                          className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+                        >
+                          {primaryAction.label}
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => void handleOpenVerifyModal()}
+                        disabled={!walletAddress}
+                        className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {primaryAction.label}
-                        <ArrowRight className="h-4 w-4" />
-                      </a>
-                    ) : (
-                      <Link
-                        href={primaryAction.href}
-                        className="inline-flex shrink-0 items-center gap-2 self-start rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
-                      >
-                        {primaryAction.label}
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    )}
+                        Verify with provider
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -564,6 +661,156 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {verifyModalOpen && (
+        <VerificationProviderModal
+          consentChecked={verifyConsentChecked}
+          error={verifyError}
+          linkedWallet={walletAddress}
+          onClose={handleCloseVerifyModal}
+          onConsentChange={setVerifyConsentChecked}
+          onStartVerification={handleStartVerification}
+          state={verifyModalState}
+          activeProviderName={activeProvider.name}
+        />
+      )}
+    </div>
+  );
+}
+
+function VerificationProviderModal({
+  consentChecked,
+  error,
+  linkedWallet,
+  onClose,
+  onConsentChange,
+  onStartVerification,
+  state,
+  activeProviderName,
+}: {
+  consentChecked: boolean;
+  error: string | null;
+  linkedWallet: string | null;
+  onClose: () => void;
+  onConsentChange: (value: boolean) => void;
+  onStartVerification: (providerId: string) => Promise<void>;
+  state: VerifyModalState;
+  activeProviderName: string;
+}) {
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/35 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-2xl rounded-[28px] border border-line bg-white p-6 shadow-[0_20px_80px_rgba(17,17,17,0.18)] sm:p-7">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Verification providers</p>
+            <h3 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
+              {linkedWallet ? "Choose verification provider" : "Wallet required"}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-slate">
+              {linkedWallet
+                ? "Pick a provider to launch verification. Only Didit is enabled in the current demo."
+                : "Connect your wallet on the home page before starting verification."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-white text-slate transition hover:bg-stone-50"
+            aria-label="Close verification provider modal"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {linkedWallet ? (
+          <>
+            <div className="mt-5 rounded-[22px] border border-line bg-stone-50 px-5 py-4">
+              <p className="text-sm font-medium text-ink">Consent and retention</p>
+              <p className="mt-2 text-sm leading-6 text-slate">
+                By continuing, you consent to the selected KYC provider processing your verification. Mintra keeps only
+                minimal normalized verification records needed for credential issuance and proof flows, and retains
+                them for up to 30 days in the current setup.
+              </p>
+              <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  checked={consentChecked}
+                  onChange={(event) => onConsentChange(event.target.checked)}
+                  className="mt-1"
+                />
+                <span>I understand and consent to this verification and retention policy.</span>
+              </label>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              {PROVIDERS.map((provider) => (
+                <button
+                  key={provider.id}
+                  type="button"
+                  disabled={!provider.available || !consentChecked || state === "loading" || state === "redirecting"}
+                  onClick={() => void onStartVerification(provider.id)}
+                  className={`w-full rounded-[22px] border px-5 py-4 text-left transition ${
+                    provider.available
+                      ? "border-line bg-white hover:bg-stone-50"
+                      : "border-line bg-stone-50 text-slate opacity-60"
+                  } disabled:cursor-not-allowed disabled:opacity-70`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                          provider.available ? "bg-ink text-white" : "bg-stone-200 text-stone-500"
+                        }`}
+                      >
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-semibold text-ink">{provider.name}</span>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                              provider.badge ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-500"
+                            }`}
+                          >
+                            {provider.badge ?? "Soon"}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm text-slate">{provider.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 text-sm text-slate">
+              Selected flow will continue with <span className="font-medium text-ink">{activeProviderName}</span>.
+              {!consentChecked && <span className="block mt-1">Confirm consent above to continue.</span>}
+            </div>
+
+            {(state === "loading" || state === "redirecting") && (
+              <div className="mt-5 rounded-[20px] border border-line bg-stone-50 px-4 py-4 text-sm text-slate">
+                {state === "loading" ? "Creating your verification session..." : "Redirecting to the identity provider..."}
+              </div>
+            )}
+
+            {state === "error" && error && (
+              <div className="mt-5 rounded-[20px] border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700">
+                Could not start verification: {error}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="mt-5 flex flex-wrap gap-3">
+            <a
+              href="/#wallet-credential"
+              className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-white transition hover:bg-black"
+            >
+              Connect wallet on home page
+            </a>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
