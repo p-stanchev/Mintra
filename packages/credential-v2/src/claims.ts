@@ -3,7 +3,7 @@ import { z } from "zod";
 export const ClaimModelVersionSchema = z.enum(["v1", "v2"]);
 export type ClaimModelVersion = z.infer<typeof ClaimModelVersionSchema>;
 
-export const CommitmentHashAlgorithmSchema = z.enum(["sha256"]);
+export const CommitmentHashAlgorithmSchema = z.enum(["sha256", "poseidon"]);
 export type CommitmentHashAlgorithm = z.infer<typeof CommitmentHashAlgorithmSchema>;
 
 export const AssuranceLevelSchema = z.enum(["low", "medium", "high"]);

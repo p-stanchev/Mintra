@@ -16,6 +16,7 @@
     "test": "vitest run --pool forks"
   },
   "dependencies": {
+    "@mintra/credential-v2": "workspace:*",
     "o1js": "^2.3.0"
   },
   "devDependencies": {

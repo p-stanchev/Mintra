@@ -18,7 +18,7 @@ export type ZkAgeThresholdRequirements = z.infer<typeof ZkAgeThresholdRequiremen
 
 export const ZkAgeThresholdPublicInputsSchema = z.object({
   referenceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  commitmentKey: z.literal("dob_commitment"),
+  commitmentKey: z.literal("dob_poseidon_commitment"),
 });
 export type ZkAgeThresholdPublicInputs = z.infer<typeof ZkAgeThresholdPublicInputsSchema>;
 

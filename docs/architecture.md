@@ -237,10 +237,12 @@ The current implementation uses commitments plus derived claims as the storage a
 What is implemented now:
 
 - source commitments can be generated from sensitive fields
+- issued credential metadata can now carry a zk-friendly `dob_poseidon_commitment` for age proofs
 - derived claims are computed from provider results
 - derived claims carry derivation method, version, assurance, and evidence metadata
 - credentials can be labeled as production or demo through issuer-environment metadata
 - Mintra persists derived claims and commitment metadata instead of raw source identity fields
+- the first age proof helper can derive its public input directly from Mintra-issued `credentialMetadata.version === "v2"`
 
 What is not implemented yet:
 

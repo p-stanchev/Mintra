@@ -12,13 +12,14 @@
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
-    "test": "vitest run",
+    "test": "vitest run --pool forks",
     "typecheck": "tsc --noEmit",
     "dev": "tsup src/index.ts --format esm,cjs --dts --watch"
   },
   "dependencies": {
     "@mintra/credential-v2": "workspace:*",
     "@mintra/sdk-types": "workspace:*",
+    "@mintra/zk-claims": "workspace:*",
     "i18n-iso-countries": "^7.14.0",
     "zod": "^3.23.0"
   },

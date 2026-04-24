@@ -131,6 +131,9 @@ importers:
       '@mintra/sdk-types':
         specifier: workspace:*
         version: link:../sdk-types
+      '@mintra/zk-claims':
+        specifier: workspace:*
+        version: link:../zk-claims
       i18n-iso-countries:
         specifier: ^7.14.0
         version: 7.14.0
@@ -210,6 +213,9 @@ importers:
 
   packages/zk-claims:
     dependencies:
+      '@mintra/credential-v2':
+        specifier: workspace:*
+        version: link:../credential-v2
       o1js:
         specifier: ^2.3.0
         version: 2.14.0

@@ -32,6 +32,7 @@ Core product message:
 - extracted `@mintra/zk-claims` package for Mina-compatible off-chain o1js proof programs
 - reusable `@mintra/verifier-core` package
 - stable `mintra.presentation/v1` envelope format
+- typed `mintra.zk-policy/v1` request format for off-chain zk proof flows
 - verifier-owned single-use presentation challenges
 - holder-binding via wallet `signMessage`
 - passkey / WebAuthn holder binding on top of wallet binding
@@ -70,6 +71,19 @@ The current bridge step now implemented is a committed-claims foundation:
 - sensitive source fields can be represented as commitments such as `dob_commitment`
 - public product-facing outputs are carried as derived claims such as `age_over_18`
 - raw source identity fields are not retained by Mintra once commitments and derived claims are produced
+
+The first credential-to-proof binding step is now also in place:
+
+- issued `credentialMetadata.version === "v2"` can carry a zk-friendly `dob_poseidon_commitment`
+- the age proof helper can build its public input directly from that Mintra-issued credential metadata
+- the verifier can issue a typed zk policy request and check the returned age proof off-chain
+
+This is still not full wallet-issued selective disclosure end to end, but it is now bound to actual Mintra credential metadata rather than an entirely detached proof witness flow.
+
+Current limitation of this bridge step:
+
+- the zk-friendly DOB commitment is deterministic issuer-side commitment data used to bind age proofs to Mintra-issued credential metadata
+- it is not yet the final salted commitment design Mintra would want for a production-grade long-term selective-disclosure system
 
 This is not full zk selective disclosure yet, but it is the data-model upgrade that future zk enforcement can build on.
 

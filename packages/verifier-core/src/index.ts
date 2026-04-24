@@ -513,7 +513,7 @@ export function createZkPolicyRequest(
     },
     publicInputs: {
       referenceDate,
-      commitmentKey: "dob_commitment",
+      commitmentKey: "dob_poseidon_commitment",
     },
     metadata: {
       proofProductId: "proof_of_age_18",

@@ -6,6 +6,9 @@ import {
   UInt32,
   ZkProgram,
 } from "o1js";
+import type { CredentialMetadata } from "@mintra/credential-v2";
+
+export const DOB_ZK_COMMITMENT_KEY = "dob_poseidon_commitment";
 
 export class AgeClaimPublicInput extends Struct({
   dobCommitment: Field,
@@ -137,6 +140,59 @@ export async function verifyAgeClaimProof(input: {
   return AgeClaimProgram.verify(input.proof);
 }
 
+export function createDateOfBirthZkSourceCommitment(input: {
+  year: number;
+  month: number;
+  day: number;
+  salt: string | bigint | number;
+}): {
+  key: typeof DOB_ZK_COMMITMENT_KEY;
+  algorithm: "poseidon";
+  encoding: "mintra.commitment/v1";
+  value: string;
+} {
+  const fieldValue = createDateOfBirthCommitment(input);
+  return {
+    key: DOB_ZK_COMMITMENT_KEY,
+    algorithm: "poseidon",
+    encoding: "mintra.commitment/v1",
+    value: fieldToHex(fieldValue),
+  };
+}
+
+export function createAgeClaimPublicInputFromCredentialMetadata(input: {
+  credentialMetadata: CredentialMetadata;
+  minAge: 18 | 21 | number;
+  referenceDate: string | Date;
+}) {
+  const commitment = readDobZkCommitment(input.credentialMetadata);
+  return createAgeClaimPublicInput({
+    dobCommitment: hexToField(commitment.value),
+    minAge: input.minAge,
+    referenceDate: input.referenceDate,
+  });
+}
+
+export async function proveAgeClaimFromCredentialMetadata(input: {
+  credentialMetadata: CredentialMetadata;
+  dateOfBirth: string | Date;
+  salt?: string | bigint | number | Field;
+  minAge: 18 | 21 | number;
+  referenceDate: string | Date;
+}) {
+  const publicInput = createAgeClaimPublicInputFromCredentialMetadata({
+    credentialMetadata: input.credentialMetadata,
+    minAge: input.minAge,
+    referenceDate: input.referenceDate,
+  });
+  const witness = createDateOfBirthWitness({
+    dateOfBirth: input.dateOfBirth,
+    salt: input.salt ?? 0,
+  });
+
+  return proveAgeClaim({ publicInput, witness });
+}
+
 function assertMonthRange(month: UInt32) {
   month.assertGreaterThanOrEqual(UInt32.from(1));
   month.assertLessThanOrEqual(UInt32.from(12));
@@ -167,4 +223,33 @@ function parseIsoDate(value: string | Date) {
     month: Number(match[2]),
     day: Number(match[3]),
   };
+}
+
+function fieldToHex(field: Field): string {
+  return BigInt(field.toString()).toString(16).padStart(64, "0");
+}
+
+function hexToField(value: string): Field {
+  return Field(BigInt(`0x${value}`));
+}
+
+function readDobZkCommitment(credentialMetadata: CredentialMetadata) {
+  if (credentialMetadata.version !== "v2") {
+    throw new Error("Age proof generation requires credential metadata version v2");
+  }
+
+  const commitment = credentialMetadata.sourceCommitments[DOB_ZK_COMMITMENT_KEY] as
+    | { value: string; algorithm: string }
+    | undefined;
+  if (!commitment) {
+    throw new Error(`Missing ${DOB_ZK_COMMITMENT_KEY} in credential metadata`);
+  }
+
+  if (commitment.algorithm !== "poseidon") {
+    throw new Error(
+      `${DOB_ZK_COMMITMENT_KEY} must use the poseidon algorithm for zk age proofs`
+    );
+  }
+
+  return commitment;
 }

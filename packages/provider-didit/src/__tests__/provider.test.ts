@@ -245,11 +245,16 @@ describe("DiditProvider.mapClaims", () => {
     expect(first.derivedClaims["age_over_18"]?.evidenceClass).toBe("provider-normalized");
     expect(first.derivedClaims["country_code"]?.value).toBe("AT");
     expect(first.sourceCommitments["dob_commitment"]?.value).toMatch(/^[a-f0-9]{64}$/);
+    expect(first.sourceCommitments["dob_poseidon_commitment"]?.value).toMatch(/^[a-f0-9]{64}$/);
+    expect(first.sourceCommitments["dob_poseidon_commitment"]?.algorithm).toBe("poseidon");
     expect(first.sourceCommitments["country_code_commitment"]?.value).toMatch(/^[a-f0-9]{64}$/);
     expect(first.dateOfBirth).toBe("1990-06-15");
     expect(first.documentExpiresAt).toBe("2031-06-02");
     expect(first.nationality).toBe("AUT");
     expect(first.sourceCommitments["dob_commitment"]?.value).toBe(second.sourceCommitments["dob_commitment"]?.value);
+    expect(first.sourceCommitments["dob_poseidon_commitment"]?.value).toBe(
+      second.sourceCommitments["dob_poseidon_commitment"]?.value
+    );
     expect(first.sourceCommitments["country_code_commitment"]?.value).toBe(
       second.sourceCommitments["country_code_commitment"]?.value
     );

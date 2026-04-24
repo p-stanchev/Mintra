@@ -15,6 +15,7 @@ import {
   commitString,
   createDerivedClaim,
 } from "@mintra/credential-v2";
+import { createDateOfBirthZkSourceCommitment } from "@mintra/zk-claims";
 import { DiditSessionResponseSchema, DiditWebhookPayloadSchema } from "./schemas";
 
 const DIDIT_API_BASE = "https://verification.didit.me";
@@ -181,6 +182,16 @@ export class DiditProvider implements VerificationProvider {
 
     if (typeof idVerif.date_of_birth === "string" && idVerif.date_of_birth.trim()) {
       sourceCommitments["dob_commitment"] = await commitDOB(idVerif.date_of_birth);
+      const normalizedDob = normalizeDateOnly(idVerif.date_of_birth);
+      if (normalizedDob) {
+        const [yearString, monthString, dayString] = normalizedDob.split("-");
+        sourceCommitments["dob_poseidon_commitment"] = createDateOfBirthZkSourceCommitment({
+          year: Number(yearString),
+          month: Number(monthString),
+          day: Number(dayString),
+          salt: 0,
+        });
+      }
     }
 
     const countryCode = materialized.normalizedClaims.country_code;

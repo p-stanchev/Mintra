@@ -14,7 +14,7 @@ describe("zk policy request helpers", () => {
     expect(request.proofType).toBe("mintra.zk.age-threshold/v1");
     expect(request.requirements.ageGte).toBe(21);
     expect(request.publicInputs.referenceDate).toBe("2026-04-24");
-    expect(request.publicInputs.commitmentKey).toBe("dob_commitment");
+    expect(request.publicInputs.commitmentKey).toBe("dob_poseidon_commitment");
     expect(request.metadata?.credentialModel).toBe("mintra.credential-v2");
   });
 });
