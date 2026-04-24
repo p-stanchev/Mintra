@@ -86,8 +86,9 @@ Optional on top of that:
 
 ┌────────────────────────────────────────────────────────────────────┐
 │  packages/zk-age-gate-contract                                     │
-│  - optional age-gated on-chain contract                            │
-│  - dedicated tsc-built zkApp package                               │
+│  - MintraRegistry shared trust anchors                             │
+│  - MintraAgeGate optional per-app on-chain enforcement             │
+│  - dedicated tsc-built zk contract package                         │
 │  - deploy / keygen scripts                                         │
 └────────────────────────────────────────────────────────────────────┘
 ```
@@ -207,7 +208,20 @@ Only after that should Mintra add an optional on-chain layer for:
 - issuer registry anchoring
 - revocation roots
 - accepted verification-key roots
-- zkApp-native policy enforcement
+- optional per-app zkApp-native policy enforcement
+
+## Shared Registry, Site Policy, Optional App Gate
+
+Mintra's preferred on-chain shape is now:
+
+1. one shared `MintraRegistry`
+   stores common trust anchors
+2. site-specific policy stays off-chain
+   each relying party keeps control of `minAge`, `requireKycPassed`, country rules, freshness, and demo-credential policy
+3. optional per-app `MintraAgeGate`
+   only for zkApps that need direct on-chain action gating
+
+This avoids turning one Mina contract into a global policy bottleneck for every website.
 
 ## Minimal ZK / Privacy Direction
 

@@ -140,9 +140,9 @@ packages/zk-claims
   Mina-compatible selective-disclosure foundation
 
 packages/zk-age-gate-contract
-  optional on-chain age gate contract
-  dedicated tsc-built zkApp package
-  deploy and key-generation scripts
+  shared trust-anchor registry
+  optional per-app age/KYC gate
+  dedicated tsc-built zk contract package
 
 packages/provider-didit
   Didit integration
@@ -426,13 +426,17 @@ An on-chain contract is only needed later if you want:
 - an on-chain revocation root
 - accepted verification-key anchoring on Mina
 
-The optional `@mintra/zk-age-gate-contract` package can now store a small policy surface on-chain:
+The optional `@mintra/zk-contracts` package now supports the cleaner split:
 
-- `minAge`
-- `requireKycPassed`
+- shared contract for trust anchors
+- site-specific policy off-chain
+- optional separate per-app enforcement contract if a zkApp truly needs on-chain gating
 
-So one app can run an `18+` contract instance, while another can run `21+` plus `KYC passed`.
-Country policy is still handled off-chain today.
+That means Mintra does not need one global on-chain policy for every site.
+
+- `MintraRegistry` can hold shared trust anchors such as the trusted issuer key, accepted proof VK hashes, credential root, and revocation root
+- each site can still ask for its own Mintra verifier policy off-chain
+- if a zkApp needs direct on-chain gating, it can deploy its own `MintraAgeGate` instance with its own `minAge` and `requireKycPassed`
 
 So the current recommended build order is:
 
@@ -666,27 +670,35 @@ The optional contract now lives in its own package so it can be compiled with pl
 Compile it locally first:
 
 ```bash
-pnpm --filter @mintra/zk-age-gate-contract compile:local
+pnpm --filter @mintra/zk-contracts compile:local
 ```
 
 Generate deploy keys:
 
 ```bash
-pnpm --filter @mintra/zk-age-gate-contract gen-keys > keys.json
+pnpm --filter @mintra/zk-contracts gen-keys > keys.json
 ```
 
-Deploy by setting:
+Deploy the shared registry by setting:
 
 - `DEPLOYER_PRIVATE_KEY`
 - `ZKAPP_PRIVATE_KEY`
 - `MINA_GRAPHQL_URL`
+- `TRUSTED_ISSUER_PUBLIC_KEY`
 - optional `MINA_ARCHIVE_URL`
-- optional `MIN_AGE`
+- optional `CREDENTIAL_ROOT`
+- optional `REVOCATION_ROOT`
 
 and then running:
 
 ```bash
-pnpm --filter @mintra/zk-age-gate-contract deploy
+pnpm --filter @mintra/zk-contracts deploy
+```
+
+If a zkApp needs its own on-chain app policy, deploy the optional age/KYC gate instead:
+
+```bash
+pnpm --filter @mintra/zk-contracts deploy:age-gate
 ```
 
 ## Security Notes

@@ -1,8 +1,8 @@
 // Example: deploying and interacting with MintraAgeGate.
-// Run from the monorepo root after building @mintra/zk-claims and @mintra/zk-age-gate-contract.
+// Run from the monorepo root after building @mintra/zk-claims and @mintra/zk-contracts.
 
 import { Mina, PrivateKey, UInt32 } from "o1js";
-import { MintraAgeGate, AgeClaimDynamicProof } from "@mintra/zk-age-gate-contract";
+import { MintraAgeGate, AgeClaimDynamicProof } from "@mintra/zk-contracts";
 import {
   compileAgeClaimProgram,
   proveAgeClaimFromCredentialMetadata,

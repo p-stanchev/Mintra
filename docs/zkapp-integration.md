@@ -14,6 +14,12 @@ zkApps can consume Mintra outputs through:
 - oracle / attestation bridging
 - future contract adapters
 
+The preferred Mina-native split is now:
+
+- one shared on-chain registry for trust anchors
+- site-specific policy off-chain
+- optional per-app enforcement contract only when a zkApp really needs on-chain gating
+
 ## Example Included
 
 See:
@@ -31,13 +37,16 @@ Implemented:
 - presentation envelope format
 - off-chain verification path
 - relying-party verifier flow
+- shared `MintraRegistry` contract path for trust anchors
+- optional `MintraAgeGate` contract path for app-specific age / KYC gating
 
 Placeholder / future work:
 
 - in-circuit verification of Mintra presentations
-- revocation roots
+- production revocation root lifecycle
 - on-chain challenge consumption
 - contract-side freshness enforcement
+- country-policy enforcement contract
 
 The example contract package shows where those integration points would live without pretending they already exist in production.
 

@@ -1,22 +1,49 @@
-# `@mintra/zk-age-gate-contract`
+# `@mintra/zk-contracts`
 
-Optional Mina zkApp contract package for Mintra's on-chain policy-gated example.
+Optional Mina zkApp contract package for Mintra's on-chain trust-anchor and policy-gated examples.
 
-This package is intentionally separate from `@mintra/zk-claims` so the contract can be built with plain TypeScript compiler output instead of `tsup` / `tsx`.
+This package is intentionally separate from `@mintra/zk-claims` so the contracts can be built with plain TypeScript compiler output instead of `tsup` / `tsx`.
 
 ## What It Contains
 
-- `MintraAgeGate` smart contract
+- `MintraRegistry` shared trust-anchor contract
+- `MintraAgeGate` optional per-app age/KYC enforcement contract
 - `AgeClaimDynamicProof` wrapper for on-chain age proof submission
 - `KycPassedDynamicProof` wrapper for on-chain KYC proof submission
 - local compile smoke script
 - key generation script
-- deploy script
-- policy update script
+- registry deploy / update scripts
+- age-gate deploy / policy update scripts
 
-## Current On-Chain Policy Surface
+## Recommended Architecture
 
-This contract can currently enforce:
+Use the contracts like this:
+
+1. `MintraRegistry`
+   shared on-chain trust anchors
+2. site-specific policy off-chain
+   each relying party chooses its own Mintra verifier policy
+3. `MintraAgeGate`
+   optional per-app contract only if a zkApp needs direct on-chain enforcement
+
+This keeps Mintra infrastructure-first and avoids forcing every integration through a single shared on-chain policy.
+
+## Shared Registry
+
+`MintraRegistry` stores:
+
+- trusted Mintra issuer public key
+- accepted age proof VK hash
+- accepted KYC proof VK hash
+- accepted country proof VK hash
+- credential root
+- revocation root
+
+That makes it a shared anchor contract rather than a one-policy-for-everyone gate.
+
+## Optional Age Gate
+
+The optional `MintraAgeGate` contract can currently enforce:
 
 - `minAge`
 - `requireKycPassed`
@@ -34,19 +61,58 @@ Country rules are still off-chain today.
 ## Local Compile
 
 ```bash
-pnpm --filter @mintra/zk-age-gate-contract compile:local
+pnpm --filter @mintra/zk-contracts compile:local
 ```
 
 ## Generate Keys
 
 ```bash
-pnpm --filter @mintra/zk-age-gate-contract gen-keys > keys.json
+pnpm --filter @mintra/zk-contracts gen-keys > keys.json
 ```
 
-## Deploy
+## Deploy Shared Registry
 
 ```bash
-pnpm --filter @mintra/zk-age-gate-contract deploy
+pnpm --filter @mintra/zk-contracts deploy
+```
+
+Required environment variables:
+
+- `DEPLOYER_PRIVATE_KEY`
+- `ZKAPP_PRIVATE_KEY`
+- `MINA_GRAPHQL_URL`
+- `TRUSTED_ISSUER_PUBLIC_KEY`
+
+Optional:
+
+- `MINA_ARCHIVE_URL`
+- `CREDENTIAL_ROOT` (defaults to `0`)
+- `REVOCATION_ROOT` (defaults to `0`)
+
+## Update Shared Registry
+
+```bash
+pnpm --filter @mintra/zk-contracts update:registry
+```
+
+Required environment variables for registry updates:
+
+- `DEPLOYER_PRIVATE_KEY`
+- `ZKAPP_PRIVATE_KEY`
+- `ZKAPP_ADDRESS`
+- `MINA_GRAPHQL_URL`
+- `TRUSTED_ISSUER_PUBLIC_KEY`
+
+Optional:
+
+- `MINA_ARCHIVE_URL`
+- `CREDENTIAL_ROOT`
+- `REVOCATION_ROOT`
+
+## Deploy Optional Age Gate
+
+```bash
+pnpm --filter @mintra/zk-contracts deploy:age-gate
 ```
 
 Required environment variables:
@@ -61,13 +127,13 @@ Optional:
 - `MIN_AGE` (defaults to `18`)
 - `REQUIRE_KYC_PASSED` (`true` / `false`, defaults to `false`)
 
-## Update Policy
+## Update Optional Age Gate Policy
 
 ```bash
-pnpm --filter @mintra/zk-age-gate-contract update-policy
+pnpm --filter @mintra/zk-contracts update:age-gate-policy
 ```
 
-Required environment variables for policy updates:
+Required environment variables:
 
 - `DEPLOYER_PRIVATE_KEY`
 - `ZKAPP_PRIVATE_KEY`

@@ -1,5 +1,5 @@
 {
-  "name": "@mintra/zk-age-gate-contract",
+  "name": "@mintra/zk-contracts",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/src/index.js",
@@ -15,8 +15,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "compile:local": "pnpm run build && node dist/scripts/compile.js",
     "gen-keys": "pnpm run build && node dist/scripts/gen-keys.js",
-    "deploy": "pnpm run build && node dist/scripts/deploy.js",
-    "update-policy": "pnpm run build && node dist/scripts/update-policy.js"
+    "deploy": "pnpm run deploy:registry",
+    "deploy:registry": "pnpm run build && node dist/scripts/deploy-registry.js",
+    "update:registry": "pnpm run build && node dist/scripts/update-registry.js",
+    "deploy:age-gate": "pnpm run build && node dist/scripts/deploy.js",
+    "update:age-gate-policy": "pnpm run build && node dist/scripts/update-policy.js"
   },
   "dependencies": {
     "@mintra/zk-claims": "workspace:*",
