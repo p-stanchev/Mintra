@@ -291,10 +291,14 @@ export default function Home() {
   return (
     <div className="space-y-8">
       <section className="reveal-up rounded-[36px] border border-line bg-white p-6 shadow-card sm:p-8 lg:p-10">
-        <SectionTitle eyebrow="Section 01" title="Reusable Mina verification" />
+        <SectionTitle
+          eyebrow="Verification overview"
+          title="Reusable Mina verification"
+          body="Link a wallet, complete one identity check, and prepare the credential for reuse across Mina apps."
+        />
 
-        <div className="mt-8 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_360px]">
-          <div className="rounded-[32px] border border-line bg-white p-8 shadow-sm sm:p-10 lg:p-12">
+        <div className="mt-7 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_360px]">
+          <div className="rounded-[32px] border border-line bg-white p-8 sm:p-10 lg:p-12">
             <div className="inline-flex items-center gap-2 rounded-full border border-line bg-stone-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-slate">
               <Shield className="h-3.5 w-3.5" />
               Reusable Mina verification
@@ -340,7 +344,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3">
                   <SurfaceStat
                     label="Wallet"
                     value={walletAddress ? "Linked" : "Missing"}
@@ -377,9 +381,9 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-line bg-[linear-gradient(180deg,#fafaf9_0%,#f5f5f4_100%)] p-6">
+              <div className="rounded-[28px] border border-line bg-[linear-gradient(180deg,#fafaf9_0%,#f5f5f4_100%)] p-5">
                 <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Flow</p>
-                <div className="mt-5 space-y-6">
+                <div className="mt-5 space-y-5">
                   <FlowStep
                     index="01"
                     title="Link wallet"
@@ -401,7 +405,7 @@ export default function Home() {
             </div>
           </div>
 
-          <aside className="reveal-delay-1 rounded-[32px] border border-line bg-white p-6 shadow-sm xl:sticky xl:top-24 xl:h-fit">
+          <aside className="reveal-delay-1 rounded-[32px] border border-line bg-white p-6 xl:sticky xl:top-24 xl:h-fit">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Credential status</p>
@@ -502,10 +506,14 @@ export default function Home() {
       )}
 
       <section className="reveal-up reveal-delay-1 rounded-[36px] border border-line bg-white p-6 shadow-card sm:p-8 lg:p-10">
-        <SectionTitle eyebrow="Section 02" title="Credentials" />
+        <SectionTitle
+          eyebrow="Credential surfaces"
+          title="Credentials"
+          body="Inspect the normalized claim set and store the credential in a wallet that supports Mina credential storage."
+        />
 
-        <div className="mt-8 grid gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
-          <div className="rounded-[32px] border border-line bg-white p-8 shadow-sm">
+        <div className="mt-7 grid gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
+          <div className="rounded-[32px] border border-line bg-white p-8">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Verified claims</p>
@@ -582,11 +590,22 @@ export default function Home() {
   );
 }
 
-function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
+function SectionTitle({
+  eyebrow,
+  title,
+  body,
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+}) {
   return (
-    <div className="rounded-[28px] border border-line bg-[linear-gradient(180deg,#ffffff_0%,#fafaf9_100%)] px-6 py-8 text-center shadow-sm sm:px-10 sm:py-10">
+    <div className="px-1 pb-2">
       <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-slate">{eyebrow}</p>
-      <h2 className="mt-4 text-3xl font-semibold tracking-tight text-ink sm:text-5xl sm:leading-none">{title}</h2>
+      <div className="mt-3 flex flex-col gap-3 border-b border-line pb-6 lg:flex-row lg:items-end lg:justify-between">
+        <h2 className="text-3xl font-semibold tracking-tight text-ink sm:text-[2.7rem] sm:leading-none">{title}</h2>
+        <p className="max-w-2xl text-sm leading-6 text-slate lg:text-right">{body}</p>
+      </div>
     </div>
   );
 }

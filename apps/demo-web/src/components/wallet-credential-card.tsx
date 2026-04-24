@@ -435,18 +435,18 @@ export function WalletCredentialCard({
           </div>
         )}
 
-        <div className="grid gap-3 text-sm text-slate md:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid gap-2.5 text-xs text-slate md:grid-cols-2 2xl:grid-cols-3">
           <div className="rounded-[18px] border border-line bg-stone-50 px-4 py-3">
             <p className="font-medium text-ink">1. Link wallet</p>
-            <p className="mt-1 leading-6">Connect Auro or Pallad. Pallad is currently connection-only in this demo.</p>
+            <p className="mt-1 leading-5">Connect Auro or Pallad. Pallad is currently connection-only in this demo.</p>
           </div>
           <div className="rounded-[18px] border border-line bg-stone-50 px-4 py-3">
             <p className="font-medium text-ink">2. Verify</p>
-            <p className="mt-1 leading-6">Scroll back up and complete the hosted identity check.</p>
+            <p className="mt-1 leading-5">Scroll back up and complete the hosted identity check.</p>
           </div>
           <div className="rounded-[18px] border border-line bg-stone-50 px-4 py-3">
             <p className="font-medium text-ink">3. Store credential</p>
-            <p className="mt-1 leading-6">Save the private credential into a wallet that exposes Mina credential storage.</p>
+            <p className="mt-1 leading-5">Save the private credential into a wallet that exposes Mina credential storage.</p>
           </div>
         </div>
       </div>
