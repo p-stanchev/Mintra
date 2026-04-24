@@ -61,6 +61,7 @@ export const GetZkProofInputResponseSchema = z.object({
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   kycPassed: z.boolean().optional(),
   countryCode: z.string().regex(/^[A-Za-z]{2}$/).optional(),
+  countryCodeNumeric: z.number().int().positive().optional(),
   credentialMetadata: CredentialMetadataSchema,
 });
 export type GetZkProofInputResponse = z.infer<typeof GetZkProofInputResponseSchema>;

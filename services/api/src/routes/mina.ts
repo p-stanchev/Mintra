@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
+import countries from "i18n-iso-countries";
 import {
-  GetZkAgeProofInputResponseSchema,
+  GetZkProofInputResponseSchema,
   IssueMinaCredentialRequestSchema,
 } from "@mintra/sdk-types";
 import { isValidMinaPublicKey, requireFreshWalletAuth } from "../auth";
@@ -96,10 +97,17 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
       return reply.status(409).send({ error: "Credential metadata version v2 is required for zk age proof generation" });
     }
 
+    const countryCodeNumeric = claim.countryCode
+      ? Number(countries.alpha2ToNumeric(claim.countryCode) ?? 0)
+      : undefined;
+
     return reply.send(
-      GetZkAgeProofInputResponseSchema.parse({
+      GetZkProofInputResponseSchema.parse({
         userId,
-        dateOfBirth: claim.dateOfBirth,
+        ...(claim.dateOfBirth === undefined ? {} : { dateOfBirth: claim.dateOfBirth }),
+        ...(claim.kycPassed === null ? {} : { kycPassed: claim.kycPassed }),
+        ...(claim.countryCode === null ? {} : { countryCode: claim.countryCode }),
+        ...(countryCodeNumeric && countryCodeNumeric > 0 ? { countryCodeNumeric } : {}),
         credentialMetadata,
       })
     );

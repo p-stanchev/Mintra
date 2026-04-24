@@ -9,10 +9,19 @@ import {
   type VerifierPolicy,
   verifyPresentation,
 } from "@mintra/verifier-core";
-import { AgeClaimProof, verifyAgeClaimProof } from "@mintra/zk-claims";
+import {
+  AgeClaimProof,
+  CountryMembershipClaimProof,
+  countryMembershipPublicInputToLists,
+  KycPassedClaimProof,
+  verifyAgeClaimProof,
+  verifyCountryMembershipProof,
+  verifyKycPassedClaimProof,
+} from "@mintra/zk-claims";
 import {
   type PresentationEnvelope,
   PresentationEnvelopeSchema,
+  ZkProofTypeSchema,
   ZkPolicyRequestSchema,
 } from "@mintra/sdk-types";
 import { createPresentationChallengeStoreFromEnv } from "./challenges/factory";
@@ -71,14 +80,17 @@ const VerifyPresentationRequestSchema = z.object({
   expectedOwnerPublicKey: MinaPublicKeySchema.optional(),
 });
 
-const VerifyAgeClaimProofRequestSchema = z.object({
+const VerifyZkClaimProofRequestSchema = z.object({
   request: z.unknown(),
   proof: z.unknown(),
 });
 
 const CreateZkPolicyRequestSchema = z.object({
+  proofType: ZkProofTypeSchema.optional(),
   minAge: z.union([z.literal(18), z.literal(21)]).optional(),
   referenceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  countryAllowlist: z.array(z.string().min(2)).max(8).optional(),
+  countryBlocklist: z.array(z.string().min(2)).max(8).optional(),
   expiresInSeconds: z.number().int().positive().max(3600).optional(),
 });
 
@@ -389,89 +401,57 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
     return reply.send(result);
   });
 
+  app.post("/api/zk/verify-proof", async (request, reply) => {
+    const audience = readAllowedOrigin(request.headers.origin, allowedOrigins);
+    if (!audience) {
+      return reply.status(403).send({ error: "Verifier origin is not allowed" });
+    }
+
+    const parsed = VerifyZkClaimProofRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Invalid request", detail: parsed.error.message });
+    }
+
+    try {
+      const result = await verifyZkProofPayload({
+        requestBody: parsed.data,
+        audience,
+      });
+      return reply.status(result.statusCode).send(result.payload);
+    } catch (error) {
+      app.log.warn({ err: error }, "verifier.zk_proof_failed");
+      return reply.status(400).send({
+        ok: false,
+        proofType: "mintra.zk.age-threshold/v1",
+        audience,
+        challengeId: "00000000-0000-0000-0000-000000000000",
+        error: {
+          code: "zk_verification_failed",
+          message: "Could not verify zk proof",
+          detail: error instanceof Error ? error.message : String(error),
+        },
+        verifiedAt: new Date().toISOString(),
+      });
+    }
+  });
+
   app.post("/api/zk/verify-age-proof", async (request, reply) => {
     const audience = readAllowedOrigin(request.headers.origin, allowedOrigins);
     if (!audience) {
       return reply.status(403).send({ error: "Verifier origin is not allowed" });
     }
 
-    const parsed = VerifyAgeClaimProofRequestSchema.safeParse(request.body);
+    const parsed = VerifyZkClaimProofRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: "Invalid request", detail: parsed.error.message });
     }
 
     try {
-      const zkPolicyRequest = ZkPolicyRequestSchema.parse(parsed.data.request);
-      if (zkPolicyRequest.proofType !== "mintra.zk.age-threshold/v1") {
-        return reply.status(400).send({
-          ok: false,
-          proofType: "mintra.zk.age-threshold/v1",
-          audience,
-          challengeId: zkPolicyRequest.challenge.challengeId,
-          error: {
-            code: "unsupported_proof_type",
-            message: "This endpoint only verifies age-threshold zk proofs",
-          },
-          verifiedAt: new Date().toISOString(),
-        });
-      }
-      if (zkPolicyRequest.audience !== audience) {
-        return reply.status(403).send({
-          ok: false,
-          proofType: "mintra.zk.age-threshold/v1",
-          audience,
-          challengeId: zkPolicyRequest.challenge.challengeId,
-          error: {
-            code: "zk_audience_mismatch",
-            message: "ZK policy request audience does not match this verifier origin",
-          },
-          verifiedAt: new Date().toISOString(),
-        });
-      }
-      if (new Date(zkPolicyRequest.challenge.expiresAt).getTime() <= Date.now()) {
-        return reply.status(400).send({
-          ok: false,
-          proofType: "mintra.zk.age-threshold/v1",
-          audience,
-          challengeId: zkPolicyRequest.challenge.challengeId,
-          error: {
-            code: "zk_request_expired",
-            message: "ZK policy request has expired",
-          },
-          verifiedAt: new Date().toISOString(),
-        });
-      }
-
-      const proof = AgeClaimProof.fromJSON(parsed.data.proof);
-      const verified = await verifyAgeClaimProof({ proof });
-      const publicInput = toAgePublicInput(proof);
-
-      if (
-        publicInput.minAge !== zkPolicyRequest.requirements.ageGte ||
-        publicInput.referenceDate !== zkPolicyRequest.publicInputs.referenceDate
-      ) {
-        return reply.status(400).send({
-          ok: false,
-          proofType: "mintra.zk.age-threshold/v1",
-          audience,
-          challengeId: zkPolicyRequest.challenge.challengeId,
-          publicInput,
-          error: {
-            code: "zk_public_input_mismatch",
-            message: "Proof public inputs do not match the requested zk policy",
-          },
-          verifiedAt: new Date().toISOString(),
-        });
-      }
-
-      return reply.send({
-        ok: verified,
-        proofType: "mintra.zk.age-threshold/v1",
+      const result = await verifyZkProofPayload({
+        requestBody: parsed.data,
         audience,
-        challengeId: zkPolicyRequest.challenge.challengeId,
-        publicInput,
-        verifiedAt: new Date().toISOString(),
       });
+      return reply.status(result.statusCode).send(result.payload);
     } catch (error) {
       app.log.warn({ err: error }, "verifier.zk_age_proof_failed");
       return reply.status(400).send({
@@ -504,10 +484,17 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
       const zkRequest = createZkPolicyRequest({
         audience,
         verifier: verifierPublicUrl ?? audience,
+        ...(parsed.data.proofType === undefined ? {} : { proofType: parsed.data.proofType }),
         ...(parsed.data.minAge === undefined ? {} : { minAge: parsed.data.minAge }),
         ...(parsed.data.referenceDate === undefined
           ? {}
           : { referenceDate: parsed.data.referenceDate }),
+        ...(parsed.data.countryAllowlist === undefined
+          ? {}
+          : { countryAllowlist: parsed.data.countryAllowlist }),
+        ...(parsed.data.countryBlocklist === undefined
+          ? {}
+          : { countryBlocklist: parsed.data.countryBlocklist }),
         ...(parsed.data.expiresInSeconds === undefined
           ? {}
           : { expiresInSeconds: parsed.data.expiresInSeconds }),
@@ -525,7 +512,11 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
     ok: true,
     service: "mintra-verifier",
     proofProducts: listProofProducts().map((product) => product.id),
-    zkProofProducts: ["mintra.zk.age-threshold/v1"],
+    zkProofProducts: [
+      "mintra.zk.age-threshold/v1",
+      "mintra.zk.kyc-passed/v1",
+      "mintra.zk.country-membership/v1",
+    ],
     challengeStore: challengeStore.driver,
     passkeyStore: passkeyStore.driver,
   }));
@@ -542,6 +533,149 @@ function toAgePublicInput(proof: InstanceType<typeof AgeClaimProof>) {
       proof.publicInput.referenceMonth.toString().padStart(2, "0"),
       proof.publicInput.referenceDay.toString().padStart(2, "0"),
     ].join("-"),
+  };
+}
+
+function toKycPublicInput(proof: InstanceType<typeof KycPassedClaimProof>) {
+  return {
+    kycCommitment: proof.publicInput.kycCommitment.toString(),
+  };
+}
+
+async function verifyZkProofPayload(params: {
+  requestBody: z.infer<typeof VerifyZkClaimProofRequestSchema>;
+  audience: string;
+}) {
+  const zkPolicyRequest = ZkPolicyRequestSchema.parse(params.requestBody.request);
+
+  if (zkPolicyRequest.audience !== params.audience) {
+    return {
+      statusCode: 403,
+      payload: {
+        ok: false,
+        proofType: zkPolicyRequest.proofType,
+        audience: params.audience,
+        challengeId: zkPolicyRequest.challenge.challengeId,
+        error: {
+          code: "zk_audience_mismatch",
+          message: "ZK policy request audience does not match this verifier origin",
+        },
+        verifiedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  if (new Date(zkPolicyRequest.challenge.expiresAt).getTime() <= Date.now()) {
+    return {
+      statusCode: 400,
+      payload: {
+        ok: false,
+        proofType: zkPolicyRequest.proofType,
+        audience: params.audience,
+        challengeId: zkPolicyRequest.challenge.challengeId,
+        error: {
+          code: "zk_request_expired",
+          message: "ZK policy request has expired",
+        },
+        verifiedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  if (zkPolicyRequest.proofType === "mintra.zk.age-threshold/v1") {
+    const proof = AgeClaimProof.fromJSON(params.requestBody.proof);
+    const verified = await verifyAgeClaimProof({ proof });
+    const publicInput = toAgePublicInput(proof);
+
+    if (
+      publicInput.minAge !== zkPolicyRequest.requirements.ageGte ||
+      publicInput.referenceDate !== zkPolicyRequest.publicInputs.referenceDate
+    ) {
+      return {
+        statusCode: 400,
+        payload: {
+          ok: false,
+          proofType: zkPolicyRequest.proofType,
+          audience: params.audience,
+          challengeId: zkPolicyRequest.challenge.challengeId,
+          publicInput,
+          error: {
+            code: "zk_public_input_mismatch",
+            message: "Proof public inputs do not match the requested zk policy",
+          },
+          verifiedAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    return {
+      statusCode: 200,
+      payload: {
+        ok: verified,
+        proofType: zkPolicyRequest.proofType,
+        audience: params.audience,
+        challengeId: zkPolicyRequest.challenge.challengeId,
+        publicInput,
+        verifiedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  if (zkPolicyRequest.proofType === "mintra.zk.kyc-passed/v1") {
+    const proof = KycPassedClaimProof.fromJSON(params.requestBody.proof);
+    const verified = await verifyKycPassedClaimProof({ proof });
+    const publicInput = toKycPublicInput(proof);
+
+    return {
+      statusCode: 200,
+      payload: {
+        ok: verified,
+        proofType: zkPolicyRequest.proofType,
+        audience: params.audience,
+        challengeId: zkPolicyRequest.challenge.challengeId,
+        publicInput,
+        verifiedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  const proof = CountryMembershipClaimProof.fromJSON(params.requestBody.proof);
+  const verified = await verifyCountryMembershipProof({ proof });
+  const publicInput = countryMembershipPublicInputToLists(proof.publicInput);
+
+  if (
+    JSON.stringify(publicInput.allowlistNumeric) !==
+      JSON.stringify(zkPolicyRequest.publicInputs.allowlistNumeric) ||
+    JSON.stringify(publicInput.blocklistNumeric) !==
+      JSON.stringify(zkPolicyRequest.publicInputs.blocklistNumeric)
+  ) {
+    return {
+      statusCode: 400,
+      payload: {
+        ok: false,
+        proofType: zkPolicyRequest.proofType,
+        audience: params.audience,
+        challengeId: zkPolicyRequest.challenge.challengeId,
+        publicInput,
+        error: {
+          code: "zk_public_input_mismatch",
+          message: "Proof public inputs do not match the requested zk policy",
+        },
+        verifiedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  return {
+    statusCode: 200,
+    payload: {
+      ok: verified,
+      proofType: zkPolicyRequest.proofType,
+      audience: params.audience,
+      challengeId: zkPolicyRequest.challenge.challengeId,
+      publicInput,
+      verifiedAt: new Date().toISOString(),
+    },
   };
 }
 

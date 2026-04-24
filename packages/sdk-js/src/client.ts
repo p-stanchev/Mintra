@@ -9,6 +9,7 @@ import type {
   VerifyWalletAuthResponse,
   IssueMinaCredentialRequest,
   IssueMinaCredentialResponse,
+  GetZkProofInputResponse,
   GetZkAgeProofInputResponse,
   IssueDemoClaimsRequest,
   IssueDemoClaimsResponse,
@@ -20,6 +21,7 @@ import {
   CreateWalletAuthChallengeResponseSchema,
   VerifyWalletAuthResponseSchema,
   IssueMinaCredentialResponseSchema,
+  GetZkProofInputResponseSchema,
   GetZkAgeProofInputResponseSchema,
   IssueDemoClaimsResponseSchema,
 } from "@mintra/sdk-types";
@@ -173,6 +175,17 @@ export function createMintraClient(config: MintraClientConfig) {
         `/api/mina/zk-age-proof-input/${userId}`,
         { method: "GET" },
         GetZkAgeProofInputResponseSchema,
+        config.apiKey,
+        readAuthToken()
+      );
+    },
+
+    async getZkProofInput(userId: string): Promise<GetZkProofInputResponse> {
+      return request(
+        baseUrl,
+        `/api/mina/zk-age-proof-input/${userId}`,
+        { method: "GET" },
+        GetZkProofInputResponseSchema,
         config.apiKey,
         readAuthToken()
       );

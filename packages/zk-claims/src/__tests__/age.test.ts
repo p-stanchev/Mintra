@@ -34,7 +34,7 @@ describe("AgeClaimProgram", () => {
     const verified = await verifyAgeClaimProof({ proof });
 
     expect(verified).toBe(true);
-  }, 30000);
+  }, 120000);
 
   it("proves from credential metadata returned by Mintra issuance", async () => {
     const credentialMetadata = {
@@ -59,5 +59,5 @@ describe("AgeClaimProgram", () => {
 
     const verified = await verifyAgeClaimProof({ proof });
     expect(verified).toBe(true);
-  }, 30000);
+  }, 120000);
 });

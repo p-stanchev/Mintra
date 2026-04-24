@@ -15,7 +15,11 @@ import {
   commitString,
   createDerivedClaim,
 } from "@mintra/credential-v2";
-import { createDateOfBirthZkSourceCommitment } from "@mintra/zk-claims";
+import {
+  createCountryCodeZkSourceCommitment,
+  createDateOfBirthZkSourceCommitment,
+  createKycPassedZkSourceCommitment,
+} from "@mintra/zk-claims";
 import { DiditSessionResponseSchema, DiditWebhookPayloadSchema } from "./schemas";
 
 const DIDIT_API_BASE = "https://verification.didit.me";
@@ -194,12 +198,26 @@ export class DiditProvider implements VerificationProvider {
       }
     }
 
+    if (materialized.normalizedClaims.kyc_passed === true) {
+      sourceCommitments["kyc_passed_poseidon_commitment"] = createKycPassedZkSourceCommitment({
+        kycPassed: true,
+        salt: 0,
+      });
+    }
+
     const countryCode = materialized.normalizedClaims.country_code;
     if (countryCode) {
       sourceCommitments["country_code_commitment"] = await commitString(
         "country_code_commitment",
         countryCode
       );
+      const numericCountry = Number(countries.alpha2ToNumeric(countryCode) ?? 0);
+      if (numericCountry > 0) {
+        sourceCommitments["country_code_poseidon_commitment"] = createCountryCodeZkSourceCommitment({
+          countryCodeNumeric: numericCountry,
+          salt: 0,
+        });
+      }
     }
 
     return {
