@@ -20,6 +20,13 @@ The preferred Mina-native split is now:
 - site-specific policy off-chain
 - optional per-app enforcement contract only when a zkApp really needs on-chain gating
 
+For the demo web, the registry can be surfaced directly in the zk page by setting:
+
+- `NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS`
+- `NEXT_PUBLIC_MINA_GRAPHQL_URL`
+
+The UI can then read the deployed account state from Mina GraphQL and display the anchored proof VK hashes and root slots.
+
 ## Example Included
 
 See:

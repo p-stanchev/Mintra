@@ -9,7 +9,8 @@ function parseOrigin(value) {
 
 const apiOrigin = parseOrigin(process.env.NEXT_PUBLIC_MINTRA_API_URL);
 const verifierOrigin = parseOrigin(process.env.NEXT_PUBLIC_MINTRA_VERIFIER_URL);
-const connectSrcOrigins = ["'self'", apiOrigin, verifierOrigin].filter(Boolean).join(" ");
+const minaGraphqlOrigin = parseOrigin(process.env.NEXT_PUBLIC_MINA_GRAPHQL_URL);
+const connectSrcOrigins = ["'self'", apiOrigin, verifierOrigin, minaGraphqlOrigin].filter(Boolean).join(" ");
 
 const csp = [
   "default-src 'self'",
@@ -41,6 +42,8 @@ const nextConfig = {
           { key: "X-DNS-Prefetch-Control", value: "off" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
         ],
       },
     ];

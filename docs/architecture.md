@@ -221,6 +221,11 @@ Mintra's preferred on-chain shape is now:
 3. optional per-app `MintraAgeGate`
    only for zkApps that need direct on-chain action gating
 
+The demo web can now optionally read the deployed registry account directly from Mina GraphQL when:
+
+- `NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS` is set
+- `NEXT_PUBLIC_MINA_GRAPHQL_URL` is set
+
 This avoids turning one Mina contract into a global policy bottleneck for every website.
 
 ## Minimal ZK / Privacy Direction

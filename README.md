@@ -307,6 +307,8 @@ Create `apps/demo-web/.env.local`:
 ```env
 NEXT_PUBLIC_MINTRA_API_URL=http://localhost:3001
 NEXT_PUBLIC_MINTRA_VERIFIER_URL=http://localhost:3002
+NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS=
+NEXT_PUBLIC_MINA_GRAPHQL_URL=https://api.minascan.io/node/devnet/v1/graphql
 ```
 
 ### Run
@@ -648,6 +650,10 @@ The demo web app now includes:
   - editable demo fields for age flags, KYC status, country code, nationality, and document expiry
 - `/playground`
   - dynamic proof product and policy builder
+- `/zk-age`
+  - dynamic zk proof runner
+  - registry address display
+  - on-chain registry state readout when `NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS` and `NEXT_PUBLIC_MINA_GRAPHQL_URL` are configured
 - `/relying-party`
   - productized consumer flow for Age 18+ and KYC Passed
   - wallet + passkey protected relying-party verification flow
@@ -727,6 +733,17 @@ More:
 
 - [docs/security.md](./docs/security.md)
 - [docs/security-considerations.md](./docs/security-considerations.md)
+
+## Browser Runtime Requirement For ZK Proving
+
+Browser-side `o1js` proving uses workers and `SharedArrayBuffer`.
+
+That means the demo web deployment should serve:
+
+- `Cross-Origin-Opener-Policy: same-origin`
+- `Cross-Origin-Embedder-Policy: credentialless`
+
+Without those headers, the `/zk-age` page can still load but browser-side proof generation will be unavailable and the UI will surface that limitation instead of crashing.
 
 ## Can Data Be Faked?
 

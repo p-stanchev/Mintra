@@ -11,21 +11,121 @@ import type {
   ZkVerificationResult,
 } from "@mintra/sdk-types";
 import { ShieldCheck, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Step = "idle" | "loading-input" | "requesting-policy" | "proving" | "verifying";
 type ProofMode = "age18" | "age21" | "kyc" | "country";
+type RegistryState =
+  | {
+      address: string;
+      nonce: string;
+      permissionsEditState: string;
+      zkappState: string[];
+    }
+  | null;
 
 export default function ZkAgePage() {
   const [step, setStep] = useState<Step>("idle");
   const [proofMode, setProofMode] = useState<ProofMode>("age18");
   const [message, setMessage] = useState<string | null>(null);
   const [result, setResult] = useState<ZkVerificationResult | null>(null);
-  const [walletAddress, setWalletAddress] = useState<string | null>(readLinkedWalletAddress());
-  const [walletProviderName, setWalletProviderName] = useState<string | null>(readLinkedWalletProviderName());
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletProviderName, setWalletProviderName] = useState<string | null>(null);
   const [proofInput, setProofInput] = useState<GetZkProofInputResponse | null>(null);
   const [countryAllowlist, setCountryAllowlist] = useState("BG, DE");
   const [countryBlocklist, setCountryBlocklist] = useState("");
+  const [registryState, setRegistryState] = useState<RegistryState>(null);
+  const [registryError, setRegistryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const syncWallet = () => {
+      setWalletAddress(readLinkedWalletAddress());
+      setWalletProviderName(readLinkedWalletProviderName());
+    };
+
+    syncWallet();
+    window.addEventListener("storage", syncWallet);
+    window.addEventListener("mintra:wallet-linked", syncWallet as EventListener);
+    window.addEventListener("mintra:wallet-provider-name", syncWallet as EventListener);
+    return () => {
+      window.removeEventListener("storage", syncWallet);
+      window.removeEventListener("mintra:wallet-linked", syncWallet as EventListener);
+      window.removeEventListener("mintra:wallet-provider-name", syncWallet as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    const registryAddress = process.env.NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS;
+    const graphqlUrl = process.env.NEXT_PUBLIC_MINA_GRAPHQL_URL;
+
+    if (!registryAddress || !graphqlUrl) {
+      setRegistryState(null);
+      setRegistryError(null);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch(graphqlUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            query:
+              "query($pk: PublicKey!) { account(publicKey: $pk) { publicKey nonce zkappState permissions { editState } } }",
+            variables: {
+              pk: registryAddress,
+            },
+          }),
+        });
+
+        const payload = (await response.json()) as {
+          data?: {
+            account?: {
+              publicKey: string;
+              nonce: string;
+              zkappState: string[];
+              permissions?: {
+                editState?: string;
+              };
+            } | null;
+          };
+          errors?: Array<{ message?: string }>;
+        };
+
+        if (!response.ok || payload.errors?.length) {
+          throw new Error(payload.errors?.[0]?.message ?? `GraphQL request failed with ${response.status}`);
+        }
+
+        if (!cancelled) {
+          if (!payload.data?.account) {
+            setRegistryState(null);
+            setRegistryError("Registry account was not found on the configured network.");
+            return;
+          }
+
+          setRegistryState({
+            address: payload.data.account.publicKey,
+            nonce: payload.data.account.nonce,
+            permissionsEditState: payload.data.account.permissions?.editState ?? "Unknown",
+            zkappState: payload.data.account.zkappState,
+          });
+          setRegistryError(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRegistryState(null);
+          setRegistryError(error instanceof Error ? error.message : "Could not load registry state.");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleRun() {
     const linkedWallet = readLinkedWalletAddress();
@@ -42,6 +142,14 @@ export default function ZkAgePage() {
     const verifierUrl =
       process.env.NEXT_PUBLIC_MINTRA_VERIFIER_URL?.replace(/\/$/, "") ??
       "http://localhost:3002";
+
+    if (!window.crossOriginIsolated) {
+      setMessage(
+        "This browser session is not cross-origin isolated, so o1js worker proving is unavailable. Enable COOP/COEP headers on the app deployment and try again."
+      );
+      setResult(null);
+      return;
+    }
 
     try {
       setMessage(null);
@@ -139,6 +247,13 @@ export default function ZkAgePage() {
           generates the matching proof from <code>credentialMetadata.version = "v2"</code>, and
           submits it back to the verifier.
         </p>
+        <div className="mt-4 rounded-2xl border border-line bg-fog px-4 py-3 text-sm text-slate">
+          Proof runtime:{" "}
+          <span className="font-medium text-ink">
+            {typeof window !== "undefined" && window.crossOriginIsolated ? "cross-origin isolated" : "not isolated"}
+          </span>
+          . Browser-side o1js proving requires isolation so workers can use `SharedArrayBuffer`.
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
@@ -260,6 +375,52 @@ export default function ZkAgePage() {
               </pre>
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="rounded-[32px] border border-line bg-white p-8 shadow-card">
+        <h2 className="text-xl font-semibold tracking-tight text-ink">On-chain registry</h2>
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate">
+          Mintra now exposes a shared on-chain registry for trust anchors. Site-specific policy still stays off-chain,
+          but this page can read the registry account and show the currently anchored proof verification key hashes.
+        </p>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="rounded-2xl border border-line bg-fog px-4 py-4 text-sm text-slate">
+            <div className="font-medium text-ink">Configured registry</div>
+            <div className="mt-2 break-all font-mono text-xs text-ink">
+              {process.env.NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS ?? "Registry env var not set"}
+            </div>
+            <div className="mt-3 text-xs text-slate">
+              GraphQL: {process.env.NEXT_PUBLIC_MINA_GRAPHQL_URL ?? "Not configured"}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-line bg-white px-4 py-4 text-sm text-slate">
+            {!registryState && !registryError && (
+              <div>No registry data loaded yet. Set both public env vars to read the deployed account.</div>
+            )}
+            {registryError && <div className="text-rose-700">{registryError}</div>}
+            {registryState && (
+              <pre className="overflow-x-auto text-xs text-ink">
+                {JSON.stringify(
+                  {
+                    address: registryState.address,
+                    nonce: registryState.nonce,
+                    permissionsEditState: registryState.permissionsEditState,
+                    issuerPublicKeyFields: registryState.zkappState.slice(0, 2),
+                    ageVkHash: registryState.zkappState[2],
+                    kycVkHash: registryState.zkappState[3],
+                    countryVkHash: registryState.zkappState[4],
+                    credentialRoot: registryState.zkappState[5],
+                    revocationRoot: registryState.zkappState[6],
+                  },
+                  null,
+                  2
+                )}
+              </pre>
+            )}
+          </div>
         </div>
       </section>
     </div>
