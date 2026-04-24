@@ -1,0 +1,29 @@
+{
+  "name": "@mintra/zk-age-gate-contract",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "compile:local": "pnpm run build && node dist/scripts/compile.js",
+    "gen-keys": "pnpm run build && node dist/scripts/gen-keys.js",
+    "deploy": "pnpm run build && node dist/scripts/deploy.js",
+    "update-policy": "pnpm run build && node dist/scripts/update-policy.js"
+  },
+  "dependencies": {
+    "@mintra/zk-claims": "workspace:*",
+    "o1js": "^2.3.0",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

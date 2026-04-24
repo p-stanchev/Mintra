@@ -10,3 +10,7 @@ dist/
 .turbo/
 coverage/
 drizzle/
+keys.json
+*-keys.json
+packages/zk-claims/vk-compile.log
+packages/zk-claims/vk-hashes.json

@@ -14,7 +14,8 @@
     "build": "tsup src/index.ts --format esm,cjs --dts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --pool forks --fileParallelism false",
-    "print-vk-hashes": "tsx scripts/print-vk-hashes.ts"
+    "print-vk-hashes": "./node_modules/.bin/tsx scripts/print-vk-hashes.ts",
+    "gen-keys": "./node_modules/.bin/tsx scripts/gen-keys.ts"
   },
   "dependencies": {
     "@mintra/credential-v2": "workspace:*",

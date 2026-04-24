@@ -162,10 +162,11 @@ export default function ProtectedPage() {
         throw new Error(body?.error ?? "Could not create zk policy request.");
       }
 
-      const zkRequest = (await policyResponse.json()) as ZkPolicyRequest;
+      const zkRequest = (await policyResponse.json()) as Extract<ZkPolicyRequest, { proofType: "mintra.zk.age-threshold/v1" }>;
 
       setZkStep("proving");
       const { proveAgeClaimFromCredentialMetadata } = await import("@mintra/zk-claims");
+
       const proof = await proveAgeClaimFromCredentialMetadata({
         credentialMetadata: zkInput.credentialMetadata,
         dateOfBirth: zkInput.dateOfBirth,

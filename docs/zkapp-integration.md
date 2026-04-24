@@ -18,6 +18,7 @@ zkApps can consume Mintra outputs through:
 
 See:
 
+- [../packages/zk-age-gate-contract/README.md](../packages/zk-age-gate-contract/README.md)
 - [../examples/zkapp-age-gate/README.md](../examples/zkapp-age-gate/README.md)
 
 That example is intentionally minimal and clearly marked as a scaffold.
@@ -38,7 +39,7 @@ Placeholder / future work:
 - on-chain challenge consumption
 - contract-side freshness enforcement
 
-The example contract shows where those integration points would live without pretending they already exist in production.
+The example contract package shows where those integration points would live without pretending they already exist in production.
 
 ## Privacy Roadmap Hook
 

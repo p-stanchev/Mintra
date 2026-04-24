@@ -17,3 +17,17 @@ It shows how a Mina app could structure an age-gated zkApp integration layer aro
 - it does not anchor verifier challenge state on-chain
 
 Use it as an integration sketch, not as a finished production contract.
+
+## Current Package Layout
+
+The actual contract code and deploy scripts now live in:
+
+- [`packages/zk-age-gate-contract`](../../packages/zk-age-gate-contract)
+
+Use that package for:
+
+- local contract compilation
+- key generation
+- Mina deploys
+
+This `examples/zkapp-age-gate` folder remains as a lightweight example surface and documentation hook.

@@ -278,14 +278,15 @@ async function createProofForRequest(
   request: ZkPolicyRequest
 ) {
   if (request.proofType === "mintra.zk.age-threshold/v1") {
-    if (!zkInput.dateOfBirth) {
+    const dateOfBirth = zkInput.dateOfBirth;
+    if (!dateOfBirth) {
       throw new Error("This credential does not include date of birth for age proving.");
     }
 
     const { proveAgeClaimFromCredentialMetadata } = await import("@mintra/zk-claims");
     return proveAgeClaimFromCredentialMetadata({
       credentialMetadata: zkInput.credentialMetadata,
-      dateOfBirth: zkInput.dateOfBirth,
+      dateOfBirth,
       minAge: request.requirements.ageGte,
       referenceDate: request.publicInputs.referenceDate,
       ...(zkInput.zkSalts?.dob ? { salt: BigInt(`0x${zkInput.zkSalts.dob}`) } : {}),
@@ -305,14 +306,15 @@ async function createProofForRequest(
     });
   }
 
-  if (!zkInput.countryCodeNumeric) {
+  const countryCodeNumeric = zkInput.countryCodeNumeric;
+  if (!countryCodeNumeric) {
     throw new Error("This credential does not include a normalized country code for country proofs.");
   }
 
   const { proveCountryMembershipFromCredentialMetadata } = await import("@mintra/zk-claims");
   return proveCountryMembershipFromCredentialMetadata({
     credentialMetadata: zkInput.credentialMetadata,
-    countryCodeNumeric: zkInput.countryCodeNumeric,
+    countryCodeNumeric,
     allowlistNumeric: request.publicInputs.allowlistNumeric,
     blocklistNumeric: request.publicInputs.blocklistNumeric,
     ...(zkInput.zkSalts?.country ? { salt: BigInt(`0x${zkInput.zkSalts.country}`) } : {}),

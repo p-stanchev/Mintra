@@ -1,41 +1,40 @@
 #!/usr/bin/env node
 // Compiles all Mintra ZkPrograms and prints their verification key hashes.
-// Run once after any circuit change and commit the output so the MintraAgeGate
-// contract can be initialized with the correct on-chain VK hash.
+// Run: node --import tsx/esm scripts/print-vk-hashes.ts  (from packages/zk-claims)
 //
-// Usage: npx tsx scripts/print-vk-hashes.ts
-//
-// Compilation takes 30–120 seconds per program. The resulting hash is stable
-// for a given circuit; it changes only when the circuit constraints change.
+// Compilation takes 30–120 s per program. The hash is stable for a given
+// circuit and changes only when circuit constraints change.
 
-import {
-  compileAgeClaimProgram,
-  compileKycPassedProgram,
-  compileCountryMembershipProgram,
-} from "../src/index.js";
+// Import directly from circuit files to avoid loading contract.ts at eval time
+// (SmartContract decorators require emitDecoratorMetadata, which esbuild/tsx doesn't emit)
+import { compileAgeClaimProgram } from "../src/age.js";
+import { compileKycPassedProgram } from "../src/kyc.js";
+import { compileCountryMembershipProgram } from "../src/country.js";
 
-console.error("Compiling AgeClaimProgram…");
-const age = await compileAgeClaimProgram();
+void (async () => {
+  process.stderr.write("Compiling AgeClaimProgram…\n");
+  const age = await compileAgeClaimProgram();
 
-console.error("Compiling KycPassedProgram…");
-const kyc = await compileKycPassedProgram();
+  process.stderr.write("Compiling KycPassedProgram…\n");
+  const kyc = await compileKycPassedProgram();
 
-console.error("Compiling CountryMembershipProgram…");
-const country = await compileCountryMembershipProgram();
+  process.stderr.write("Compiling CountryMembershipProgram…\n");
+  const country = await compileCountryMembershipProgram();
 
-const registry = {
-  "mintra.zk.age-threshold/v1": {
-    hash: age.verificationKey.hash.toString(),
-    data: age.verificationKey.data,
-  },
-  "mintra.zk.kyc-passed/v1": {
-    hash: kyc.verificationKey.hash.toString(),
-    data: kyc.verificationKey.data,
-  },
-  "mintra.zk.country-membership/v1": {
-    hash: country.verificationKey.hash.toString(),
-    data: country.verificationKey.data,
-  },
-};
+  const registry = {
+    "mintra.zk.age-threshold/v1": {
+      hash: age.verificationKey.hash.toString(),
+      data: age.verificationKey.data,
+    },
+    "mintra.zk.kyc-passed/v1": {
+      hash: kyc.verificationKey.hash.toString(),
+      data: kyc.verificationKey.data,
+    },
+    "mintra.zk.country-membership/v1": {
+      hash: country.verificationKey.hash.toString(),
+      data: country.verificationKey.data,
+    },
+  };
 
-console.log(JSON.stringify(registry, null, 2));
+  process.stdout.write(JSON.stringify(registry, null, 2) + "\n");
+})();

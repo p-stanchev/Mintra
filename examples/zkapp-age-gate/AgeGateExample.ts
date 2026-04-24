@@ -1,9 +1,9 @@
 // Example: deploying and interacting with MintraAgeGate.
-// Run from the monorepo root after building @mintra/zk-claims.
+// Run from the monorepo root after building @mintra/zk-claims and @mintra/zk-age-gate-contract.
 
 import { Mina, PrivateKey, UInt32 } from "o1js";
+import { MintraAgeGate, AgeClaimDynamicProof } from "@mintra/zk-age-gate-contract";
 import {
-  MintraAgeGate,
   compileAgeClaimProgram,
   proveAgeClaimFromCredentialMetadata,
 } from "@mintra/zk-claims";
@@ -54,9 +54,10 @@ async function main() {
     // salt: BigInt(`0x${zkSalts.dob}`) — pass the salt returned by the API
   });
 
-  // 5. Submit the proof on-chain
+  // 5. Wrap the proof in a DynamicProof and submit on-chain
+  const dynamicProof = AgeClaimDynamicProof.fromProof(proof);
   const proveTx = await Mina.transaction(deployerAccount, async () => {
-    await zkApp.proveAge(proof, verificationKey);
+    await zkApp.proveAge(dynamicProof, verificationKey);
   });
   await proveTx.prove();
   await proveTx.sign([deployerKey]).send();

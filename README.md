@@ -43,7 +43,7 @@ Core product message:
   - `proof_of_country_code`
 - verifier playground in the demo app
 - relying party demo flow in the demo app
-- optional zkApp scaffold under [`examples/zkapp-age-gate`](./examples/zkapp-age-gate/README.md)
+- optional zkApp scaffold under [`packages/zk-age-gate-contract`](./packages/zk-age-gate-contract/README.md)
 
 ## What Is Placeholder / Future Work
 
@@ -139,6 +139,11 @@ packages/zk-claims
   first age-threshold proof path
   Mina-compatible selective-disclosure foundation
 
+packages/zk-age-gate-contract
+  optional on-chain age gate contract
+  dedicated tsc-built zkApp package
+  deploy and key-generation scripts
+
 packages/provider-didit
   Didit integration
 
@@ -182,6 +187,7 @@ packages/
   sdk-js/
   sdk-types/
   verifier-core/
+  zk-age-gate-contract/
   zk-claims/
 services/
   api/
@@ -420,6 +426,14 @@ An on-chain contract is only needed later if you want:
 - an on-chain revocation root
 - accepted verification-key anchoring on Mina
 
+The optional `@mintra/zk-age-gate-contract` package can now store a small policy surface on-chain:
+
+- `minAge`
+- `requireKycPassed`
+
+So one app can run an `18+` contract instance, while another can run `21+` plus `KYC passed`.
+Country policy is still handled off-chain today.
+
 So the current recommended build order is:
 
 - Phase 1: off-chain credential issuance
@@ -641,9 +655,39 @@ The zkApp example is intentionally separate from the core product.
 See:
 
 - [docs/zkapp-integration.md](./docs/zkapp-integration.md)
-- [examples/zkapp-age-gate/README.md](./examples/zkapp-age-gate/README.md)
+- [packages/zk-age-gate-contract/README.md](./packages/zk-age-gate-contract/README.md)
 
 This is an integration scaffold, not a claim that Mintra’s core architecture has become a full on-chain zkApp protocol.
+
+### Local zkApp Compile / Deploy
+
+The optional contract now lives in its own package so it can be compiled with plain `tsc` instead of the `tsup` / `tsx` toolchain used by the off-chain proof packages.
+
+Compile it locally first:
+
+```bash
+pnpm --filter @mintra/zk-age-gate-contract compile:local
+```
+
+Generate deploy keys:
+
+```bash
+pnpm --filter @mintra/zk-age-gate-contract gen-keys > keys.json
+```
+
+Deploy by setting:
+
+- `DEPLOYER_PRIVATE_KEY`
+- `ZKAPP_PRIVATE_KEY`
+- `MINA_GRAPHQL_URL`
+- optional `MINA_ARCHIVE_URL`
+- optional `MIN_AGE`
+
+and then running:
+
+```bash
+pnpm --filter @mintra/zk-age-gate-contract deploy
+```
 
 ## Security Notes
 

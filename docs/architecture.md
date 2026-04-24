@@ -85,9 +85,10 @@ Optional on top of that:
 └────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────┐
-│  examples/zkapp-age-gate                                           │
-│  - optional zkApp consumption example                              │
-│  - not core to issuance or off-chain verification                  │
+│  packages/zk-age-gate-contract                                     │
+│  - optional age-gated on-chain contract                            │
+│  - dedicated tsc-built zkApp package                               │
+│  - deploy / keygen scripts                                         │
 └────────────────────────────────────────────────────────────────────┘
 ```
 

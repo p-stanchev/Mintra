@@ -2,7 +2,7 @@
   "name": "mintra",
   "private": true,
   "scripts": {
-    "build:packages": "pnpm --filter @mintra/credential-v2 build && pnpm --filter @mintra/sdk-types build && pnpm --filter @mintra/zk-claims build && pnpm --filter @mintra/provider-didit build && pnpm --filter @mintra/sdk-js build && pnpm --filter @mintra/verifier-core build && pnpm --filter @mintra/mina-bridge build",
+    "build:packages": "pnpm --filter @mintra/credential-v2 build && pnpm --filter @mintra/sdk-types build && pnpm --filter @mintra/zk-claims build && pnpm --filter @mintra/zk-age-gate-contract build && pnpm --filter @mintra/provider-didit build && pnpm --filter @mintra/sdk-js build && pnpm --filter @mintra/verifier-core build && pnpm --filter @mintra/mina-bridge build",
     "build": "pnpm run build:packages && pnpm --filter @mintra/api build && pnpm --filter @mintra/verifier build",
     "dev": "pnpm --parallel -r dev",
     "typecheck": "pnpm -r typecheck",

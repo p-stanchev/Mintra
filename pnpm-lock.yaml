@@ -214,6 +214,22 @@ importers:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.39)
 
+  packages/zk-age-gate-contract:
+    dependencies:
+      '@mintra/zk-claims':
+        specifier: workspace:*
+        version: link:../zk-claims
+      o1js:
+        specifier: ^2.3.0
+        version: 2.14.0
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   packages/zk-claims:
     dependencies:
       '@mintra/credential-v2':
@@ -1734,6 +1750,9 @@ packages:
 
   reflect-metadata@0.1.14:
     resolution: {integrity: sha512-ZhYeb6nRaXCfhnndflDK8qI6ZQ/YcWZCISRAWICW9XYqMUwjZM9Z0DveWX/ABN01oxSHwVxKQmxeYZSsm0jh5A==}
+
+  reflect-metadata@0.2.2:
+    resolution: {integrity: sha512-urBwgfrvVP/eAyXx4hluJivBKzuEbSQs9rKWCrCkbSxNv8mxPcUZKeuoF3Uy4mJl3Lwprp6yy5/39VWigZ4K6Q==}
 
   require-from-string@2.0.2:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
@@ -3275,6 +3294,8 @@ snapshots:
       redis-errors: 1.2.0
 
   reflect-metadata@0.1.14: {}
+
+  reflect-metadata@0.2.2: {}
 
   require-from-string@2.0.2: {}
 
