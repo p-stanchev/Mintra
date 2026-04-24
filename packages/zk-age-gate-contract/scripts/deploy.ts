@@ -1,4 +1,4 @@
-import { Bool, Mina, PrivateKey, UInt32 } from "o1js";
+import { AccountUpdate, Bool, Mina, Permissions, PrivateKey, UInt32 } from "o1js";
 import { compileAgeClaimProgram, compileKycPassedProgram } from "@mintra/zk-claims";
 import { MintraAgeGate } from "../src/contract.js";
 
@@ -60,8 +60,13 @@ void (async () => {
   const deployTx = await Mina.transaction(
     { sender: deployerAccount, fee: 0.1e9 },
     async () => {
+      AccountUpdate.fundNewAccount(deployerAccount);
       await zkApp.deploy({
         verificationKey: contractVerificationKey,
+      });
+      zkApp.account.permissions.set({
+        ...Permissions.default(),
+        editState: Permissions.proofOrSignature(),
       });
     }
   );

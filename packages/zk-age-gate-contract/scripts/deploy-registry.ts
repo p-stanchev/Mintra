@@ -1,4 +1,4 @@
-import { Field, Mina, PrivateKey, PublicKey } from "o1js";
+import { AccountUpdate, Field, Mina, Permissions, PrivateKey, PublicKey } from "o1js";
 import {
   compileAgeClaimProgram,
   compileCountryMembershipProgram,
@@ -63,8 +63,13 @@ void (async () => {
   const deployTx = await Mina.transaction(
     { sender: deployerAccount, fee: 0.1e9 },
     async () => {
+      AccountUpdate.fundNewAccount(deployerAccount);
       await registry.deploy({
         verificationKey: registryVerificationKey,
+      });
+      registry.account.permissions.set({
+        ...Permissions.default(),
+        editState: Permissions.proofOrSignature(),
       });
     }
   );
