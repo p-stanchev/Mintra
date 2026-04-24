@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   title: "Mintra — Reusable Verification for Mina",
   description:
     "Verify once, prove what matters. Mintra bridges KYC providers into the Mina attestations layer.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: ["/icon.svg"],
+    apple: ["/icon.svg"],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
