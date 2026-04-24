@@ -11,11 +11,12 @@ The core product is:
 3. wallet-bound Mina credential issuance
 4. verifier-owned presentation requests
 5. off-chain proof verification with holder binding
+6. off-chain o1js selective-disclosure proof verification
 
 Optional on top of that:
 
-6. zkApp integration helpers
-7. example on-chain enforcement contracts
+7. zkApp integration helpers
+8. example on-chain enforcement contracts
 
 ## Current Layering
 
@@ -52,6 +53,13 @@ Optional on top of that:
 │ - source commitment helpers  │
 │ - derived claim metadata     │
 └──────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────┐
+│ packages/zk-claims                                                │
+│ - o1js proof programs                                             │
+│ - age-threshold selective disclosure                              │
+│ - off-chain Mina-compatible proof foundation                      │
+└────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────┐
 │  services/verifier                                                 │
@@ -180,6 +188,26 @@ Mintra’s core value is not a single on-chain contract. It is the reusable veri
 
 The zkApp layer is therefore optional and modular.
 
+## Off-Chain zk Path Before Any Contract
+
+Mintra does not need a deployed Mina contract for the current zk path.
+
+The intended execution order is:
+
+1. provider-backed KYC
+2. wallet-bound credential issuance
+3. o1js proof generation off-chain
+4. verifier checks the proof off-chain
+
+That already gives Mintra a real selective-disclosure infrastructure path without forcing every integration into a zkApp.
+
+Only after that should Mintra add an optional on-chain layer for:
+
+- issuer registry anchoring
+- revocation roots
+- accepted verification-key roots
+- zkApp-native policy enforcement
+
 ## Minimal ZK / Privacy Direction
 
 Mintra’s privacy roadmap is intentionally lightweight but Mina-native:
@@ -219,3 +247,4 @@ What is not implemented yet:
 - zk proof of correct derivation from a commitment
 - in-circuit commitment checks
 - full cryptographic selective disclosure of source-field relations
+- on-chain registry or revocation anchoring as part of the core flow

@@ -29,6 +29,7 @@ Core product message:
 - Fastify API for wallet auth, KYC start, webhook ingestion, normalized claim storage, and Mina credential issuance
 - separate verifier service for off-chain Mina presentation verification
 - extracted `@mintra/credential-v2` package for commitment-backed credential schemas and utilities
+- extracted `@mintra/zk-claims` package for Mina-compatible off-chain o1js proof programs
 - reusable `@mintra/verifier-core` package
 - stable `mintra.presentation/v1` envelope format
 - verifier-owned single-use presentation challenges
@@ -119,6 +120,11 @@ packages/credential-v2
   source commitment helpers
   derived claim metadata
 
+packages/zk-claims
+  off-chain o1js proof programs
+  first age-threshold proof path
+  Mina-compatible selective-disclosure foundation
+
 packages/provider-didit
   Didit integration
 
@@ -162,6 +168,7 @@ packages/
   sdk-js/
   sdk-types/
   verifier-core/
+  zk-claims/
 services/
   api/
   verifier/
@@ -379,6 +386,32 @@ The important distinction is:
 
 So a user verifies once, keeps the credential in their wallet, and then generates a different proof for each relying party that asks for one.
 
+### Off-Chain First, Contract Optional
+
+Mintra does **not** require a Mina zkApp contract for the current selective-disclosure path.
+
+Today the flow is:
+
+1. KYC with Didit
+2. Mintra issues a wallet-bound credential
+3. the holder generates an o1js proof off-chain
+4. the verifier checks that proof off-chain on its own backend
+
+That is enough for real reusable verification infrastructure.
+
+An on-chain contract is only needed later if you want:
+
+- zkApps to enforce age / KYC directly on-chain
+- an on-chain issuer registry
+- an on-chain revocation root
+- accepted verification-key anchoring on Mina
+
+So the current recommended build order is:
+
+- Phase 1: off-chain credential issuance
+- Phase 2: off-chain o1js proof generation and verifier checks
+- Phase 3: optional Mina registry / zkApp enforcement
+
 ### Add KYC To Your App In 10 Lines
 
 This is the real verifier-core shape today:
@@ -551,6 +584,26 @@ This is the standard Mintra is building around:
 - verifier-bound proof request
 - verifier-bound proof presentation
 - normalized verification result
+
+Mintra now also has an early zk-proof request standard for the first off-chain o1js flow:
+
+- `mintra.zk-policy/v1`
+- current proof type: `mintra.zk.age-threshold/v1`
+
+The verifier service can now issue a typed zk policy request at:
+
+- `POST /api/zk/policy-request`
+
+and verify the submitted age proof at:
+
+- `POST /api/zk/verify-age-proof`
+
+Current limitation:
+
+- the age proof is verified off-chain
+- the policy request carries audience and challenge metadata for verifier workflow
+- those audience / challenge fields are **not yet enforced in-circuit**
+- full credential-to-zk-proof binding from wallet-issued Mintra credentials is the next step
 
 ## Demo App Surfaces
 

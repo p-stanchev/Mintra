@@ -24,6 +24,8 @@ import {
   type ProofProductId,
   type SerializedPresentationRequest,
   type VerifierPolicy as NormalizedVerifierPolicy,
+  type ZkAgeThresholdPolicyRequest,
+  ZkAgeThresholdPolicyRequestSchema,
 } from "@mintra/sdk-types";
 
 countries.registerLocale(enLocale);
@@ -41,6 +43,7 @@ let cachedPresentationTools:
 
 export const DEFAULT_AGE_PROOF_ACTION = "mintra:protected-access";
 const DEFAULT_PRESENTATION_TTL_SECONDS = 5 * 60;
+export const DEFAULT_ZK_POLICY_TTL_SECONDS = 5 * 60;
 
 export type AgeOver18PresentationRequest = unknown;
 
@@ -71,6 +74,14 @@ export interface CreatePresentationRequestOptions {
   walletAddress?: string | null;
   requirePasskeyBinding?: boolean;
   action?: string;
+  expiresInSeconds?: number;
+}
+
+export interface CreateZkPolicyRequestOptions {
+  audience: string;
+  verifier: string;
+  minAge?: 18 | 21;
+  referenceDate?: string | Date;
   expiresInSeconds?: number;
 }
 
@@ -474,6 +485,40 @@ export async function createPresentationRequest(
     presentationRequest,
     presentationRequestJson,
     holderBindingFormat: "mina:signMessage",
+  });
+}
+
+export function createZkPolicyRequest(
+  options: CreateZkPolicyRequestOptions
+): ZkAgeThresholdPolicyRequest {
+  const issuedAtDate = new Date();
+  const expiresAtDate = new Date(
+    issuedAtDate.getTime() + (options.expiresInSeconds ?? DEFAULT_ZK_POLICY_TTL_SECONDS) * 1000
+  );
+  const referenceDate = normalizeReferenceDateInput(options.referenceDate);
+
+  return ZkAgeThresholdPolicyRequestSchema.parse({
+    version: "mintra.zk-policy/v1",
+    proofType: "mintra.zk.age-threshold/v1",
+    verifier: options.verifier,
+    audience: options.audience,
+    challenge: {
+      challengeId: globalThis.crypto.randomUUID(),
+      nonce: randomHex(16),
+      issuedAt: issuedAtDate.toISOString(),
+      expiresAt: expiresAtDate.toISOString(),
+    },
+    requirements: {
+      ageGte: options.minAge ?? 18,
+    },
+    publicInputs: {
+      referenceDate,
+      commitmentKey: "dob_commitment",
+    },
+    metadata: {
+      proofProductId: "proof_of_age_18",
+      credentialModel: "mintra.credential-v2",
+    },
   });
 }
 
@@ -1257,6 +1302,22 @@ function normalizeMaxCredentialAgeDays(value: number | null | undefined): number
   const normalized = Math.floor(value);
   if (normalized <= 0) return null;
   return normalized;
+}
+
+function normalizeReferenceDateInput(value: string | Date | undefined): string {
+  if (!value) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    throw new Error(`Expected ISO date in YYYY-MM-DD format, received: ${value}`);
+  }
+  return trimmed;
 }
 
 function base64UrlToBytes(value: string): Uint8Array {

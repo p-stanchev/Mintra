@@ -4,6 +4,7 @@ import rateLimit from "@fastify/rate-limit";
 import { createRequire } from "node:module";
 import { z } from "zod";
 import {
+  createZkPolicyRequest,
   listProofProducts,
   type VerifierPolicy,
   verifyPresentation,
@@ -12,6 +13,7 @@ import { AgeClaimProof, verifyAgeClaimProof } from "@mintra/zk-claims";
 import {
   type PresentationEnvelope,
   PresentationEnvelopeSchema,
+  ZkPolicyRequestSchema,
 } from "@mintra/sdk-types";
 import { createPresentationChallengeStoreFromEnv } from "./challenges/factory";
 import { PresentationChallengeService } from "./challenges/service";
@@ -70,7 +72,14 @@ const VerifyPresentationRequestSchema = z.object({
 });
 
 const VerifyAgeClaimProofRequestSchema = z.object({
+  request: z.unknown(),
   proof: z.unknown(),
+});
+
+const CreateZkPolicyRequestSchema = z.object({
+  minAge: z.union([z.literal(18), z.literal(21)]).optional(),
+  referenceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  expiresInSeconds: z.number().int().positive().max(3600).optional(),
 });
 
 export interface VerifierAppOptions {
@@ -381,26 +390,133 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
   });
 
   app.post("/api/zk/verify-age-proof", async (request, reply) => {
+    const audience = readAllowedOrigin(request.headers.origin, allowedOrigins);
+    if (!audience) {
+      return reply.status(403).send({ error: "Verifier origin is not allowed" });
+    }
+
     const parsed = VerifyAgeClaimProofRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: "Invalid request", detail: parsed.error.message });
     }
 
     try {
+      const zkPolicyRequest = ZkPolicyRequestSchema.parse(parsed.data.request);
+      if (zkPolicyRequest.proofType !== "mintra.zk.age-threshold/v1") {
+        return reply.status(400).send({
+          ok: false,
+          proofType: "mintra.zk.age-threshold/v1",
+          audience,
+          challengeId: zkPolicyRequest.challenge.challengeId,
+          error: {
+            code: "unsupported_proof_type",
+            message: "This endpoint only verifies age-threshold zk proofs",
+          },
+          verifiedAt: new Date().toISOString(),
+        });
+      }
+      if (zkPolicyRequest.audience !== audience) {
+        return reply.status(403).send({
+          ok: false,
+          proofType: "mintra.zk.age-threshold/v1",
+          audience,
+          challengeId: zkPolicyRequest.challenge.challengeId,
+          error: {
+            code: "zk_audience_mismatch",
+            message: "ZK policy request audience does not match this verifier origin",
+          },
+          verifiedAt: new Date().toISOString(),
+        });
+      }
+      if (new Date(zkPolicyRequest.challenge.expiresAt).getTime() <= Date.now()) {
+        return reply.status(400).send({
+          ok: false,
+          proofType: "mintra.zk.age-threshold/v1",
+          audience,
+          challengeId: zkPolicyRequest.challenge.challengeId,
+          error: {
+            code: "zk_request_expired",
+            message: "ZK policy request has expired",
+          },
+          verifiedAt: new Date().toISOString(),
+        });
+      }
+
       const proof = AgeClaimProof.fromJSON(parsed.data.proof);
       const verified = await verifyAgeClaimProof({ proof });
+      const publicInput = toAgePublicInput(proof);
+
+      if (
+        publicInput.minAge !== zkPolicyRequest.requirements.ageGte ||
+        publicInput.referenceDate !== zkPolicyRequest.publicInputs.referenceDate
+      ) {
+        return reply.status(400).send({
+          ok: false,
+          proofType: "mintra.zk.age-threshold/v1",
+          audience,
+          challengeId: zkPolicyRequest.challenge.challengeId,
+          publicInput,
+          error: {
+            code: "zk_public_input_mismatch",
+            message: "Proof public inputs do not match the requested zk policy",
+          },
+          verifiedAt: new Date().toISOString(),
+        });
+      }
 
       return reply.send({
         ok: verified,
         proofType: "mintra.zk.age-threshold/v1",
-        publicInput: proof.publicInput.toJSON(),
+        audience,
+        challengeId: zkPolicyRequest.challenge.challengeId,
+        publicInput,
+        verifiedAt: new Date().toISOString(),
       });
     } catch (error) {
       app.log.warn({ err: error }, "verifier.zk_age_proof_failed");
       return reply.status(400).send({
         ok: false,
         proofType: "mintra.zk.age-threshold/v1",
-        error: error instanceof Error ? error.message : "Could not verify age proof",
+        audience,
+        challengeId: "00000000-0000-0000-0000-000000000000",
+        error: {
+          code: "zk_verification_failed",
+          message: "Could not verify age proof",
+          detail: error instanceof Error ? error.message : String(error),
+        },
+        verifiedAt: new Date().toISOString(),
+      });
+    }
+  });
+
+  app.post("/api/zk/policy-request", async (request, reply) => {
+    const audience = readAllowedOrigin(request.headers.origin, allowedOrigins);
+    if (!audience) {
+      return reply.status(403).send({ error: "Verifier origin is not allowed" });
+    }
+
+    const parsed = CreateZkPolicyRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Invalid request", detail: parsed.error.message });
+    }
+
+    try {
+      const zkRequest = createZkPolicyRequest({
+        audience,
+        verifier: verifierPublicUrl ?? audience,
+        ...(parsed.data.minAge === undefined ? {} : { minAge: parsed.data.minAge }),
+        ...(parsed.data.referenceDate === undefined
+          ? {}
+          : { referenceDate: parsed.data.referenceDate }),
+        ...(parsed.data.expiresInSeconds === undefined
+          ? {}
+          : { expiresInSeconds: parsed.data.expiresInSeconds }),
+      });
+      return reply.send(zkRequest);
+    } catch (error) {
+      app.log.warn({ err: error }, "verifier.zk_policy_request_failed");
+      return reply.status(400).send({
+        error: error instanceof Error ? error.message : "Could not create zk policy request",
       });
     }
   });
@@ -415,6 +531,18 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
   }));
 
   return app;
+}
+
+function toAgePublicInput(proof: InstanceType<typeof AgeClaimProof>) {
+  return {
+    dobCommitment: proof.publicInput.dobCommitment.toString(),
+    minAge: Number(proof.publicInput.minAge.toString()) as 18 | 21,
+    referenceDate: [
+      proof.publicInput.referenceYear.toString(),
+      proof.publicInput.referenceMonth.toString().padStart(2, "0"),
+      proof.publicInput.referenceDay.toString().padStart(2, "0"),
+    ].join("-"),
+  };
 }
 
 function readAllowedOrigin(
