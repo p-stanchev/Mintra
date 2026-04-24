@@ -24,8 +24,10 @@ import {
   type ProofProductId,
   type SerializedPresentationRequest,
   type VerifierPolicy as NormalizedVerifierPolicy,
-  type ZkAgeThresholdPolicyRequest,
+  type ZkPolicyRequest,
   ZkAgeThresholdPolicyRequestSchema,
+  ZkCountryMembershipPolicyRequestSchema,
+  ZkKycPassedPolicyRequestSchema,
 } from "@mintra/sdk-types";
 
 countries.registerLocale(enLocale);
@@ -77,13 +79,29 @@ export interface CreatePresentationRequestOptions {
   expiresInSeconds?: number;
 }
 
-export interface CreateZkPolicyRequestOptions {
-  audience: string;
-  verifier: string;
-  minAge?: 18 | 21;
-  referenceDate?: string | Date;
-  expiresInSeconds?: number;
-}
+export type CreateZkPolicyRequestOptions =
+  | {
+      audience: string;
+      verifier: string;
+      proofType?: "mintra.zk.age-threshold/v1";
+      minAge?: 18 | 21;
+      referenceDate?: string | Date;
+      expiresInSeconds?: number;
+    }
+  | {
+      audience: string;
+      verifier: string;
+      proofType: "mintra.zk.kyc-passed/v1";
+      expiresInSeconds?: number;
+    }
+  | {
+      audience: string;
+      verifier: string;
+      proofType: "mintra.zk.country-membership/v1";
+      countryAllowlist?: string[];
+      countryBlocklist?: string[];
+      expiresInSeconds?: number;
+    };
 
 export interface CreatePresentationEnvelopeInput {
   requestEnvelope: PresentationRequestEnvelope;
@@ -490,11 +508,67 @@ export async function createPresentationRequest(
 
 export function createZkPolicyRequest(
   options: CreateZkPolicyRequestOptions
-): ZkAgeThresholdPolicyRequest {
+): ZkPolicyRequest {
   const issuedAtDate = new Date();
   const expiresAtDate = new Date(
     issuedAtDate.getTime() + (options.expiresInSeconds ?? DEFAULT_ZK_POLICY_TTL_SECONDS) * 1000
   );
+  const challenge = {
+    challengeId: globalThis.crypto.randomUUID(),
+    nonce: randomHex(16),
+    issuedAt: issuedAtDate.toISOString(),
+    expiresAt: expiresAtDate.toISOString(),
+  };
+
+  if (options.proofType === "mintra.zk.kyc-passed/v1") {
+    return ZkKycPassedPolicyRequestSchema.parse({
+      version: "mintra.zk-policy/v1",
+      proofType: "mintra.zk.kyc-passed/v1",
+      verifier: options.verifier,
+      audience: options.audience,
+      challenge,
+      requirements: {
+        kycPassed: true,
+      },
+      publicInputs: {
+        commitmentKey: "kyc_passed_poseidon_commitment",
+      },
+      metadata: {
+        proofProductId: "proof_of_kyc_passed",
+        credentialModel: "mintra.credential-v2",
+      },
+    });
+  }
+
+  if (options.proofType === "mintra.zk.country-membership/v1") {
+    const countryAllowlist = normalizeCountryList(options.countryAllowlist);
+    const countryBlocklist = normalizeCountryList(options.countryBlocklist);
+    if (countryAllowlist.length === 0 && countryBlocklist.length === 0) {
+      throw new Error("Country membership proof requires at least one allowlist or blocklist entry");
+    }
+
+    return ZkCountryMembershipPolicyRequestSchema.parse({
+      version: "mintra.zk-policy/v1",
+      proofType: "mintra.zk.country-membership/v1",
+      verifier: options.verifier,
+      audience: options.audience,
+      challenge,
+      requirements: {
+        countryAllowlist,
+        countryBlocklist,
+      },
+      publicInputs: {
+        commitmentKey: "country_code_poseidon_commitment",
+        allowlistNumeric: countryAllowlist.map(alpha2ToNumeric).filter((value) => value > 0),
+        blocklistNumeric: countryBlocklist.map(alpha2ToNumeric).filter((value) => value > 0),
+      },
+      metadata: {
+        proofProductId: "proof_of_country_code",
+        credentialModel: "mintra.credential-v2",
+      },
+    });
+  }
+
   const referenceDate = normalizeReferenceDateInput(options.referenceDate);
 
   return ZkAgeThresholdPolicyRequestSchema.parse({
@@ -502,12 +576,7 @@ export function createZkPolicyRequest(
     proofType: "mintra.zk.age-threshold/v1",
     verifier: options.verifier,
     audience: options.audience,
-    challenge: {
-      challengeId: globalThis.crypto.randomUUID(),
-      nonce: randomHex(16),
-      issuedAt: issuedAtDate.toISOString(),
-      expiresAt: expiresAtDate.toISOString(),
-    },
+    challenge,
     requirements: {
       ageGte: options.minAge ?? 18,
     },

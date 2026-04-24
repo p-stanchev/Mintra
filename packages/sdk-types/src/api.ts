@@ -56,12 +56,17 @@ export const IssueMinaCredentialResponseSchema = z.object({
 });
 export type IssueMinaCredentialResponse = z.infer<typeof IssueMinaCredentialResponseSchema>;
 
-export const GetZkAgeProofInputResponseSchema = z.object({
+export const GetZkProofInputResponseSchema = z.object({
   userId: MinaPublicKeySchema,
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  kycPassed: z.boolean().optional(),
+  countryCode: z.string().regex(/^[A-Za-z]{2}$/).optional(),
   credentialMetadata: CredentialMetadataSchema,
 });
-export type GetZkAgeProofInputResponse = z.infer<typeof GetZkAgeProofInputResponseSchema>;
+export type GetZkProofInputResponse = z.infer<typeof GetZkProofInputResponseSchema>;
+
+export const GetZkAgeProofInputResponseSchema = GetZkProofInputResponseSchema;
+export type GetZkAgeProofInputResponse = GetZkProofInputResponse;
 
 export const IssueDemoClaimsRequestSchema = z.object({
   userId: MinaPublicKeySchema,
