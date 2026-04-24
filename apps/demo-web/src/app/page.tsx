@@ -290,115 +290,118 @@ export default function Home() {
 
   return (
     <div className="space-y-8">
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_360px]">
-        <div className="reveal-up rounded-[32px] border border-line bg-white p-8 shadow-card sm:p-10 lg:p-12">
-          <div className="inline-flex items-center gap-2 rounded-full border border-line bg-stone-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-slate">
-            <Shield className="h-3.5 w-3.5" />
-            Reusable Mina verification
-          </div>
+      <section className="reveal-up rounded-[36px] border border-line bg-white p-6 shadow-card sm:p-8 lg:p-10">
+        <SectionTitle eyebrow="Section 01" title="Reusable Mina verification" />
 
-          <div className="mt-6 border-b border-line pb-8">
-            <h1 className="max-w-4xl text-4xl font-semibold tracking-tight text-ink sm:text-[3.9rem] sm:leading-[0.94]">
-              Verify once. Store the credential. Reuse it across Mina.
-            </h1>
+        <div className="mt-8 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_360px]">
+          <div className="rounded-[32px] border border-line bg-white p-8 shadow-sm sm:p-10 lg:p-12">
+            <div className="inline-flex items-center gap-2 rounded-full border border-line bg-stone-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-slate">
+              <Shield className="h-3.5 w-3.5" />
+              Reusable Mina verification
+            </div>
 
-            <p className="mt-5 max-w-2xl text-[15px] leading-7 text-slate">
-              Mintra turns a completed identity check into a wallet-bound credential that can be presented to any
-              verifier on Mina. This page now centers the next action, not the plumbing.
-            </p>
-          </div>
+            <div className="mt-6 border-b border-line pb-8">
+              <h1 className="max-w-4xl text-4xl font-semibold tracking-tight text-ink sm:text-[3.9rem] sm:leading-[0.94]">
+                Verify once. Store the credential. Reuse it across Mina.
+              </h1>
 
-          <div className="mt-8 grid gap-6 2xl:grid-cols-[minmax(360px,1.18fr)_320px]">
-            <div className="min-w-0 space-y-6">
-              <div className="rounded-[24px] border border-line bg-fog/80 p-5">
-                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Next step</p>
-                <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-[220px] flex-1">
-                    <p className="text-2xl font-semibold tracking-tight text-ink">{primaryAction.label}</p>
-                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate">{primaryAction.body}</p>
+              <p className="mt-5 max-w-2xl text-[15px] leading-7 text-slate">
+                Mintra turns a completed identity check into a wallet-bound credential that can be presented to any
+                verifier on Mina. This page now centers the next action, not the plumbing.
+              </p>
+            </div>
+
+            <div className="mt-8 grid gap-6 2xl:grid-cols-[minmax(360px,1.18fr)_320px]">
+              <div className="min-w-0 space-y-6">
+                <div className="rounded-[24px] border border-line bg-fog/80 p-5">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Next step</p>
+                  <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-[220px] flex-1">
+                      <p className="text-2xl font-semibold tracking-tight text-ink">{primaryAction.label}</p>
+                      <p className="mt-2 max-w-xl text-sm leading-6 text-slate">{primaryAction.body}</p>
+                    </div>
+                    {primaryAction.anchor ? (
+                      <a
+                        href={primaryAction.href}
+                        className="inline-flex shrink-0 items-center gap-2 self-start rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+                      >
+                        {primaryAction.label}
+                        <ArrowRight className="h-4 w-4" />
+                      </a>
+                    ) : (
+                      <Link
+                        href={primaryAction.href}
+                        className="inline-flex shrink-0 items-center gap-2 self-start rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+                      >
+                        {primaryAction.label}
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    )}
                   </div>
-                  {primaryAction.anchor ? (
-                    <a
-                      href={primaryAction.href}
-                      className="inline-flex shrink-0 items-center gap-2 self-start rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
-                    >
-                      {primaryAction.label}
-                      <ArrowRight className="h-4 w-4" />
-                    </a>
-                  ) : (
-                    <Link
-                      href={primaryAction.href}
-                      className="inline-flex shrink-0 items-center gap-2 self-start rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
-                    >
-                      {primaryAction.label}
-                      <ArrowRight className="h-4 w-4" />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3">
+                  <SurfaceStat
+                    label="Wallet"
+                    value={walletAddress ? "Linked" : "Missing"}
+                    detail={walletProviderName ?? "Connect Auro or Pallad"}
+                  />
+                  <SurfaceStat
+                    label="Credential"
+                    value={verificationSummary}
+                    detail={
+                      freshnessStatus === "verified"
+                        ? "Proof-ready and current"
+                        : freshnessStatus === "expiring_soon"
+                          ? "Still valid, close to expiry"
+                          : freshnessStatus === "expired"
+                            ? "Must be refreshed"
+                            : "No issued credential yet"
+                    }
+                  />
+                  <SurfaceStat
+                    label="Storage"
+                    value={walletProviderName ?? "No wallet"}
+                    detail="Auro supports proof and storage in this demo"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-slate">
+                  <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Explore product surfaces</span>
+                  {secondaryLinks.map((link) => (
+                    <Link key={link.href} href={link.href} className="inline-flex items-center gap-1 transition hover:text-ink">
+                      {link.label}
+                      <ChevronRight className="h-4 w-4" />
                     </Link>
-                  )}
+                  ))}
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3">
-                <SurfaceStat
-                  label="Wallet"
-                  value={walletAddress ? "Linked" : "Missing"}
-                  detail={walletProviderName ?? "Connect Auro or Pallad"}
-                />
-                <SurfaceStat
-                  label="Credential"
-                  value={verificationSummary}
-                  detail={
-                    freshnessStatus === "verified"
-                      ? "Proof-ready and current"
-                      : freshnessStatus === "expiring_soon"
-                        ? "Still valid, close to expiry"
-                        : freshnessStatus === "expired"
-                          ? "Must be refreshed"
-                          : "No issued credential yet"
-                  }
-                />
-                <SurfaceStat
-                  label="Storage"
-                  value={walletProviderName ?? "No wallet"}
-                  detail="Auro supports proof and storage in this demo"
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-slate">
-                <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Explore product surfaces</span>
-                {secondaryLinks.map((link) => (
-                  <Link key={link.href} href={link.href} className="inline-flex items-center gap-1 transition hover:text-ink">
-                    {link.label}
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-[28px] border border-line bg-[linear-gradient(180deg,#fafaf9_0%,#f5f5f4_100%)] p-6">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Flow</p>
-              <div className="mt-5 space-y-6">
-                <FlowStep
-                  index="01"
-                  title="Link wallet"
-                  body="Authenticate a Mina wallet first so credential issuance binds to your public key."
-                />
-                <FlowStep
-                  index="02"
-                  title="Complete verification"
-                  body="Run the hosted KYC session once. Mintra normalizes the approved claims."
-                />
-                <FlowStep
-                  index="03"
-                  title="Store credential"
-                  body="Issue the resulting credential into a supported wallet for later proof requests."
-                  last
-                />
+              <div className="rounded-[28px] border border-line bg-[linear-gradient(180deg,#fafaf9_0%,#f5f5f4_100%)] p-6">
+                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Flow</p>
+                <div className="mt-5 space-y-6">
+                  <FlowStep
+                    index="01"
+                    title="Link wallet"
+                    body="Authenticate a Mina wallet first so credential issuance binds to your public key."
+                  />
+                  <FlowStep
+                    index="02"
+                    title="Complete verification"
+                    body="Run the hosted KYC session once. Mintra normalizes the approved claims."
+                  />
+                  <FlowStep
+                    index="03"
+                    title="Store credential"
+                    body="Issue the resulting credential into a supported wallet for later proof requests."
+                    last
+                  />
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <aside className="reveal-up reveal-delay-1 rounded-[32px] border border-line bg-white p-6 shadow-card xl:sticky xl:top-24 xl:h-fit">
+          <aside className="reveal-delay-1 rounded-[32px] border border-line bg-white p-6 shadow-sm xl:sticky xl:top-24 xl:h-fit">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Credential status</p>
@@ -480,9 +483,10 @@ export default function Home() {
               >
                 {disconnecting ? "Disconnecting..." : "Disconnect wallet"}
               </button>
-            )}
+              )}
           </div>
-        </aside>
+          </aside>
+        </div>
       </section>
 
       {error && !sessionExpired && (
@@ -497,79 +501,92 @@ export default function Home() {
         </section>
       )}
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
-        <div className="reveal-up reveal-delay-1 rounded-[32px] border border-line bg-white p-8 shadow-card">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Verified claims</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">Your credential</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate">
-                A compact view of the normalized claims that drive product access and proof generation.
-              </p>
-            </div>
-            {walletAddress && (
-              <Link href={`/claims/${walletAddress}`} className="text-sm font-medium text-slate transition hover:text-ink">
-                Full claim details
-              </Link>
-            )}
-          </div>
+      <section className="reveal-up reveal-delay-1 rounded-[36px] border border-line bg-white p-6 shadow-card sm:p-8 lg:p-10">
+        <SectionTitle eyebrow="Section 02" title="Credentials" />
 
-          <div className="mt-8">
-            {claimsRows.length > 0 ? (
-              <div className="overflow-hidden rounded-[24px] border border-line">
-                <div className="hidden grid-cols-[minmax(0,1.1fr)_140px_minmax(0,1.2fr)] gap-4 border-b border-line bg-fog px-5 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-slate md:grid">
-                  <span>Claim</span>
-                  <span>Value</span>
-                  <span>Meaning</span>
-                </div>
-                <div className="divide-y divide-line">
-                  {claimsRows.map((row) => (
-                    <ClaimTableRow
-                      key={row.key}
-                      label={row.key}
-                      value={row.value}
-                      description={claimDescriptions[row.key] ?? "Normalized verifier-facing claim."}
-                      emphasis={row.emphasis}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-[24px] border border-dashed border-line bg-stone-50 px-6 py-8">
-                <p className="text-sm leading-6 text-slate">
-                  {walletAddress
-                    ? freshnessStatus === "expired"
-                      ? "Your previous verification expired for product use. Start a new verification to refresh the credential."
-                      : "No verified claims are available yet. Complete the hosted verification flow first."
-                    : "Connect a wallet to begin verification and load credential claims."}
+        <div className="mt-8 grid gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
+          <div className="rounded-[32px] border border-line bg-white p-8 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Verified claims</p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">Your credential</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate">
+                  A compact view of the normalized claims that drive product access and proof generation.
                 </p>
               </div>
-            )}
+              {walletAddress && (
+                <Link href={`/claims/${walletAddress}`} className="text-sm font-medium text-slate transition hover:text-ink">
+                  Full claim details
+                </Link>
+              )}
+            </div>
+
+            <div className="mt-8">
+              {claimsRows.length > 0 ? (
+                <div className="overflow-hidden rounded-[24px] border border-line">
+                  <div className="hidden grid-cols-[minmax(0,1.1fr)_140px_minmax(0,1.2fr)] gap-4 border-b border-line bg-fog px-5 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-slate md:grid">
+                    <span>Claim</span>
+                    <span>Value</span>
+                    <span>Meaning</span>
+                  </div>
+                  <div className="divide-y divide-line">
+                    {claimsRows.map((row) => (
+                      <ClaimTableRow
+                        key={row.key}
+                        label={row.key}
+                        value={row.value}
+                        description={claimDescriptions[row.key] ?? "Normalized verifier-facing claim."}
+                        emphasis={row.emphasis}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-[24px] border border-dashed border-line bg-stone-50 px-6 py-8">
+                  <p className="text-sm leading-6 text-slate">
+                    {walletAddress
+                      ? freshnessStatus === "expired"
+                        ? "Your previous verification expired for product use. Start a new verification to refresh the credential."
+                        : "No verified claims are available yet. Complete the hosted verification flow first."
+                      : "Connect a wallet to begin verification and load credential claims."}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <details className="mt-6 rounded-[22px] border border-line bg-stone-50 px-5 py-4">
+              <summary className="cursor-pointer list-none text-sm font-medium text-ink">
+                Show technical credential metadata
+              </summary>
+              <div className="mt-4 space-y-2 text-sm text-slate">
+                {claims?.verifiedAt && <p>Verified at: {new Date(claims.verifiedAt).toLocaleString()}</p>}
+                {claims?.expiresAt && <p>Fresh until: {new Date(claims.expiresAt).toLocaleString()}</p>}
+                {credentialTrust && (
+                  <>
+                    <p>Issuer: {credentialTrust.issuerDisplayName}</p>
+                    <p>Evidence class: {credentialTrust.evidenceClass}</p>
+                    <p>Assurance level: {credentialTrust.assuranceLevel}</p>
+                  </>
+                )}
+                {!claims?.verifiedAt && !credentialTrust && <p>No credential metadata is available yet.</p>}
+              </div>
+            </details>
           </div>
 
-          <details className="mt-6 rounded-[22px] border border-line bg-stone-50 px-5 py-4">
-            <summary className="cursor-pointer list-none text-sm font-medium text-ink">
-              Show technical credential metadata
-            </summary>
-            <div className="mt-4 space-y-2 text-sm text-slate">
-              {claims?.verifiedAt && <p>Verified at: {new Date(claims.verifiedAt).toLocaleString()}</p>}
-              {claims?.expiresAt && <p>Fresh until: {new Date(claims.expiresAt).toLocaleString()}</p>}
-              {credentialTrust && (
-                <>
-                  <p>Issuer: {credentialTrust.issuerDisplayName}</p>
-                  <p>Evidence class: {credentialTrust.evidenceClass}</p>
-                  <p>Assurance level: {credentialTrust.assuranceLevel}</p>
-                </>
-              )}
-              {!claims?.verifiedAt && !credentialTrust && <p>No credential metadata is available yet.</p>}
-            </div>
-          </details>
-        </div>
-
-        <div className="reveal-up reveal-delay-2">
-          <WalletCredentialCard userId={walletAddress ?? ""} isVerified={isVerified} credentialTrust={claims?.credentialTrust} />
+          <div className="reveal-delay-2">
+            <WalletCredentialCard userId={walletAddress ?? ""} isVerified={isVerified} credentialTrust={claims?.credentialTrust} />
+          </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
+  return (
+    <div className="rounded-[28px] border border-line bg-[linear-gradient(180deg,#ffffff_0%,#fafaf9_100%)] px-6 py-8 text-center shadow-sm sm:px-10 sm:py-10">
+      <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-slate">{eyebrow}</p>
+      <h2 className="mt-4 text-3xl font-semibold tracking-tight text-ink sm:text-5xl sm:leading-none">{title}</h2>
     </div>
   );
 }
