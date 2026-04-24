@@ -56,6 +56,13 @@ export const IssueMinaCredentialResponseSchema = z.object({
 });
 export type IssueMinaCredentialResponse = z.infer<typeof IssueMinaCredentialResponseSchema>;
 
+export const GetZkAgeProofInputResponseSchema = z.object({
+  userId: MinaPublicKeySchema,
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  credentialMetadata: CredentialMetadataSchema,
+});
+export type GetZkAgeProofInputResponse = z.infer<typeof GetZkAgeProofInputResponseSchema>;
+
 export const IssueDemoClaimsRequestSchema = z.object({
   userId: MinaPublicKeySchema,
   ageOver18: z.boolean(),

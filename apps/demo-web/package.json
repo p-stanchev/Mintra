@@ -11,6 +11,7 @@
   "dependencies": {
     "@mintra/sdk-js": "workspace:*",
     "@mintra/sdk-types": "workspace:*",
+    "@mintra/zk-claims": "workspace:*",
     "@mintra/verifier-core": "workspace:*",
     "lucide-react": "^1.8.0",
     "marked": "^18.0.2",

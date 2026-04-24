@@ -8,6 +8,7 @@ const links = [
   { href: "/demo-issuer", label: "Demo Issuer" },
   { href: "/protected", label: "Protected" },
   { href: "/playground", label: "Playground" },
+  { href: "/zk-age", label: "ZK Age" },
   { href: "/relying-party", label: "Relying Party" },
   { href: "/docs", label: "Docs" },
 ];

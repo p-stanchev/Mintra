@@ -32,6 +32,9 @@ importers:
       '@mintra/verifier-core':
         specifier: workspace:*
         version: link:../../packages/verifier-core
+      '@mintra/zk-claims':
+        specifier: workspace:*
+        version: link:../../packages/zk-claims
       lucide-react:
         specifier: ^1.8.0
         version: 1.8.0(react@18.3.1)

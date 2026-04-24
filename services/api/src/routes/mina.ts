@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import {
+  GetZkAgeProofInputResponseSchema,
   IssueMinaCredentialRequestSchema,
 } from "@mintra/sdk-types";
 import { isValidMinaPublicKey, requireFreshWalletAuth } from "../auth";
@@ -58,5 +59,49 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
 
     app.log.info("mina.credential_issued");
     return reply.send(result);
+  });
+
+  app.get<{ Params: { userId: string } }>("/zk-age-proof-input/:userId", async (request, reply) => {
+    const { userId } = request.params;
+    const authWallet = requireFreshWalletAuth(request, reply);
+    if (!authWallet) return;
+
+    if (!isValidMinaPublicKey(userId)) {
+      return reply.status(400).send({ error: "Invalid user public key" });
+    }
+
+    if (authWallet !== userId) {
+      return reply.status(403).send({ error: "ZK proof input is only available to the authenticated wallet owner" });
+    }
+
+    const claim = await app.store.getClaims(userId);
+    if (!claim) {
+      return reply.status(404).send({ error: "No approved verification found for this user" });
+    }
+
+    if (!claim.dateOfBirth) {
+      return reply.status(409).send({ error: "This verification record does not include date of birth for age proof generation" });
+    }
+
+    const credentialMetadata = claim.claimModelVersion === "v2"
+      ? {
+          version: "v2" as const,
+          derivedClaims: claim.derivedClaims ?? {},
+          sourceCommitments: claim.sourceCommitments ?? {},
+          ...(claim.credentialTrust === undefined ? {} : { credentialTrust: claim.credentialTrust }),
+        }
+      : null;
+
+    if (!credentialMetadata) {
+      return reply.status(409).send({ error: "Credential metadata version v2 is required for zk age proof generation" });
+    }
+
+    return reply.send(
+      GetZkAgeProofInputResponseSchema.parse({
+        userId,
+        dateOfBirth: claim.dateOfBirth,
+        credentialMetadata,
+      })
+    );
   });
 };

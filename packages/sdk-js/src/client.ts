@@ -9,6 +9,7 @@ import type {
   VerifyWalletAuthResponse,
   IssueMinaCredentialRequest,
   IssueMinaCredentialResponse,
+  GetZkAgeProofInputResponse,
   IssueDemoClaimsRequest,
   IssueDemoClaimsResponse,
 } from "@mintra/sdk-types";
@@ -19,6 +20,7 @@ import {
   CreateWalletAuthChallengeResponseSchema,
   VerifyWalletAuthResponseSchema,
   IssueMinaCredentialResponseSchema,
+  GetZkAgeProofInputResponseSchema,
   IssueDemoClaimsResponseSchema,
 } from "@mintra/sdk-types";
 import type { ZodSchema } from "./types";
@@ -160,6 +162,17 @@ export function createMintraClient(config: MintraClientConfig) {
         "/api/demo/issue-claims",
         { method: "POST", body: JSON.stringify(input) },
         IssueDemoClaimsResponseSchema,
+        config.apiKey,
+        readAuthToken()
+      );
+    },
+
+    async getZkAgeProofInput(userId: string): Promise<GetZkAgeProofInputResponse> {
+      return request(
+        baseUrl,
+        `/api/mina/zk-age-proof-input/${userId}`,
+        { method: "GET" },
+        GetZkAgeProofInputResponseSchema,
         config.apiKey,
         readAuthToken()
       );
