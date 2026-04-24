@@ -525,6 +525,10 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
 }
 
 function toAgePublicInput(proof: InstanceType<typeof AgeClaimProof>) {
+  if (!proof.publicInput) {
+    throw new Error("Age proof did not include public inputs");
+  }
+
   return {
     dobCommitment: proof.publicInput.dobCommitment.toString(),
     minAge: Number(proof.publicInput.minAge.toString()) as 18 | 21,
@@ -537,6 +541,10 @@ function toAgePublicInput(proof: InstanceType<typeof AgeClaimProof>) {
 }
 
 function toKycPublicInput(proof: InstanceType<typeof KycPassedClaimProof>) {
+  if (!proof.publicInput) {
+    throw new Error("KYC proof did not include public inputs");
+  }
+
   return {
     kycCommitment: proof.publicInput.kycCommitment.toString(),
   };

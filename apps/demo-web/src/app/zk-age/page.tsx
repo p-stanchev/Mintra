@@ -239,8 +239,8 @@ export default function ZkAgePage() {
   };
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-[32px] border border-line bg-white p-8 shadow-card sm:p-10">
+    <div className="space-y-6 sm:space-y-8">
+      <section className="rounded-[28px] border border-line bg-white p-5 shadow-card sm:rounded-[32px] sm:p-10">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-fog px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-slate">
           <Sparkles className="h-3.5 w-3.5" />
           Dynamic ZK Proofs
@@ -264,11 +264,11 @@ export default function ZkAgePage() {
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[32px] border border-line bg-white p-8 shadow-card">
+        <div className="rounded-[28px] border border-line bg-white p-5 shadow-card sm:p-8">
           <h2 className="text-xl font-semibold tracking-tight text-ink">Run the flow</h2>
           <div className="mt-6 rounded-2xl border border-line bg-fog px-4 py-4 text-sm text-slate">
             <div className="font-medium text-ink">Authenticated wallet</div>
-            <div className="mt-2 break-all font-mono text-xs text-ink">
+            <div className="mt-2 break-all font-mono text-xs leading-6 text-ink">
               {walletAddress ?? "No authenticated wallet session"}
             </div>
             <div className="mt-3 text-xs text-slate">
@@ -327,7 +327,7 @@ export default function ZkAgePage() {
             type="button"
             onClick={() => void handleRun()}
             disabled={step !== "idle"}
-            className="mt-6 inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black disabled:opacity-50"
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black disabled:opacity-50 sm:w-auto"
           >
             <ShieldCheck className={`h-4 w-4 ${step !== "idle" ? "animate-pulse" : ""}`} />
             {step === "idle" ? "Generate credential-bound zk proof" : stepLabel[step]}
@@ -336,7 +336,7 @@ export default function ZkAgePage() {
           {proofInput && (
             <div className="mt-6 rounded-2xl border border-line bg-white px-4 py-4 text-sm text-slate">
               <div className="mb-2 font-medium text-ink">Loaded prover input</div>
-              <pre className="overflow-x-auto text-xs text-ink">
+              <pre className="overflow-x-auto whitespace-pre-wrap break-all text-[11px] leading-6 text-ink">
                 {JSON.stringify(
                   {
                     userId: proofInput.userId,
@@ -357,7 +357,7 @@ export default function ZkAgePage() {
           )}
         </div>
 
-        <div className="rounded-[32px] border border-line bg-white p-8 shadow-card">
+        <div className="rounded-[28px] border border-line bg-white p-5 shadow-card sm:p-8">
           <h2 className="text-xl font-semibold tracking-tight text-ink">Verifier result</h2>
           {!message && !result && (
             <div className="mt-6 rounded-2xl border border-dashed border-line bg-fog px-5 py-8 text-sm text-slate">
@@ -377,7 +377,7 @@ export default function ZkAgePage() {
                 <ShieldCheck className="h-4 w-4" />
                 Proof accepted
               </div>
-              <pre className="mt-4 overflow-x-auto rounded-2xl border border-emerald-200 bg-white p-4 text-xs text-ink">
+              <pre className="mt-4 overflow-x-auto whitespace-pre-wrap break-all rounded-2xl border border-emerald-200 bg-white p-4 text-[11px] leading-6 text-ink">
                 {JSON.stringify(result, null, 2)}
               </pre>
             </div>
@@ -385,7 +385,7 @@ export default function ZkAgePage() {
         </div>
       </section>
 
-      <section className="rounded-[32px] border border-line bg-white p-8 shadow-card">
+      <section className="rounded-[28px] border border-line bg-white p-5 shadow-card sm:p-8">
         <h2 className="text-xl font-semibold tracking-tight text-ink">On-chain registry</h2>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-slate">
           Mintra now exposes a shared on-chain registry for trust anchors. Site-specific policy still stays off-chain,
@@ -395,10 +395,10 @@ export default function ZkAgePage() {
         <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="rounded-2xl border border-line bg-fog px-4 py-4 text-sm text-slate">
             <div className="font-medium text-ink">Configured registry</div>
-            <div className="mt-2 break-all font-mono text-xs text-ink">
+            <div className="mt-2 break-all font-mono text-xs leading-6 text-ink">
               {process.env.NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS ?? "Registry env var not set"}
             </div>
-            <div className="mt-3 text-xs text-slate">
+            <div className="mt-3 break-all text-xs leading-5 text-slate">
               GraphQL: {process.env.NEXT_PUBLIC_MINA_GRAPHQL_URL ?? "Not configured"}
             </div>
           </div>
@@ -409,23 +409,20 @@ export default function ZkAgePage() {
             )}
             {registryError && <div className="text-rose-700">{registryError}</div>}
             {registryState && (
-              <pre className="overflow-x-auto text-xs text-ink">
-                {JSON.stringify(
-                  {
-                    address: registryState.address,
-                    nonce: registryState.nonce,
-                    permissionsEditState: registryState.permissionsEditState,
-                    issuerPublicKeyFields: registryState.zkappState.slice(0, 2),
-                    ageVkHash: registryState.zkappState[2],
-                    kycVkHash: registryState.zkappState[3],
-                    countryVkHash: registryState.zkappState[4],
-                    credentialRoot: registryState.zkappState[5],
-                    revocationRoot: registryState.zkappState[6],
-                  },
-                  null,
-                  2
-                )}
-              </pre>
+              <dl className="space-y-3 text-xs leading-6 text-ink">
+                <RegistryRow label="Address" value={registryState.address} />
+                <RegistryRow label="Nonce" value={registryState.nonce} />
+                <RegistryRow label="Edit state" value={registryState.permissionsEditState} />
+                <RegistryRow
+                  label="Issuer key fields"
+                  value={registryState.zkappState.slice(0, 2).join(", ")}
+                />
+                <RegistryRow label="Age VK hash" value={registryState.zkappState[2]} />
+                <RegistryRow label="KYC VK hash" value={registryState.zkappState[3]} />
+                <RegistryRow label="Country VK hash" value={registryState.zkappState[4]} />
+                <RegistryRow label="Credential root" value={registryState.zkappState[5]} />
+                <RegistryRow label="Revocation root" value={registryState.zkappState[6]} />
+              </dl>
             )}
           </div>
         </div>
@@ -439,6 +436,15 @@ function parseCountryList(value: string) {
     .split(",")
     .map((entry) => entry.trim().toUpperCase())
     .filter(Boolean);
+}
+
+function RegistryRow({ label, value }: { label: string; value: string | undefined }) {
+  return (
+    <div className="rounded-xl border border-line bg-fog px-3 py-2">
+      <dt className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate">{label}</dt>
+      <dd className="mt-1 break-all text-ink">{value ?? "Unavailable"}</dd>
+    </div>
+  );
 }
 
 function extractZkErrorMessage(payload: unknown, fallback: string): string {

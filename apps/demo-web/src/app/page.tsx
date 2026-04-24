@@ -376,8 +376,8 @@ export default function Home() {
   );
 
   return (
-    <div className="space-y-8">
-      <section className="reveal-up rounded-[36px] border border-line bg-white p-6 shadow-card sm:p-8 lg:p-10">
+    <div className="space-y-6 sm:space-y-8">
+      <section className="reveal-up rounded-[28px] border border-line bg-white p-4 shadow-card sm:rounded-[36px] sm:p-8 lg:p-10">
         <SectionTitle
           eyebrow="Verification overview"
           title="Reusable Mina verification"
@@ -385,7 +385,7 @@ export default function Home() {
         />
 
         <div className="mt-7 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_360px]">
-          <div className="rounded-[32px] border border-line bg-white p-8 sm:p-10 lg:p-12">
+          <div className="rounded-[24px] border border-line bg-white p-5 sm:rounded-[32px] sm:p-10 lg:p-12">
             <div className="inline-flex items-center gap-2 rounded-full border border-line bg-stone-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-slate">
               <Shield className="h-3.5 w-3.5" />
               Reusable Mina verification
@@ -411,11 +411,11 @@ export default function Home() {
                       <p className="text-2xl font-semibold tracking-tight text-ink">{primaryAction.label}</p>
                       <p className="mt-2 max-w-xl text-sm leading-6 text-slate">{primaryAction.body}</p>
                     </div>
-                    <div className="flex shrink-0 flex-wrap gap-3 self-start">
+                    <div className="flex w-full flex-col gap-3 self-start sm:w-auto sm:flex-row sm:flex-wrap">
                       {primaryAction.anchor ? (
                         <a
                           href={primaryAction.href}
-                          className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black sm:w-auto"
                         >
                           {primaryAction.label}
                           <ArrowRight className="h-4 w-4" />
@@ -423,7 +423,7 @@ export default function Home() {
                       ) : (
                         <Link
                           href={primaryAction.href}
-                          className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-black sm:w-auto"
                         >
                           {primaryAction.label}
                           <ArrowRight className="h-4 w-4" />
@@ -433,7 +433,7 @@ export default function Home() {
                         type="button"
                         onClick={() => void handleOpenVerifyModal()}
                         disabled={!walletAddress}
-                        className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-5 py-3 text-sm font-medium text-ink transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-5 py-3 text-center text-sm font-medium text-ink transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                       >
                         Verify with provider
                       </button>
@@ -580,7 +580,7 @@ export default function Home() {
         </section>
       )}
 
-      <section className="reveal-up reveal-delay-1 rounded-[36px] border border-line bg-white p-6 shadow-card sm:p-8 lg:p-10">
+      <section className="reveal-up reveal-delay-1 rounded-[28px] border border-line bg-white p-4 shadow-card sm:rounded-[36px] sm:p-8 lg:p-10">
         <SectionTitle
           eyebrow="Credential surfaces"
           title="Credentials"
@@ -698,8 +698,8 @@ function VerificationProviderModal({
   activeProviderName: string;
 }) {
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/35 px-4 py-6 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-[28px] border border-line bg-white p-6 shadow-[0_20px_80px_rgba(17,17,17,0.18)] sm:p-7">
+      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/35 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[24px] border border-line bg-white p-4 shadow-[0_20px_80px_rgba(17,17,17,0.18)] sm:rounded-[28px] sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Verification providers</p>
@@ -838,12 +838,12 @@ function SectionTitle({
 function SurfaceStat({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="min-w-0 rounded-[20px] border border-line bg-stone-50/70 px-4 py-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-[140px] flex-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
           <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">{label}</p>
           <p className="mt-2 text-lg font-medium tracking-tight text-ink">{value}</p>
         </div>
-        <p className="max-w-[220px] text-sm leading-6 text-slate">{detail}</p>
+        <p className="max-w-[220px] text-sm leading-6 text-slate sm:text-right">{detail}</p>
       </div>
     </div>
   );

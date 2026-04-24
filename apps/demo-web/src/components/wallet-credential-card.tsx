@@ -294,7 +294,7 @@ export function WalletCredentialCard({
   return (
     <div id="wallet-credential" className="scroll-mt-28 rounded-[28px] border border-line bg-white p-6 shadow-card sm:p-7">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
             <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-line bg-stone-50 px-3 py-1 text-xs font-medium text-slate">
               <Wallet className="h-3.5 w-3.5" />
@@ -305,7 +305,7 @@ export function WalletCredentialCard({
               Connect Auro or Pallad first. In the current demo, Pallad connection works, but credential storage is only supported through Auro.
             </p>
           </div>
-          <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${mounted && wallets.length > 0 ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-500"}`}>
+          <div className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${mounted && wallets.length > 0 ? "bg-emerald-50 text-emerald-700" : "bg-stone-100 text-stone-500"}`}>
             {mounted && wallets.length > 0 ? <Check className="h-3.5 w-3.5" /> : <KeyRound className="h-3.5 w-3.5" />}
             {statusLabel}
           </div>
@@ -374,12 +374,12 @@ export function WalletCredentialCard({
           </div>
         )}
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <button
             type="button"
             onClick={() => void handleConnectWallet()}
             disabled={!mounted || wallets.length === 0 || busy}
-            className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {state === "connecting" ? <Loader2 className="h-4 w-4 animate-spin" /> : <LinkIcon className="h-4 w-4" />}
             {connectButtonLabel}
@@ -389,7 +389,7 @@ export function WalletCredentialCard({
             type="button"
             onClick={() => void handleStoreInWallet()}
             disabled={!mounted || wallets.length === 0 || busy || !isVerified}
-            className="inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {state === "issuing" || state === "storing" ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -408,7 +408,7 @@ export function WalletCredentialCard({
               type="button"
               onClick={() => void handleDisconnectWallet()}
               disabled={busy}
-              className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <LogOut className="h-4 w-4" />
               Disconnect

@@ -28,9 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="site-orb site-orb-right" aria-hidden="true" />
           <div className="site-grid" aria-hidden="true" />
         </div>
-        <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-6 sm:px-8">
-          <header className="glass-panel relative z-[120] isolate mb-10 flex items-center justify-between border-b border-line/80 pb-5">
-            <a href="/" className="text-lg font-semibold tracking-tight text-ink">
+        <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+          <header className="glass-panel relative z-[120] isolate mb-8 flex items-center justify-between border-b border-line/80 px-1 pb-4 sm:mb-10 sm:pb-5">
+            <a href="/" className="text-base font-semibold tracking-tight text-ink sm:text-lg">
               Mintra
             </a>
             <Nav />

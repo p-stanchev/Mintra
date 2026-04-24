@@ -26,7 +26,6 @@ export function Nav() {
 
   return (
     <>
-      {/* Desktop nav */}
       <nav className="hidden items-center gap-6 text-sm text-slate sm:flex">
         {links.map((l) => (
           <a key={l.href} className="transition hover:text-ink" href={l.href}>
@@ -35,25 +34,23 @@ export function Nav() {
         ))}
       </nav>
 
-      {/* Mobile hamburger button */}
       <button
         type="button"
-        className="flex items-center justify-center rounded-lg p-2 text-slate transition hover:bg-fog hover:text-ink sm:hidden"
+        className="relative z-[160] flex items-center justify-center rounded-lg p-2 text-slate transition hover:bg-fog hover:text-ink sm:hidden"
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close menu" : "Open menu"}
       >
         {open ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      {/* Mobile dropdown */}
       {open && (
-        <div className="absolute left-0 right-0 top-[73px] z-[140] rounded-b-2xl border border-line border-t-0 bg-white px-6 py-4 shadow-card sm:hidden">
+        <div className="fixed inset-x-4 top-[88px] z-[150] rounded-[24px] border border-line bg-white/95 px-4 py-4 shadow-card backdrop-blur-md sm:hidden">
           <nav className="flex flex-col gap-1">
             {links.map((l) => (
               <a
                 key={l.href}
                 href={l.href}
-                className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate transition hover:bg-fog hover:text-ink"
+                className="rounded-xl px-3 py-3 text-sm font-medium text-slate transition hover:bg-fog hover:text-ink"
                 onClick={() => setOpen(false)}
               >
                 {l.label}
