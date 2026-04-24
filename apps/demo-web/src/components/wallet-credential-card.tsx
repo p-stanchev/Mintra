@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, KeyRound, Link as LinkIcon, Loader2, ShieldCheck, Wallet } from "lucide-react";
+import { Check, ChevronDown, KeyRound, Link as LinkIcon, Loader2, LogOut, ShieldCheck, Wallet } from "lucide-react";
 import { mintra } from "@/lib/mintra";
 import {
   readAuthToken,
@@ -268,6 +268,16 @@ export function WalletCredentialCard({
     }
   }
 
+  async function handleDisconnectWallet() {
+    setWalletMenuOpen(false);
+    await resetWalletSession();
+    setWalletAddress(null);
+    setWalletProviderId(null);
+    setWalletProviderName(null);
+    setState("idle");
+    setMessage("Wallet disconnected.");
+  }
+
   const statusLabel = mounted
     ? wallets.length > 0
       ? `${wallets.length} wallet${wallets.length === 1 ? "" : "s"} detected`
@@ -288,9 +298,9 @@ export function WalletCredentialCard({
           <div className="min-w-0 flex-1">
             <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-line bg-stone-50 px-3 py-1 text-xs font-medium text-slate">
               <Wallet className="h-3.5 w-3.5" />
-              Wallet credential
+              Wallet connection
             </div>
-            <h3 className="text-lg font-semibold tracking-tight text-ink">Link a Mina wallet</h3>
+            <h3 className="text-lg font-semibold tracking-tight text-ink">Wallet connection</h3>
             <p className="mt-2 max-w-xl text-sm leading-6 text-slate">
               Connect Auro or Pallad first. In the current demo, Pallad connection works, but credential storage is only supported through Auro.
             </p>
@@ -392,6 +402,18 @@ export function WalletCredentialCard({
                 ? "Storing..."
                 : issueButtonLabel}
           </button>
+
+          {walletAddress && (
+            <button
+              type="button"
+              onClick={() => void handleDisconnectWallet()}
+              disabled={busy}
+              className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <LogOut className="h-4 w-4" />
+              Disconnect
+            </button>
+          )}
         </div>
 
         {message && (
