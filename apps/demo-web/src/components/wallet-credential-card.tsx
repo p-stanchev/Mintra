@@ -284,8 +284,8 @@ export function WalletCredentialCard({
   return (
     <div id="wallet-credential" className="scroll-mt-28 rounded-[28px] border border-line bg-white p-6 shadow-card sm:p-7">
       <div className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
             <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-line bg-stone-50 px-3 py-1 text-xs font-medium text-slate">
               <Wallet className="h-3.5 w-3.5" />
               Wallet credential
@@ -413,7 +413,7 @@ export function WalletCredentialCard({
           </div>
         )}
 
-        <div className="grid gap-3 text-sm text-slate sm:grid-cols-3">
+        <div className="grid gap-3 text-sm text-slate md:grid-cols-2 2xl:grid-cols-3">
           <div className="rounded-[18px] border border-line bg-stone-50 px-4 py-3">
             <p className="font-medium text-ink">1. Link wallet</p>
             <p className="mt-1 leading-6">Connect Auro or Pallad. Pallad is currently connection-only in this demo.</p>

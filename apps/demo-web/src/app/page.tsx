@@ -360,7 +360,7 @@ export default function Home() {
         </section>
       )}
 
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)]">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
         <div className="reveal-up reveal-delay-1 rounded-[28px] border border-line bg-white p-8 shadow-card">
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
@@ -374,12 +374,12 @@ export default function Home() {
             )}
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.12fr)_290px]">
-            <div>
+          <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.12fr)_290px]">
+            <div className="min-w-0">
               {claims && Object.keys(claims.claims).length > 0 ? (
                 <div className="space-y-3">
                   {credentialTrustLabel && (
-                    <div className="flex items-center justify-between rounded-[18px] border border-line bg-fog px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-line bg-fog px-4 py-3">
                       <code className="text-sm text-slate">credential_environment</code>
                       <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${credentialTrustTone}`}>
                         {credentialTrustLabel}
@@ -412,7 +412,7 @@ export default function Home() {
               )}
             </div>
 
-            <div className="rounded-[22px] border border-line bg-stone-50 px-5 py-5">
+            <div className="min-w-0 rounded-[22px] border border-line bg-stone-50 px-5 py-5">
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Flow</p>
               <div className="mt-5 space-y-5">
                 <StepRow index="01" title="Verify identity" body="Complete the hosted KYC session once to derive normalized claims." />
@@ -437,9 +437,9 @@ export default function Home() {
 
 function ClaimRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between rounded-[18px] border border-line bg-stone-50 px-4 py-3">
-      <code className="text-sm text-slate">{label}</code>
-      <code className={`text-sm font-medium ${value === "true" ? "text-emerald-700" : "text-ink"}`}>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-line bg-stone-50 px-4 py-3">
+      <code className="min-w-0 break-all text-sm text-slate">{label}</code>
+      <code className={`text-sm font-medium break-all ${value === "true" ? "text-emerald-700" : "text-ink"}`}>
         {value}
       </code>
     </div>
