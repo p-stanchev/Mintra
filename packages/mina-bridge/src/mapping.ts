@@ -4,9 +4,9 @@ import {
   EVIDENCE_CLASS,
   type CredentialMetadata,
   type CredentialTrust,
-  type NormalizedClaims,
   type MinaCredentialData,
-} from "@mintra/sdk-types";
+} from "@mintra/credential-v2";
+import type { NormalizedClaims } from "@mintra/sdk-types";
 import countries from "i18n-iso-countries";
 import enLocale from "i18n-iso-countries/langs/en.json" with { type: "json" };
 

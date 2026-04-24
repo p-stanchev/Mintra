@@ -44,7 +44,14 @@ Optional on top of that:
 │ - provider session creation  │   │ - normalized claims -> Mina VC  │
 │ - webhook verification       │   │ - issuer signing                │
 │ - claim normalization        │   │ - wallet credential JSON        │
-└──────────────────────────────┘   └─────────────────────────────────┘
+└───────────────┬──────────────┘   └─────────────────────────────────┘
+                │
+┌───────────────▼──────────────┐
+│ packages/credential-v2       │
+│ - credential v2 schema       │
+│ - source commitment helpers  │
+│ - derived claim metadata     │
+└──────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────┐
 │  services/verifier                                                 │

@@ -14,7 +14,7 @@ import {
   commitDOB,
   commitString,
   createDerivedClaim,
-} from "@mintra/sdk-types";
+} from "@mintra/credential-v2";
 import { DiditSessionResponseSchema, DiditWebhookPayloadSchema } from "./schemas";
 
 const DIDIT_API_BASE = "https://verification.didit.me";

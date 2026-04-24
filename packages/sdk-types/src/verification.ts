@@ -5,7 +5,7 @@ import {
   DerivedClaimsSchema,
   type DerivedClaims,
   SourceCommitmentsSchema,
-} from "./claims";
+} from "@mintra/credential-v2";
 
 export const VerificationStatusSchema = z.enum([
   "not_started",

@@ -79,8 +79,24 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  packages/credential-v2:
+    dependencies:
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+    devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.10)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   packages/mina-bridge:
     dependencies:
+      '@mintra/credential-v2':
+        specifier: workspace:*
+        version: link:../credential-v2
       '@mintra/sdk-types':
         specifier: workspace:*
         version: link:../sdk-types
@@ -109,6 +125,9 @@ importers:
 
   packages/provider-didit:
     dependencies:
+      '@mintra/credential-v2':
+        specifier: workspace:*
+        version: link:../credential-v2
       '@mintra/sdk-types':
         specifier: workspace:*
         version: link:../sdk-types
@@ -147,6 +166,9 @@ importers:
 
   packages/sdk-types:
     dependencies:
+      '@mintra/credential-v2':
+        specifier: workspace:*
+        version: link:../credential-v2
       zod:
         specifier: ^3.23.0
         version: 3.25.76

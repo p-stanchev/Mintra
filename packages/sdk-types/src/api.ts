@@ -5,8 +5,8 @@ import {
   CredentialTrustSchema,
   DerivedClaimsSchema,
   SourceCommitmentsSchema,
-} from "./claims";
-import { CredentialMetadataSchema } from "./mina";
+} from "@mintra/credential-v2";
+import { CredentialMetadataSchema } from "@mintra/credential-v2";
 
 const MinaPublicKeySchema = z
   .string()

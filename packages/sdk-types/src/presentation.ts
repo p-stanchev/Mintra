@@ -3,7 +3,7 @@ import {
   ClaimModelVersionSchema,
   CredentialTrustSchema,
   DerivedClaimsSchema,
-} from "./claims";
+} from "@mintra/credential-v2";
 
 export const MinaPublicKeySchema = z
   .string()

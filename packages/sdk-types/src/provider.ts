@@ -1,5 +1,5 @@
 import type { NormalizedClaims } from "./verification";
-import type { ClaimModelVersion, CredentialTrust, DerivedClaims, SourceCommitments } from "./claims";
+import type { ClaimModelVersion, CredentialTrust, DerivedClaims, SourceCommitments } from "@mintra/credential-v2";
 
 export interface CreateSessionInput {
   userId: string;

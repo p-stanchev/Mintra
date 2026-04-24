@@ -28,6 +28,7 @@ Core product message:
 - Next.js demo frontend
 - Fastify API for wallet auth, KYC start, webhook ingestion, normalized claim storage, and Mina credential issuance
 - separate verifier service for off-chain Mina presentation verification
+- extracted `@mintra/credential-v2` package for commitment-backed credential schemas and utilities
 - reusable `@mintra/verifier-core` package
 - stable `mintra.presentation/v1` envelope format
 - verifier-owned single-use presentation challenges
@@ -113,6 +114,11 @@ packages/verifier-core
   holder-binding message builder
   verification helpers
 
+packages/credential-v2
+  commitment-backed credential schema
+  source commitment helpers
+  derived claim metadata
+
 packages/provider-didit
   Didit integration
 
@@ -150,6 +156,7 @@ docs/
 examples/
   zkapp-age-gate/
 packages/
+  credential-v2/
   mina-bridge/
   provider-didit/
   sdk-js/
@@ -623,7 +630,7 @@ Important limitation:
 
 ## Publishing Status
 
-`@mintra/sdk-js`, `@mintra/sdk-types`, and `@mintra/verifier-core` exist in this monorepo today, but they are **not published to npm yet**.
+`@mintra/sdk-js`, `@mintra/sdk-types`, `@mintra/credential-v2`, and `@mintra/verifier-core` exist in this monorepo today, but they are **not published to npm yet**.
 
 ## Next Production Steps
 

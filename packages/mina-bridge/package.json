@@ -17,6 +17,7 @@
     "dev": "tsup src/index.ts --format esm,cjs --dts --watch"
   },
   "dependencies": {
+    "@mintra/credential-v2": "workspace:*",
     "@mintra/sdk-types": "workspace:*",
     "@mintra/verifier-core": "workspace:*",
     "i18n-iso-countries": "^7.14.0",
