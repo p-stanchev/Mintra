@@ -8,6 +8,7 @@ import {
   type VerifierPolicy,
   verifyPresentation,
 } from "@mintra/verifier-core";
+import { AgeClaimProof, verifyAgeClaimProof } from "@mintra/zk-claims";
 import {
   type PresentationEnvelope,
   PresentationEnvelopeSchema,
@@ -66,6 +67,10 @@ const PasskeyAssertionOptionsRequestSchema = z.object({
 const VerifyPresentationRequestSchema = z.object({
   presentationEnvelope: z.unknown(),
   expectedOwnerPublicKey: MinaPublicKeySchema.optional(),
+});
+
+const VerifyAgeClaimProofRequestSchema = z.object({
+  proof: z.unknown(),
 });
 
 export interface VerifierAppOptions {
@@ -375,10 +380,36 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
     return reply.send(result);
   });
 
+  app.post("/api/zk/verify-age-proof", async (request, reply) => {
+    const parsed = VerifyAgeClaimProofRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Invalid request", detail: parsed.error.message });
+    }
+
+    try {
+      const proof = AgeClaimProof.fromJSON(parsed.data.proof);
+      const verified = await verifyAgeClaimProof({ proof });
+
+      return reply.send({
+        ok: verified,
+        proofType: "mintra.zk.age-threshold/v1",
+        publicInput: proof.publicInput.toJSON(),
+      });
+    } catch (error) {
+      app.log.warn({ err: error }, "verifier.zk_age_proof_failed");
+      return reply.status(400).send({
+        ok: false,
+        proofType: "mintra.zk.age-threshold/v1",
+        error: error instanceof Error ? error.message : "Could not verify age proof",
+      });
+    }
+  });
+
   app.get("/health", async () => ({
     ok: true,
     service: "mintra-verifier",
     proofProducts: listProofProducts().map((product) => product.id),
+    zkProofProducts: ["mintra.zk.age-threshold/v1"],
     challengeStore: challengeStore.driver,
     passkeyStore: passkeyStore.driver,
   }));
