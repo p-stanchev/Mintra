@@ -193,7 +193,7 @@ export class DiditProvider implements VerificationProvider {
           year: Number(yearString),
           month: Number(monthString),
           day: Number(dayString),
-          salt: 0,
+          salt: deriveZkSalt(this.config.webhookSecret, event.userId, "dob"),
         });
       }
     }
@@ -201,7 +201,7 @@ export class DiditProvider implements VerificationProvider {
     if (materialized.normalizedClaims.kyc_passed === true) {
       sourceCommitments["kyc_passed_poseidon_commitment"] = createKycPassedZkSourceCommitment({
         kycPassed: true,
-        salt: 0,
+        salt: deriveZkSalt(this.config.webhookSecret, event.userId, "kyc"),
       });
     }
 
@@ -215,7 +215,7 @@ export class DiditProvider implements VerificationProvider {
       if (numericCountry > 0) {
         sourceCommitments["country_code_poseidon_commitment"] = createCountryCodeZkSourceCommitment({
           countryCodeNumeric: numericCountry,
-          salt: 0,
+          salt: deriveZkSalt(this.config.webhookSecret, event.userId, "country"),
         });
       }
     }
@@ -230,6 +230,10 @@ export class DiditProvider implements VerificationProvider {
       ...(normalizeCountryToIso3(idVerif.nationality) ? { nationality: normalizeCountryToIso3(idVerif.nationality)! } : {}),
     };
   }
+  getZkSalt(userId: string, claimType: "dob" | "kyc" | "country"): bigint {
+    return deriveZkSalt(this.config.webhookSecret, userId, claimType);
+  }
+
   private verifySignature(request: IncomingWebhook & { parsedBody: unknown }): void {
     const { parsedBody, signatureV2, timestamp } = request;
 
@@ -450,6 +454,14 @@ function normalizeCountryToIso2(...values: Array<string | undefined>): string | 
   }
 
   return undefined;
+}
+
+function deriveZkSalt(secret: string, userId: string, claimType: string): bigint {
+  const buf = createHmac("sha256", secret)
+    .update(`mintra:zk-salt:v1:${userId}:${claimType}`)
+    .digest();
+  // 30 bytes = 240 bits, safely under the Poseidon field modulus (~254 bits)
+  return BigInt(`0x${buf.subarray(0, 30).toString("hex")}`);
 }
 
 function normalizeCountryToIso3(value: string | undefined): string | undefined {

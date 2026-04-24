@@ -101,6 +101,17 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
       ? Number(countries.alpha2ToNumeric(claim.countryCode) ?? 0)
       : undefined;
 
+    const zkSalts: { dob?: string; kyc?: string; country?: string } = {};
+    if (claim.dateOfBirth) {
+      zkSalts.dob = app.diditProvider.getZkSalt(userId, "dob").toString(16);
+    }
+    if (claim.kycPassed === true) {
+      zkSalts.kyc = app.diditProvider.getZkSalt(userId, "kyc").toString(16);
+    }
+    if (claim.countryCode) {
+      zkSalts.country = app.diditProvider.getZkSalt(userId, "country").toString(16);
+    }
+
     return reply.send(
       GetZkProofInputResponseSchema.parse({
         userId,
@@ -109,6 +120,7 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
         ...(claim.countryCode === null ? {} : { countryCode: claim.countryCode }),
         ...(countryCodeNumeric && countryCodeNumeric > 0 ? { countryCodeNumeric } : {}),
         credentialMetadata,
+        zkSalts,
       })
     );
   });

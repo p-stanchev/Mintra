@@ -13,7 +13,8 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --pool forks --fileParallelism false"
+    "test": "vitest run --pool forks --fileParallelism false",
+    "print-vk-hashes": "tsx scripts/print-vk-hashes.ts"
   },
   "dependencies": {
     "@mintra/credential-v2": "workspace:*",

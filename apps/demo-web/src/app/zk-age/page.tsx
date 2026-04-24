@@ -288,6 +288,7 @@ async function createProofForRequest(
       dateOfBirth: zkInput.dateOfBirth,
       minAge: request.requirements.ageGte,
       referenceDate: request.publicInputs.referenceDate,
+      ...(zkInput.zkSalts?.dob ? { salt: BigInt(`0x${zkInput.zkSalts.dob}`) } : {}),
     });
   }
 
@@ -300,6 +301,7 @@ async function createProofForRequest(
     return proveKycPassedFromCredentialMetadata({
       credentialMetadata: zkInput.credentialMetadata,
       kycPassed: zkInput.kycPassed,
+      ...(zkInput.zkSalts?.kyc ? { salt: BigInt(`0x${zkInput.zkSalts.kyc}`) } : {}),
     });
   }
 
@@ -313,5 +315,6 @@ async function createProofForRequest(
     countryCodeNumeric: zkInput.countryCodeNumeric,
     allowlistNumeric: request.publicInputs.allowlistNumeric,
     blocklistNumeric: request.publicInputs.blocklistNumeric,
+    ...(zkInput.zkSalts?.country ? { salt: BigInt(`0x${zkInput.zkSalts.country}`) } : {}),
   });
 }

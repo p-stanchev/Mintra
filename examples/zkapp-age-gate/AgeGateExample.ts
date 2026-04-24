@@ -1,32 +1,67 @@
-// Optional zkApp integration scaffold for Mintra.
-// This file is not wired into the production build. It documents the boundary
-// between Mintra's off-chain verifier and an on-chain age-gated action.
+// Example: deploying and interacting with MintraAgeGate.
+// Run from the monorepo root after building @mintra/zk-claims.
 
-import { Bool, Field, SmartContract, method, state, State } from "o1js";
+import { Mina, PrivateKey, UInt32 } from "o1js";
+import {
+  MintraAgeGate,
+  compileAgeClaimProgram,
+  proveAgeClaimFromCredentialMetadata,
+} from "@mintra/zk-claims";
+import type { CredentialMetadata } from "@mintra/credential-v2";
 
-export class AgeGateExample extends SmartContract {
-  @state(Bool) ageGateEnabled = State<Bool>();
-  @state(Field) lastVerifierRoot = State<Field>();
+async function main() {
+  // Use a local blockchain for demonstration
+  const Local = await Mina.LocalBlockchain({ proofsEnabled: true });
+  Mina.setActiveInstance(Local);
 
-  init() {
-    super.init();
-    this.ageGateEnabled.set(Bool(true));
-    this.lastVerifierRoot.set(Field(0));
-  }
+  const deployerKey = Local.testAccounts[0].key;
+  const deployerAccount = Local.testAccounts[0];
+  const zkAppKey = PrivateKey.random();
+  const zkAppAddress = zkAppKey.toPublicKey();
 
-  @method async useProtectedAction(
-    ageOver18: Bool,
-    verifierRoot: Field
-  ) {
-    const gateEnabled = this.ageGateEnabled.getAndRequireEquals();
-    gateEnabled.assertTrue();
+  // 1. Compile the age proof program to obtain its verification key
+  const { verificationKey } = await compileAgeClaimProgram();
 
-    // Placeholder integration point:
-    // In a future production version this method would consume a proof
-    // generated from Mintra verifier output, or verify membership in an
-    // anchored verifier state root.
-    ageOver18.assertTrue("The caller must prove age_over_18.");
+  // 2. Deploy the MintraAgeGate contract
+  const zkApp = new MintraAgeGate(zkAppAddress);
+  const deployTx = await Mina.transaction(deployerAccount, async () => {
+    await zkApp.deploy();
+  });
+  await deployTx.prove();
+  await deployTx.sign([deployerKey, zkAppKey]).send();
 
-    this.lastVerifierRoot.set(verifierRoot);
-  }
+  // 3. Initialize: lock the VK hash and set minAge = 18 on-chain
+  const initTx = await Mina.transaction(deployerAccount, async () => {
+    await zkApp.initialize(verificationKey, UInt32.from(18));
+  });
+  await initTx.prove();
+  await initTx.sign([deployerKey]).send();
+
+  // 4. Generate an age proof (normally done browser-side from credentialMetadata)
+  const credentialMetadata: CredentialMetadata = {
+    version: "v2",
+    sourceCommitments: {
+      /* populated from the Mintra API /api/mina/zk-age-proof-input/:userId */
+    },
+    derivedClaims: {},
+  };
+
+  const proof = await proveAgeClaimFromCredentialMetadata({
+    credentialMetadata,
+    dateOfBirth: "1990-06-15",
+    minAge: 18,
+    referenceDate: new Date().toISOString().slice(0, 10),
+    // salt: BigInt(`0x${zkSalts.dob}`) — pass the salt returned by the API
+  });
+
+  // 5. Submit the proof on-chain
+  const proveTx = await Mina.transaction(deployerAccount, async () => {
+    await zkApp.proveAge(proof, verificationKey);
+  });
+  await proveTx.prove();
+  await proveTx.sign([deployerKey]).send();
+
+  console.log("Age gate passed — transaction accepted.");
 }
+
+main().catch(console.error);
