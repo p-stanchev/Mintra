@@ -208,15 +208,22 @@ export default function ZkAgePage() {
         error: await verifyResponse.text(),
       }));
       if (!verifyResponse.ok) {
-        throw new Error(
-          verifyBody?.error?.message ??
-            verifyBody?.error?.detail ??
-            verifyBody?.error ??
-            "Could not verify zk proof."
-        );
+        throw new Error(extractZkErrorMessage(verifyBody, "Could not verify zk proof."));
       }
 
-      setResult(verifyBody as ZkVerificationResult);
+      const verificationResult = verifyBody as ZkVerificationResult;
+      setResult(verificationResult);
+      if (!verificationResult.ok) {
+        setMessage(
+          extractZkErrorMessage(
+            verificationResult,
+            "Proof was rejected by the verifier."
+          )
+        );
+        setStep("idle");
+        return;
+      }
+
       setStep("idle");
     } catch (error) {
       setStep("idle");
@@ -432,6 +439,43 @@ function parseCountryList(value: string) {
     .split(",")
     .map((entry) => entry.trim().toUpperCase())
     .filter(Boolean);
+}
+
+function extractZkErrorMessage(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== "object") {
+    return fallback;
+  }
+
+  const maybePayload = payload as {
+    error?: {
+      message?: string;
+      detail?: string;
+    } | string;
+    message?: string;
+  };
+
+  if (typeof maybePayload.error === "string" && maybePayload.error.trim()) {
+    return maybePayload.error;
+  }
+
+  if (typeof maybePayload.error === "object" && maybePayload.error !== null) {
+    if (typeof maybePayload.error.detail === "string" && maybePayload.error.detail.trim()) {
+      return maybePayload.error.detail;
+    }
+    if (typeof maybePayload.error.message === "string" && maybePayload.error.message.trim()) {
+      return maybePayload.error.message;
+    }
+  }
+
+  if (typeof maybePayload.message === "string" && maybePayload.message.trim()) {
+    return maybePayload.message;
+  }
+
+  try {
+    return JSON.stringify(payload);
+  } catch {
+    return fallback;
+  }
 }
 
 async function createProofForRequest(
