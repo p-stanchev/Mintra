@@ -494,6 +494,9 @@ async function createProofForRequest(
   zkInput: GetZkProofInputResponse,
   request: ZkPolicyRequest
 ) {
+  const { setNumberOfWorkers } = await import("o1js");
+  setNumberOfWorkers(1);
+
   if (request.proofType === "mintra.zk.age-threshold/v1") {
     const dateOfBirth = zkInput.dateOfBirth;
     if (!dateOfBirth) {
