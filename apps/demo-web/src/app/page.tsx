@@ -315,7 +315,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="mt-8 grid gap-6 2xl:grid-cols-[minmax(360px,1.18fr)_320px]">
+            <div className="mt-8">
               <div className="min-w-0 space-y-6">
                 <div className="rounded-[24px] border border-line bg-fog/80 p-5">
                   <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Next step</p>
@@ -378,28 +378,6 @@ export default function Home() {
                       <ChevronRight className="h-4 w-4" />
                     </Link>
                   ))}
-                </div>
-              </div>
-
-              <div className="rounded-[28px] border border-line bg-[linear-gradient(180deg,#fafaf9_0%,#f5f5f4_100%)] p-5">
-                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate">Flow</p>
-                <div className="mt-5 space-y-5">
-                  <FlowStep
-                    index="01"
-                    title="Link wallet"
-                    body="Authenticate a Mina wallet first so credential issuance binds to your public key."
-                  />
-                  <FlowStep
-                    index="02"
-                    title="Complete verification"
-                    body="Run the hosted KYC session once. Mintra normalizes the approved claims."
-                  />
-                  <FlowStep
-                    index="03"
-                    title="Store credential"
-                    body="Issue the resulting credential into a supported wallet for later proof requests."
-                    last
-                  />
                 </div>
               </div>
             </div>
@@ -619,33 +597,6 @@ function SurfaceStat({ label, value, detail }: { label: string; value: string; d
           <p className="mt-2 text-lg font-medium tracking-tight text-ink">{value}</p>
         </div>
         <p className="max-w-[220px] text-sm leading-6 text-slate">{detail}</p>
-      </div>
-    </div>
-  );
-}
-
-function FlowStep({
-  index,
-  title,
-  body,
-  last = false,
-}: {
-  index: string;
-  title: string;
-  body: string;
-  last?: boolean;
-}) {
-  return (
-    <div className="flex gap-4">
-      <div className="flex flex-col items-center">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-sm font-semibold text-ink shadow-sm">
-          {index}
-        </div>
-        {!last && <div className="mt-2 h-full min-h-8 w-px bg-line" />}
-      </div>
-      <div className="pt-1">
-        <p className="text-base font-medium text-ink">{title}</p>
-        <p className="mt-1 text-sm leading-6 text-slate">{body}</p>
       </div>
     </div>
   );
