@@ -29,6 +29,7 @@ export default function ZkAgePage() {
   const [proofMode, setProofMode] = useState<ProofMode>("age18");
   const [message, setMessage] = useState<string | null>(null);
   const [result, setResult] = useState<ZkVerificationResult | null>(null);
+  const [isCrossOriginIsolated, setIsCrossOriginIsolated] = useState<boolean | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletProviderName, setWalletProviderName] = useState<string | null>(null);
   const [proofInput, setProofInput] = useState<GetZkProofInputResponse | null>(null);
@@ -41,6 +42,7 @@ export default function ZkAgePage() {
     const syncWallet = () => {
       setWalletAddress(readLinkedWalletAddress());
       setWalletProviderName(readLinkedWalletProviderName());
+      setIsCrossOriginIsolated(window.crossOriginIsolated);
     };
 
     syncWallet();
@@ -257,7 +259,11 @@ export default function ZkAgePage() {
         <div className="mt-4 rounded-2xl border border-line bg-fog px-4 py-3 text-sm text-slate">
           Proof runtime:{" "}
           <span className="font-medium text-ink">
-            {typeof window !== "undefined" && window.crossOriginIsolated ? "cross-origin isolated" : "not isolated"}
+            {isCrossOriginIsolated === null
+              ? "checking browser runtime"
+              : isCrossOriginIsolated
+                ? "cross-origin isolated"
+                : "not isolated"}
           </span>
           . Browser-side o1js proving requires isolation so workers can use `SharedArrayBuffer`.
         </div>
