@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { marked } from "marked";
+import { marked, Renderer } from "marked";
 
 const DOCS_DIR = path.resolve(process.cwd(), "../../docs");
 
@@ -34,9 +34,40 @@ export async function getDoc(slug: string): Promise<{ title: string; html: strin
   try {
     const content = await fs.readFile(filePath, "utf8");
     const title = extractTitle(content, slug);
-    const html = await marked(content, { gfm: true });
+    const renderer = new Renderer();
+    const baseLink = renderer.link.bind(renderer);
+    renderer.link = ({ href, title, tokens }) => {
+      const rewrittenHref = rewriteDocHref(href);
+      return baseLink({ href: rewrittenHref, title, tokens });
+    };
+
+    const html = await marked(content, { gfm: true, renderer });
     return { title, html };
   } catch {
     return null;
   }
+}
+
+function rewriteDocHref(href: string | null | undefined): string | null | undefined {
+  if (!href) return href;
+  if (/^(?:[a-z]+:)?\/\//i.test(href) || href.startsWith("#")) {
+    return href;
+  }
+
+  const [rawPath, hash = ""] = href.split("#", 2);
+  const normalizedPath = rawPath
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "")
+    .replace(/^docs\//, "")
+    .replace(/\.md$/i, "");
+
+  if (!normalizedPath) {
+    return hash ? `#${hash}` : href;
+  }
+
+  if (normalizedPath.startsWith("../")) {
+    return href;
+  }
+
+  return `/docs/${normalizedPath}${hash ? `#${hash}` : ""}`;
 }
