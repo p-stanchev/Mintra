@@ -648,17 +648,6 @@ async function verifyZkProofPayload(params: {
   }
 
   if (zkPolicyRequest.proofType === "mintra.zk.age-threshold/v1") {
-    app.log.info(
-      {
-        proofKeys:
-          params.requestBody.proof && typeof params.requestBody.proof === "object"
-            ? Object.keys(params.requestBody.proof as Record<string, unknown>)
-            : [],
-        hasRawPublicInput: !!readRawProofPublicInput(params.requestBody.proof),
-      },
-      "verifier.zk_age_proof_received"
-    );
-
     const proof = AgeClaimProof.fromJSON(params.requestBody.proof);
     const verified = await verifyAgeClaimProof({ proof });
     const publicInput = proof.publicInput
@@ -700,17 +689,6 @@ async function verifyZkProofPayload(params: {
   }
 
   if (zkPolicyRequest.proofType === "mintra.zk.kyc-passed/v1") {
-    app.log.info(
-      {
-        proofKeys:
-          params.requestBody.proof && typeof params.requestBody.proof === "object"
-            ? Object.keys(params.requestBody.proof as Record<string, unknown>)
-            : [],
-        hasRawPublicInput: !!readRawProofPublicInput(params.requestBody.proof),
-      },
-      "verifier.zk_kyc_proof_received"
-    );
-
     const proof = KycPassedClaimProof.fromJSON(params.requestBody.proof);
     const verified = await verifyKycPassedClaimProof({ proof });
     const publicInput = proof.publicInput
@@ -729,17 +707,6 @@ async function verifyZkProofPayload(params: {
       },
     };
   }
-
-  app.log.info(
-    {
-      proofKeys:
-        params.requestBody.proof && typeof params.requestBody.proof === "object"
-          ? Object.keys(params.requestBody.proof as Record<string, unknown>)
-          : [],
-      hasRawPublicInput: !!readRawProofPublicInput(params.requestBody.proof),
-    },
-    "verifier.zk_country_proof_received"
-  );
 
   const proof = CountryMembershipClaimProof.fromJSON(params.requestBody.proof);
   const verified = await verifyCountryMembershipProof({ proof });
