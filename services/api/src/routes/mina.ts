@@ -111,12 +111,22 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid request", detail: parsed.error.message });
     }
 
-    const claim = await app.store.getClaims(authWallet);
+    if (!isValidMinaPublicKey(parsed.data.userId)) {
+      return reply.status(400).send({ error: "Invalid user public key" });
+    }
+
+    if (authWallet !== parsed.data.userId) {
+      return reply.status(403).send({
+        error: "ZK proof generation is only allowed for the authenticated wallet owner",
+      });
+    }
+
+    const claim = await app.store.getClaims(parsed.data.userId);
     if (!claim) {
       return reply.status(404).send({ error: "No approved verification found for this user" });
     }
 
-    const zkInput = buildZkProofInputPayload(app, authWallet, claim);
+    const zkInput = buildZkProofInputPayload(app, parsed.data.userId, claim);
     if (!zkInput) {
       return reply.status(409).send({ error: "Credential metadata version v2 is required for zk proof generation" });
     }

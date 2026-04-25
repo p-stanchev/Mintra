@@ -484,7 +484,10 @@ async function createProofForRequest(
   request: ZkPolicyRequest
 ) {
   try {
-    const response = await mintra.createZkProof({ request });
+    const response = await mintra.createZkProof({
+      userId: zkInput.userId,
+      request,
+    });
     return response.proof;
   } catch (error) {
     if (!shouldFallbackToBrowserProving(error)) {

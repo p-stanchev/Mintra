@@ -54,6 +54,11 @@ function rewriteDocHref(href: string): string {
     return href;
   }
 
+  const legacyDocTargets: Record<string, string> = {
+    "../packages/zk-age-gate-contract/readme": "/docs/zk-contracts-package",
+    "../examples/zkapp-age-gate/readme": "/docs/zkapp-age-gate-example",
+  };
+
   const [rawPath, hash = ""] = href.split("#", 2);
   const normalizedPath = rawPath
     .replace(/\\/g, "/")
@@ -63,6 +68,12 @@ function rewriteDocHref(href: string): string {
 
   if (!normalizedPath) {
     return hash ? `#${hash}` : href;
+  }
+
+  const normalizedLookupKey = normalizedPath.toLowerCase();
+  const legacyTarget = legacyDocTargets[normalizedLookupKey];
+  if (legacyTarget) {
+    return `${legacyTarget}${hash ? `#${hash}` : ""}`;
   }
 
   if (normalizedPath.startsWith("../")) {

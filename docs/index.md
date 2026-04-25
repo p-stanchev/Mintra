@@ -9,6 +9,8 @@ Start here:
 - [verifier-integration.md](./verifier-integration.md)
 - [how-credentials-work.md](./how-credentials-work.md)
 - [zk-proofs-and-registry.md](./zk-proofs-and-registry.md)
+- [zk-contracts-package.md](./zk-contracts-package.md)
+- [zkapp-age-gate-example.md](./zkapp-age-gate-example.md)
 
 Supporting docs:
 

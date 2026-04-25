@@ -81,5 +81,5 @@ Placeholder / future work:
 ## References
 
 - [zk-proofs-and-registry.md](./zk-proofs-and-registry.md)
-- [../packages/zk-age-gate-contract/README.md](../packages/zk-age-gate-contract/README.md)
-- [../examples/zkapp-age-gate/README.md](../examples/zkapp-age-gate/README.md)
+- [zk-contracts-package.md](./zk-contracts-package.md)
+- [zkapp-age-gate-example.md](./zkapp-age-gate-example.md)

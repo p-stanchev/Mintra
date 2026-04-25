@@ -76,6 +76,7 @@ export const GetZkAgeProofInputResponseSchema = GetZkProofInputResponseSchema;
 export type GetZkAgeProofInputResponse = GetZkProofInputResponse;
 
 export const CreateZkProofRequestSchema = z.object({
+  userId: MinaPublicKeySchema,
   request: ZkPolicyRequestSchema,
 });
 export type CreateZkProofRequest = z.infer<typeof CreateZkProofRequestSchema>;

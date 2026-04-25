@@ -93,6 +93,8 @@ NEXT_PUBLIC_MINA_GRAPHQL_URL=https://api.minascan.io/node/devnet/v1/graphql
 
 The `/zk-age` page then reads the registry account from Mina GraphQL and displays the anchored hashes and root slots.
 
+The `/zk-age` page now prefers authenticated backend proving through the API and only falls back to browser-side proving when that API route is unavailable.
+
 ## Browser Runtime Requirement
 
 Browser-side `o1js` proving requires a cross-origin isolated runtime so workers can use `SharedArrayBuffer`.
@@ -103,3 +105,9 @@ The app should serve:
 - `Cross-Origin-Embedder-Policy: credentialless`
 
 Without those headers, the page should still load, but browser-side proving will be unavailable.
+
+## See Also
+
+- [zkapp-integration.md](./zkapp-integration.md)
+- [zk-contracts-package.md](./zk-contracts-package.md)
+- [zkapp-age-gate-example.md](./zkapp-age-gate-example.md)
