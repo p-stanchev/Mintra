@@ -1,4 +1,7 @@
-import type { GetZkProofInputResponse } from "@mintra/sdk-types";
+import {
+  GetZkProofInputResponseSchema,
+  type GetZkProofInputResponse,
+} from "@mintra/sdk-types";
 
 export const LINKED_WALLET_STORAGE_KEY = "mintra.linkedWalletAddress";
 export const AUTH_TOKEN_STORAGE_KEY = "mintra.authToken";
@@ -76,7 +79,7 @@ export function readStoredZkProofMaterial(walletAddress: string): GetZkProofInpu
   const raw = window.localStorage.getItem(`${ZK_PROOF_MATERIAL_STORAGE_PREFIX}${walletAddress}`);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as GetZkProofInputResponse;
+    return GetZkProofInputResponseSchema.parse(JSON.parse(raw));
   } catch {
     return null;
   }
@@ -89,7 +92,7 @@ export function writeStoredZkProofMaterial(
   if (typeof window === "undefined" || !isValidMinaPublicKey(walletAddress)) return;
   window.localStorage.setItem(
     `${ZK_PROOF_MATERIAL_STORAGE_PREFIX}${walletAddress}`,
-    JSON.stringify(proofMaterial)
+    JSON.stringify(GetZkProofInputResponseSchema.parse(proofMaterial))
   );
 }
 

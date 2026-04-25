@@ -1,18 +1,34 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, KeyRound, Link as LinkIcon, Loader2, LogOut, ShieldCheck, Wallet } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Download,
+  KeyRound,
+  Link as LinkIcon,
+  Loader2,
+  LogOut,
+  ShieldCheck,
+  Upload,
+  Wallet,
+} from "lucide-react";
 import { mintra } from "@/lib/mintra";
 import {
   readAuthToken,
   readLinkedWalletAddress,
   readLinkedWalletProviderId,
   readLinkedWalletProviderName,
+  readStoredZkProofMaterial,
+  isValidMinaPublicKey,
   writeStoredZkProofMaterial,
 } from "@/lib/wallet-session";
 import { authenticateWallet, extractErrorMessage, resetWalletSession } from "@/lib/wallet-auth";
 import { discoverMinaWallets, getWalletById, summarizeWallet, type MinaWalletSummary } from "@/lib/mina-wallet";
-import type { CredentialTrust } from "@mintra/sdk-types";
+import {
+  GetZkProofInputResponseSchema,
+  type CredentialTrust,
+} from "@mintra/sdk-types";
 
 type WalletState = "idle" | "connecting" | "connected" | "issuing" | "storing" | "done" | "error";
 
@@ -34,7 +50,9 @@ export function WalletCredentialCard({
   const [selectedWalletId, setSelectedWalletId] = useState<string>("");
   const [mounted, setMounted] = useState(false);
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
+  const [hasStoredProofMaterial, setHasStoredProofMaterial] = useState(false);
   const walletMenuRef = useRef<HTMLDivElement | null>(null);
+  const proofMaterialInputRef = useRef<HTMLInputElement | null>(null);
 
   const busy = state === "connecting" || state === "issuing" || state === "storing";
   const selectedWallet = useMemo(
@@ -42,6 +60,16 @@ export function WalletCredentialCard({
     [selectedWalletId, wallets]
   );
   const actionWallet = selectedWallet ?? wallets.find((wallet) => wallet.id === walletProviderId) ?? null;
+  const proofMaterialWallet = walletAddress ?? userId;
+
+  useEffect(() => {
+    if (!proofMaterialWallet || !isValidMinaPublicKey(proofMaterialWallet)) {
+      setHasStoredProofMaterial(false);
+      return;
+    }
+
+    setHasStoredProofMaterial(Boolean(readStoredZkProofMaterial(proofMaterialWallet)));
+  }, [proofMaterialWallet, state]);
 
   useEffect(() => {
     setMounted(true);
@@ -255,6 +283,7 @@ export function WalletCredentialCard({
 
       if (issued.zkProofMaterial) {
         writeStoredZkProofMaterial(ownerPublicKey, issued.zkProofMaterial);
+        setHasStoredProofMaterial(true);
       }
 
       setState("done");
@@ -281,6 +310,84 @@ export function WalletCredentialCard({
     setWalletProviderName(null);
     setState("idle");
     setMessage("Wallet disconnected.");
+  }
+
+  function handleDownloadProofMaterial() {
+    if (!proofMaterialWallet || !isValidMinaPublicKey(proofMaterialWallet)) {
+      setState("error");
+      setMessage("Connect the verified wallet before exporting proof material.");
+      return;
+    }
+
+    const proofMaterial = readStoredZkProofMaterial(proofMaterialWallet);
+    if (!proofMaterial) {
+      setState("error");
+      setMessage("No stored proof material was found for this wallet yet.");
+      return;
+    }
+
+    const payload = {
+      version: "mintra.zk-proof-material/v1",
+      walletAddress: proofMaterialWallet,
+      proofMaterial,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `mintra-zk-proof-material-${proofMaterialWallet}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setMessage("Proof material exported for this wallet.");
+  }
+
+  async function handleImportProofMaterial(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw) as
+        | {
+            version?: string;
+            walletAddress?: string;
+            proofMaterial?: unknown;
+          }
+        | unknown;
+
+      const isWrapped =
+        parsed !== null &&
+        typeof parsed === "object" &&
+        "proofMaterial" in parsed;
+
+      const proofMaterial = GetZkProofInputResponseSchema.parse(
+        isWrapped ? (parsed as { proofMaterial: unknown }).proofMaterial : parsed
+      );
+      const importedWalletAddress =
+        parsed !== null &&
+        typeof parsed === "object" &&
+        "walletAddress" in parsed &&
+        typeof (parsed as { walletAddress?: unknown }).walletAddress === "string"
+          ? (parsed as { walletAddress: string }).walletAddress
+          : undefined;
+      const walletForBundle =
+        importedWalletAddress && isValidMinaPublicKey(importedWalletAddress)
+          ? importedWalletAddress
+          : proofMaterial.userId;
+
+      writeStoredZkProofMaterial(walletForBundle, proofMaterial);
+      setHasStoredProofMaterial(true);
+      setState("done");
+      setMessage(`Proof material imported for ${walletForBundle}.`);
+    } catch (err) {
+      setState("error");
+      setMessage(extractErrorMessage(err));
+    } finally {
+      if (proofMaterialInputRef.current) {
+        proofMaterialInputRef.current.value = "";
+      }
+    }
   }
 
   const statusLabel = mounted
@@ -419,6 +526,32 @@ export function WalletCredentialCard({
               Disconnect
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={handleDownloadProofMaterial}
+            disabled={!hasStoredProofMaterial}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            <Download className="h-4 w-4" />
+            Download proof bundle
+          </button>
+
+          <button
+            type="button"
+            onClick={() => proofMaterialInputRef.current?.click()}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-stone-50 sm:w-auto"
+          >
+            <Upload className="h-4 w-4" />
+            Import proof bundle
+          </button>
+          <input
+            ref={proofMaterialInputRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={(event) => void handleImportProofMaterial(event)}
+          />
         </div>
 
         {message && (
@@ -439,6 +572,14 @@ export function WalletCredentialCard({
             production verifiers should reject it unless demo credentials are explicitly allowed.
           </div>
         )}
+
+        <div className="rounded-[20px] border border-line bg-stone-50 px-4 py-3 text-sm text-slate">
+          <p className="font-medium text-ink">Reusable proof bundle</p>
+          <p className="mt-1 leading-6">
+            Mintra now stores a holder-side zk proof bundle on this device after credential issuance. Export it if you
+            want the proving inputs available without depending on Mintra keeping your claim record alive.
+          </p>
+        </div>
 
         <div className="grid gap-2.5 text-xs text-slate md:grid-cols-2 2xl:grid-cols-3">
           <div className="rounded-[18px] border border-line bg-stone-50 px-4 py-3">
