@@ -559,68 +559,6 @@ function readRawProofPublicInput(proof: unknown) {
   return Array.isArray(maybeProof.publicInput) ? maybeProof.publicInput : null;
 }
 
-function normalizeAgeProofJson(proof: unknown) {
-  const publicInput = readRawProofPublicInput(proof);
-  if (!proof || typeof proof !== "object" || !publicInput || publicInput.length < 5) {
-    return proof;
-  }
-
-  return {
-    ...(proof as Record<string, unknown>),
-    publicInput: {
-      dobCommitment: String(publicInput[0]),
-      minAge: String(publicInput[1]),
-      referenceYear: String(publicInput[2]),
-      referenceMonth: String(publicInput[3]),
-      referenceDay: String(publicInput[4]),
-    },
-  };
-}
-
-function normalizeKycProofJson(proof: unknown) {
-  const publicInput = readRawProofPublicInput(proof);
-  if (!proof || typeof proof !== "object" || !publicInput || publicInput.length < 1) {
-    return proof;
-  }
-
-  return {
-    ...(proof as Record<string, unknown>),
-    publicInput: {
-      kycCommitment: String(publicInput[0]),
-    },
-  };
-}
-
-function normalizeCountryProofJson(proof: unknown) {
-  const publicInput = readRawProofPublicInput(proof);
-  if (!proof || typeof proof !== "object" || !publicInput || publicInput.length < 17) {
-    return proof;
-  }
-
-  return {
-    ...(proof as Record<string, unknown>),
-    publicInput: {
-      countryCommitment: String(publicInput[0]),
-      allow0: String(publicInput[1]),
-      allow1: String(publicInput[2]),
-      allow2: String(publicInput[3]),
-      allow3: String(publicInput[4]),
-      allow4: String(publicInput[5]),
-      allow5: String(publicInput[6]),
-      allow6: String(publicInput[7]),
-      allow7: String(publicInput[8]),
-      block0: String(publicInput[9]),
-      block1: String(publicInput[10]),
-      block2: String(publicInput[11]),
-      block3: String(publicInput[12]),
-      block4: String(publicInput[13]),
-      block5: String(publicInput[14]),
-      block6: String(publicInput[15]),
-      block7: String(publicInput[16]),
-    },
-  };
-}
-
 function toAgePublicInputFromRawProof(proof: unknown) {
   const publicInput = readRawProofPublicInput(proof);
   if (!publicInput || publicInput.length < 5) {
@@ -747,7 +685,7 @@ async function verifyZkProofPayload(params: {
   }
 
   if (zkPolicyRequest.proofType === "mintra.zk.age-threshold/v1") {
-    const proof = AgeClaimProof.fromJSON(normalizeAgeProofJson(params.requestBody.proof));
+    const proof = AgeClaimProof.fromJSON(params.requestBody.proof);
     hydrateAgeProofPublicInputFromRaw(proof, params.requestBody.proof);
     const verified = await verifyAgeClaimProof({ proof });
     const publicInput = toAgePublicInput(proof);
@@ -787,7 +725,7 @@ async function verifyZkProofPayload(params: {
   }
 
   if (zkPolicyRequest.proofType === "mintra.zk.kyc-passed/v1") {
-    const proof = KycPassedClaimProof.fromJSON(normalizeKycProofJson(params.requestBody.proof));
+    const proof = KycPassedClaimProof.fromJSON(params.requestBody.proof);
     hydrateKycProofPublicInputFromRaw(proof, params.requestBody.proof);
     const verified = await verifyKycPassedClaimProof({ proof });
     const publicInput = toKycPublicInput(proof);
@@ -805,9 +743,7 @@ async function verifyZkProofPayload(params: {
     };
   }
 
-  const proof = CountryMembershipClaimProof.fromJSON(
-    normalizeCountryProofJson(params.requestBody.proof)
-  );
+  const proof = CountryMembershipClaimProof.fromJSON(params.requestBody.proof);
   hydrateCountryProofPublicInputFromRaw(proof, params.requestBody.proof);
   const verified = await verifyCountryMembershipProof({ proof });
   const publicInput = countryMembershipPublicInputToLists(proof.publicInput);
