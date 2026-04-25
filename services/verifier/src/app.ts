@@ -11,6 +11,9 @@ import {
 } from "@mintra/verifier-core";
 import {
   AgeClaimProof,
+  createAgeClaimPublicInput,
+  createCountryMembershipPublicInput,
+  createKycPassedPublicInput,
   CountryMembershipClaimProof,
   countryMembershipPublicInputToLists,
   KycPassedClaimProof,
@@ -607,6 +610,40 @@ function toCountryPublicInputFromRawProof(proof: unknown) {
   };
 }
 
+function hydrateAgeProofPublicInputFromRaw(proof: InstanceType<typeof AgeClaimProof>, rawProof: unknown) {
+  if (proof.publicInput) return;
+  const publicInput = toAgePublicInputFromRawProof(rawProof);
+  proof.publicInput = createAgeClaimPublicInput({
+    dobCommitment: publicInput.dobCommitment,
+    minAge: publicInput.minAge,
+    referenceDate: publicInput.referenceDate,
+  });
+}
+
+function hydrateKycProofPublicInputFromRaw(
+  proof: InstanceType<typeof KycPassedClaimProof>,
+  rawProof: unknown
+) {
+  if (proof.publicInput) return;
+  const publicInput = toKycPublicInputFromRawProof(rawProof);
+  proof.publicInput = createKycPassedPublicInput({
+    kycCommitment: publicInput.kycCommitment,
+  });
+}
+
+function hydrateCountryProofPublicInputFromRaw(
+  proof: InstanceType<typeof CountryMembershipClaimProof>,
+  rawProof: unknown
+) {
+  if (proof.publicInput) return;
+  const publicInput = toCountryPublicInputFromRawProof(rawProof);
+  proof.publicInput = createCountryMembershipPublicInput({
+    countryCommitment: publicInput.countryCommitment,
+    allowlistNumeric: publicInput.allowlistNumeric,
+    blocklistNumeric: publicInput.blocklistNumeric,
+  });
+}
+
 async function verifyZkProofPayload(params: {
   requestBody: z.infer<typeof VerifyZkClaimProofRequestSchema>;
   audience: string;
@@ -649,10 +686,9 @@ async function verifyZkProofPayload(params: {
 
   if (zkPolicyRequest.proofType === "mintra.zk.age-threshold/v1") {
     const proof = AgeClaimProof.fromJSON(params.requestBody.proof);
+    hydrateAgeProofPublicInputFromRaw(proof, params.requestBody.proof);
     const verified = await verifyAgeClaimProof({ proof });
-    const publicInput = proof.publicInput
-      ? toAgePublicInput(proof)
-      : toAgePublicInputFromRawProof(params.requestBody.proof);
+    const publicInput = toAgePublicInput(proof);
 
     if (
       publicInput.minAge !== zkPolicyRequest.requirements.ageGte ||
@@ -690,10 +726,9 @@ async function verifyZkProofPayload(params: {
 
   if (zkPolicyRequest.proofType === "mintra.zk.kyc-passed/v1") {
     const proof = KycPassedClaimProof.fromJSON(params.requestBody.proof);
+    hydrateKycProofPublicInputFromRaw(proof, params.requestBody.proof);
     const verified = await verifyKycPassedClaimProof({ proof });
-    const publicInput = proof.publicInput
-      ? toKycPublicInput(proof)
-      : toKycPublicInputFromRawProof(params.requestBody.proof);
+    const publicInput = toKycPublicInput(proof);
 
     return {
       statusCode: 200,
@@ -709,10 +744,9 @@ async function verifyZkProofPayload(params: {
   }
 
   const proof = CountryMembershipClaimProof.fromJSON(params.requestBody.proof);
+  hydrateCountryProofPublicInputFromRaw(proof, params.requestBody.proof);
   const verified = await verifyCountryMembershipProof({ proof });
-  const publicInput = proof.publicInput
-    ? countryMembershipPublicInputToLists(proof.publicInput)
-    : toCountryPublicInputFromRawProof(params.requestBody.proof);
+  const publicInput = countryMembershipPublicInputToLists(proof.publicInput);
 
   if (
     JSON.stringify(publicInput.allowlistNumeric) !==
