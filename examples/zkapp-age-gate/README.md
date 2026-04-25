@@ -2,12 +2,12 @@
 
 This example is intentionally optional and non-core.
 
-It shows how a Mina app could structure an age-gated zkApp integration layer around Mintra verification results without pretending that direct in-circuit presentation verification is already productionized here.
+It shows how a Mina app could structure an optional on-chain enforcement layer around Mintra verification results without pretending that direct in-circuit presentation verification is already productionized here.
 
 ## What This Example Demonstrates
 
 - a clean separation between Mintra proof verification and zkApp business logic
-- a placeholder contract surface for age-gated actions
+- how the shared registry and optional per-app gate fit together
 - where off-chain verified results could be anchored or bridged on-chain
 
 ## What It Does Not Claim

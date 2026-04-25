@@ -2,68 +2,84 @@
 
 zkApp support is optional.
 
-Mintra is not redesigned into a zkApp-only product.
+Mintra is not a zkApp-only product.
 
 ## Current Position
 
-Mintra issues credentials and verifies proofs off-chain.
+Today Mintra:
 
-zkApps can consume Mintra outputs through:
+- issues credentials off-chain
+- verifies presentations off-chain
+- verifies o1js proof products off-chain
+- anchors shared trust data on-chain through `MintraRegistry`
 
-- backend-mediated gating
-- oracle / attestation bridging
-- future contract adapters
+That means Mina contracts are an extension layer, not the default execution path.
 
-The preferred Mina-native split is now:
+## Preferred Split
 
-- one shared on-chain registry for trust anchors
-- site-specific policy off-chain
-- optional per-app enforcement contract only when a zkApp really needs on-chain gating
+Mintra's preferred Mina-native split is:
 
-For the demo web, the registry can be surfaced directly in the zk page by setting:
+1. one shared on-chain registry for trust anchors
+2. site-specific verifier policy off-chain
+3. optional per-app enforcement contract only when a zkApp truly needs direct on-chain gating
+
+That split avoids one global on-chain policy for every site.
+
+## What The Registry Does
+
+`MintraRegistry` stores:
+
+- trusted issuer public key
+- accepted proof verification key hashes
+- credential root
+- revocation root
+
+It does not store:
+
+- date of birth
+- country
+- provider payloads
+- site-specific verifier rules
+
+## What The Optional App Gate Does
+
+`MintraAgeGate` is the optional per-app contract.
+
+Use it only when a Mina zkApp really needs direct on-chain checks such as:
+
+- minimum age gating
+- age plus KYC gating
+
+Site-specific policy can otherwise stay off-chain in the verifier service.
+
+## Demo-Web Integration
+
+The demo web can surface the deployed registry by setting:
 
 - `NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS`
 - `NEXT_PUBLIC_MINA_GRAPHQL_URL`
 
-The UI can then read the deployed account state from Mina GraphQL and display the anchored proof VK hashes and root slots.
-
-## Example Included
-
-See:
-
-- [../packages/zk-age-gate-contract/README.md](../packages/zk-age-gate-contract/README.md)
-- [../examples/zkapp-age-gate/README.md](../examples/zkapp-age-gate/README.md)
-
-That example is intentionally minimal and clearly marked as a scaffold.
+The `/zk-age` page then reads the registry account from Mina GraphQL and shows the anchored VK hashes and roots.
 
 ## What Is Implemented vs Placeholder
 
 Implemented:
 
-- proof product modeling
-- presentation envelope format
-- off-chain verification path
-- relying-party verifier flow
-- shared `MintraRegistry` contract path for trust anchors
-- optional `MintraAgeGate` contract path for app-specific age / KYC gating
+- off-chain verifier product flow
+- off-chain zk policy request flow
+- shared `MintraRegistry`
+- optional `MintraAgeGate`
 
 Placeholder / future work:
 
-- in-circuit verification of Mintra presentations
-- production revocation root lifecycle
+- contract-side verifier policy enforcement as a default path
 - on-chain challenge consumption
 - contract-side freshness enforcement
-- country-policy enforcement contract
+- on-chain country policy enforcement
+- revocation-root lifecycle as a production default
 
-The example contract package shows where those integration points would live without pretending they already exist in production.
+## References
 
-## Privacy Roadmap Hook
-
-The zkApp extension path is also where Mintra’s privacy posture can deepen over time:
-
-- selective disclosure for claims such as `age_over_18`
-- commitment-oriented claim representations
-- stronger claim assurance semantics such as `provider-normalized` vs `zk-proven`
-- stronger Mina-native zk verification paths for relying parties that need on-chain enforcement
-
-That roadmap keeps the current infrastructure-first model intact while leaving a credible path toward stronger privacy guarantees.
+- [zk-proofs-and-registry.md](./zk-proofs-and-registry.md)
+- [../packages/zk-age-gate-contract/README.md](../packages/zk-age-gate-contract/README.md)
+- [../examples/zkapp-age-gate/README.md](../examples/zkapp-age-gate/README.md)

@@ -156,6 +156,7 @@ examples/zkapp-age-gate
 
 More detail:
 
+- [docs/index.md](./docs/index.md)
 - [docs/architecture.md](./docs/architecture.md)
 - [docs/what-is-mintra.md](./docs/what-is-mintra.md)
 
@@ -165,6 +166,7 @@ More detail:
 apps/
   demo-web/
 docs/
+  index.md
   architecture.md
   consume-proofs.md
   fastify-presentation-route.md
@@ -630,14 +632,14 @@ The verifier service can now issue a typed zk policy request at:
 
 and verify the submitted age proof at:
 
-- `POST /api/zk/verify-age-proof`
+- `POST /api/zk/verify-proof`
 
 Current limitation:
 
-- the age proof is verified off-chain
+- the current zk proof products are verified off-chain
 - the policy request carries audience and challenge metadata for verifier workflow
 - those audience / challenge fields are **not yet enforced in-circuit**
-- full credential-to-zk-proof binding from wallet-issued Mintra credentials is the next step
+- the wallet-bound age path is implemented today, while the other proof products are still being hardened to the same reliability tier
 
 ## Demo App Surfaces
 
@@ -652,6 +654,7 @@ The demo web app now includes:
   - dynamic proof product and policy builder
 - `/zk-age`
   - dynamic zk proof runner
+  - currently supports age, KYC, and country proof modes
   - registry address display
   - on-chain registry state readout when `NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS` and `NEXT_PUBLIC_MINA_GRAPHQL_URL` are configured
 - `/relying-party`
@@ -664,6 +667,7 @@ The zkApp example is intentionally separate from the core product.
 
 See:
 
+- [docs/zk-proofs-and-registry.md](./docs/zk-proofs-and-registry.md)
 - [docs/zkapp-integration.md](./docs/zkapp-integration.md)
 - [packages/zk-age-gate-contract/README.md](./packages/zk-age-gate-contract/README.md)
 

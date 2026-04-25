@@ -20,6 +20,8 @@ That is intentional.
 - replay protection
 - audience match
 - credential freshness
+- raw o1js proof JSON against the compiled verification key for zk proof products
+- raw zk public input values against the requested verifier policy
 
 ## Output Shape
 
@@ -36,3 +38,5 @@ That is intentional.
 - `verifiedAt`
 
 This keeps verifier integration stable even if internal proof mechanics evolve.
+
+Mintra's on-chain registry does not change this default. The registry anchors shared trust data, while the main verifier decision still happens off-chain.

@@ -33,6 +33,12 @@ The wallet-bound credential includes:
 - `ageOver21`
 - `kycPassed`
 - `countryCode`
+- `nationalityCode`
+- `documentExpiresAt`
+- `isDemoCredential`
+- `credentialMode`
+- `assuranceLevel`
+- `evidenceClass`
 - `issuedAt`
 
 The signed credential is then stored in Auro.
@@ -84,7 +90,7 @@ This matters because a verifier may want to reject demo credentials entirely in 
 
 Mintra currently:
 
-- retains normalized claims for up to 1 year
+- retains normalized claims for up to 30 days in the current setup
 - allows apps to require fresher credentials with verifier policy
 - supports re-verification even before retention expiry
 

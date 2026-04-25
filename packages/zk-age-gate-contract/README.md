@@ -41,6 +41,8 @@ This keeps Mintra infrastructure-first and avoids forcing every integration thro
 
 That makes it a shared anchor contract rather than a one-policy-for-everyone gate.
 
+In the current Mintra architecture, the registry is the preferred first on-chain deployment. The main verifier decision still happens off-chain.
+
 ## Optional Age Gate
 
 The optional `MintraAgeGate` contract can currently enforce:
@@ -57,6 +59,15 @@ and another can deploy or update an instance for:
 - `21+` and `KYC passed`
 
 Country rules are still off-chain today.
+
+## Current Recommendation
+
+Start with:
+
+1. `MintraRegistry`
+2. site-specific verifier policy off-chain
+
+Use `MintraAgeGate` only when a Mina zkApp really needs direct on-chain gating.
 
 ## Local Compile
 

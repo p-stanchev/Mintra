@@ -3,53 +3,65 @@
 ## Current
 
 Implemented today:
-- Didit session creation + webhook processing
-- normalized claims:
+
+- Didit session creation and webhook processing
+- normalized claim storage for:
+  - `date_of_birth`
   - `age_over_18`
+  - `age_over_21`
   - `kyc_passed`
   - `country_code`
-- wallet-first browser flow
-- signed wallet challenge auth
-- wallet-bound claims access
+  - optional `nationality`
+  - optional `document_expires_at`
+- wallet-first auth flow
 - wallet-bound Mina credential issuance
-- Auro credential storage
-- dedicated verifier service for Auro/Mina presentations
-- protected-route gating from verified wallet proofs
-- minimal persisted verification state
-- frontend CSP + security headers
+- richer wallet credential fields for trust and policy metadata
+- `credentialMetadata.version = "v2"` commitment-backed metadata
+- off-chain zk proof programs for:
+  - `mintra.zk.age-threshold/v1`
+  - `mintra.zk.kyc-passed/v1`
+  - `mintra.zk.country-membership/v1`
+- verifier-issued zk policy requests
+- off-chain zk proof verification in `services/verifier`
+- shared on-chain `MintraRegistry`
+- optional per-app `MintraAgeGate`
+- demo-web registry readout from Mina GraphQL
+- passkey-enhanced holder binding
 
 ## Next
 
-### Short term
+### Product hardening
 
-- Replace local JSON state with a deployment-grade persistent store
-- Add session/activity monitoring around repeated auth failures and webhook rejects
-- Tighten CSP further if the frontend can move away from any remaining inline allowances
-- Add automated tests around logout / session freshness / auth expiry
-- Add a clean “reauthenticate wallet” UX when the fresh-session window expires
+- finish mobile polish across all demo surfaces
+- add clearer verifier error surfacing everywhere
+- add deployment-level health and build markers
+- improve browser-side proving fallback behavior
 
 ### Credential and verifier flows
 
-- additional presentation specs beyond 18+
-- selective disclosure demos
-- verifier deployment templates
-- third-party verifier SDK wrapper
+- credential reissue flow for stale wallet credentials
+- stronger verifier-side credential trust checks against the registry
+- revocation and suspension model for issued credentials
+- issuer rotation and multi-issuer trust support
+- better passkey lifecycle UX
 
-### Provider expansion
+### ZK proof surface
 
-- Sumsub adapter
-- Persona adapter
-- Veriff adapter
+- prove KYC and country flows end to end in the same reliability tier as age proofs
+- tighten browser/runtime checks for o1js worker usage
+- bind more verifier policy fields directly into proof workflows
+- extend commitment-backed metadata beyond the current source fields
 
-### Production hardening
+### On-chain layer
 
-- encrypted-at-rest persistent backend
-- revocation / suspension model for issued credentials
-- stronger audit event pipeline
-- environment-specific issuer keys and public issuer registry
+- registry update lifecycle docs and automation
+- revocation root lifecycle
+- credential root lifecycle
+- accepted verification-key rotation
+- optional app-specific zkApp policies only where on-chain enforcement is actually needed
 
-### Ecosystem
+### Ecosystem and packaging
 
-- publish `@mintra/sdk-js`
-- deployment docs and hosted example
-- Mina app integration guides
+- publish stable workspace packages with semver
+- add deployment templates for verifier and demo-web
+- expand Mina app integration examples

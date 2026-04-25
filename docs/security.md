@@ -110,7 +110,7 @@ To reduce that risk, Mintra now carries:
 
 ## Retention
 
-- Mintra normalized claims: up to 1 year
+- Mintra normalized claims: up to 30 days in the current setup
 - Didit retention: provider-side and separate from Mintra
 
 ## Consent And Data Minimization

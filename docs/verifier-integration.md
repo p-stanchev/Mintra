@@ -1,80 +1,17 @@
 # Verifier Integration
 
-Mintra presentations are meant to be consumed on the relying party's own backend.
+Mintra is designed to be consumed on the relying party's own backend.
 
-That is the product direction:
+The current product shape is:
 
 - Mintra issues credentials
-- the holder stores them in a Mina wallet
-- the relying party creates its own presentation request
-- the relying party verifies the returned presentation itself
+- the holder keeps them in a wallet
+- the relying party asks for a fresh proof or presentation
+- the relying party verifies the result on its own backend
 
-## Quickest Integration Path
+## Main HTTP Surface
 
-For most developers, the mental model is:
-
-1. backend calls `createPresentationRequest(...)`
-2. frontend gets a wallet-produced `presentationEnvelope`
-3. backend calls `verifyPresentation(...)`
-4. backend checks `result.ok` and the normalized output fields
-
-Minimal package example:
-
-```ts
-import {
-  createPresentationRequest,
-  verifyPresentation,
-} from "@mintra/verifier-core";
-
-const request = await createPresentationRequest({
-  proofProductId: "proof_of_age_18",
-  audience: "https://app.example.com",
-  verifier: "https://verifier.example.com",
-  walletAddress,
-});
-
-const result = await verifyPresentation({
-  envelope: presentationEnvelope,
-  verifierIdentity: "https://app.example.com",
-  expectedAudience: "https://app.example.com",
-  expectedOwnerPublicKey: walletAddress,
-  holderBindingVerifier,
-});
-
-if (result.ok && result.output?.ageOver18 && result.output?.kycPassed) {
-  // allow access
-}
-```
-
-Minimal verifier-service example:
-
-```ts
-const requestResponse = await fetch("https://verifier.example.com/api/presentation-request", {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({
-    proofProductId: "proof_of_age_18",
-    expectedOwnerPublicKey: walletAddress,
-  }),
-});
-
-const { requestEnvelope } = await requestResponse.json();
-
-const verifyResponse = await fetch("https://verifier.example.com/api/verify-presentation", {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({
-    presentationEnvelope,
-    expectedOwnerPublicKey: walletAddress,
-  }),
-});
-
-const result = await verifyResponse.json();
-```
-
-## Verifier Endpoints
-
-`services/verifier` exposes:
+`services/verifier` currently exposes:
 
 - `GET /api/proof-products`
 - `GET /api/presentation-request`
@@ -84,18 +21,17 @@ const result = await verifyResponse.json();
 - `POST /api/passkeys/register/verify`
 - `POST /api/passkeys/assertion/options`
 - `POST /api/verify-presentation`
+- `POST /api/zk/policy-request`
+- `POST /api/zk/verify-proof`
 - `GET /health`
 
-## Request Creation
+## Presentation Flow
+
+### Create a presentation request
 
 `POST /api/presentation-request`
 
-Mintra’s standardized proof request format is:
-
-- envelope: `mintra.presentation-request/v1`
-- challenge: `mintra.challenge/v1`
-
-The verifier service returns that standardized request envelope over HTTP.
+Example:
 
 ```json
 {
@@ -112,250 +48,108 @@ The verifier service returns that standardized request envelope over HTTP.
 }
 ```
 
-Response:
-
-```json
-{
-  "proofProduct": {
-    "id": "proof_of_age_18",
-    "displayName": "Proof of Age 18+"
-  },
-  "challenge": {
-    "version": "mintra.challenge/v1",
-    "challengeId": "uuid",
-    "audience": "https://your-app.example",
-    "proofProductId": "proof_of_age_18"
-  },
-  "requestEnvelope": {
-    "version": "mintra.presentation-request/v1",
-    "...": "..."
-  }
-}
-```
-
-Conceptually, this is Mintra’s standard request object:
-
-```json
-{
-  "version": "mintra.presentation-request/v1",
-  "proofProduct": {
-    "id": "proof_of_age_18"
-  },
-  "challenge": {
-    "version": "mintra.challenge/v1",
-    "challengeId": "uuid",
-    "nonce": "hex",
-    "audience": "https://your-app.example",
-    "proofProductId": "proof_of_age_18",
-    "policy": {
-      "minAge": 18,
-      "requireKycPassed": true
-    }
-  }
-}
-```
-
-So yes, Mintra does define its own standardized proof-request format already. The current implementation exposes it as the request envelope returned by `createPresentationRequest(...)` and `POST /api/presentation-request`.
-
-The verifier stores the challenge server-side and expects a single verification attempt against it.
-
-Storage mode:
-
-- local dev: in-memory store
-- production: Redis-backed challenge store via `REDIS_URL`
-
-The verifier API shape stays the same. The hardening is internal to challenge persistence and consume semantics.
-
-If `requirePasskeyBinding` is `true`, the challenge is still created first, but the WebAuthn assertion options are issued later from `POST /api/passkeys/assertion/options` after the frontend has the exact `presentationJson`.
-
-## Passkey Registration
-
-`POST /api/passkeys/register/options`
-
-```json
-{
-  "walletAddress": "B62...",
-  "deviceName": "Primary laptop"
-}
-```
-
-`POST /api/passkeys/register/verify`
-
-```json
-{
-  "registrationId": "uuid",
-  "credential": {
-    "id": "...",
-    "rawId": "...",
-    "type": "public-key",
-    "response": {
-      "attestationObject": "...",
-      "clientDataJSON": "...",
-      "transports": ["internal"]
-    }
-  }
-}
-```
-
-The verifier stores the resulting passkey binding against the wallet / subject.
-
-## Passkey Assertion Options
-
-`POST /api/passkeys/assertion/options`
-
-```json
-{
-  "challengeId": "uuid",
-  "walletAddress": "B62...",
-  "presentationJson": "..."
-}
-```
-
-The verifier returns a WebAuthn challenge plus a signed payload reference that binds:
-
-- `challengeId`
-- `nonce`
-- `audience`
-- `proofSha256`
-- wallet / subject identity
-
-## Verification
+### Verify a presentation
 
 `POST /api/verify-presentation`
 
+The verifier returns a normalized result with fields such as:
+
+- `ok`
+- `challenge`
+- `ownerPublicKey`
+- `output`
+- `credentialTrust`
+- `holderBinding`
+- `audience`
+- `freshness`
+- `error`
+- `verifiedAt`
+
+## ZK Proof Flow
+
+### Create a zk policy request
+
+`POST /api/zk/policy-request`
+
+Example:
+
 ```json
 {
-  "presentationEnvelope": {
-    "version": "mintra.presentation/v1",
-    "challenge": { "...": "..." },
-    "proof": {
-      "format": "mina-attestations/auro",
-      "presentationJson": "...",
-      "presentationRequestJson": "...",
-      "credentialTrust": {
-        "issuerEnvironment": "production",
-        "issuerId": "mintra-production-issuer",
-        "issuerDisplayName": "Mintra",
-        "assuranceLevel": "high",
-        "evidenceClass": "provider-normalized",
-        "demoCredential": false
-      }
+  "proofType": "mintra.zk.age-threshold/v1",
+  "minAge": 18
+}
+```
+
+Other supported proof types:
+
+- `mintra.zk.kyc-passed/v1`
+- `mintra.zk.country-membership/v1`
+
+Country example:
+
+```json
+{
+  "proofType": "mintra.zk.country-membership/v1",
+  "countryAllowlist": ["BG", "DE"],
+  "countryBlocklist": []
+}
+```
+
+### Verify a zk proof
+
+`POST /api/zk/verify-proof`
+
+Example request:
+
+```json
+{
+  "request": {
+    "version": "mintra.zk-policy/v1",
+    "proofType": "mintra.zk.age-threshold/v1",
+    "audience": "https://app.example.com",
+    "verifier": "https://verifier.example.com",
+    "challenge": {
+      "challengeId": "uuid",
+      "nonce": "hex",
+      "issuedAt": "2026-04-25T00:00:00.000Z",
+      "expiresAt": "2026-04-25T00:05:00.000Z"
     },
-    "holderBinding": {
-      "method": "mina:signMessage",
-      "publicKey": "B62...",
-      "message": "Mintra proof presentation\n...",
-      "signature": {
-        "field": "...",
-        "scalar": "..."
-      },
-      "signedAt": "2026-04-21T10:00:00.000Z"
+    "requirements": {
+      "ageGte": 18
     },
-    "passkeyBinding": {
-      "bindingId": "passkey-binding-id",
-      "credentialId": "credential-id",
-      "challenge": "webauthn-challenge",
-      "signedPayload": {
-        "challengeId": "uuid",
-        "nonce": "hex",
-        "audience": "https://your-app.example",
-        "proofSha256": "sha256hex",
-        "walletAddress": "B62...",
-        "subjectId": "B62..."
-      },
-      "credential": {
-        "id": "...",
-        "rawId": "...",
-        "type": "public-key",
-        "response": {
-          "authenticatorData": "...",
-          "clientDataJSON": "...",
-          "signature": "..."
-        }
-      }
-    },
-    "metadata": {
-      "walletProvider": "Auro",
-      "submittedAt": "2026-04-21T10:00:02.000Z"
+    "publicInputs": {
+      "referenceDate": "2026-04-25",
+      "commitmentKey": "dob_poseidon_commitment"
     }
   },
-  "expectedOwnerPublicKey": "B62..."
+  "proof": {
+    "publicInput": ["...", "18", "2026", "4", "25"],
+    "publicOutput": [],
+    "maxProofsVerified": 0,
+    "proof": "base64..."
+  }
 }
 ```
 
-Success response:
+The verifier currently:
 
-```json
-{
-  "ok": true,
-  "challenge": {
-    "challengeId": "uuid",
-    "proofProductId": "proof_of_age_18",
-    "audience": "https://your-app.example"
-  },
-  "ownerPublicKey": "B62...",
-  "output": {
-    "ageOver18": true,
-    "ageOver21": false,
-    "kycPassed": true,
-    "countryCodeNumeric": 100,
-    "issuedAt": 1776717714
-  },
-  "credentialTrust": {
-    "issuerEnvironment": "production",
-    "issuerId": "mintra-production-issuer",
-    "issuerDisplayName": "Mintra",
-    "assuranceLevel": "high",
-    "evidenceClass": "provider-normalized",
-    "demoCredential": false
-  },
-  "holderBinding": {
-    "verified": true
-  },
-  "audience": {
-    "verified": true,
-    "expected": "https://your-app.example",
-    "actual": "https://your-app.example"
-  },
-  "freshness": {
-    "verified": true,
-    "issuedAt": 1776717714,
-    "credentialAgeSeconds": 86400,
-    "maxAgeDays": 365
-  },
-  "verifiedAt": "2026-04-21T10:00:03.000Z"
-}
-```
+1. validates the typed zk policy request
+2. verifies audience and expiry
+3. verifies the raw proof JSON against the compiled verification key
+4. reads the raw `publicInput` array to confirm it matches the requested policy
 
-Normalized failure codes now include:
+## Passkeys
 
-- `unknown_challenge`
-- `expired_challenge`
-- `challenge_replay`
-- `challenge_audience_mismatch`
-- `challenge_nonce_mismatch`
-- `challenge_request_mismatch`
-- `passkey_missing`
-- `passkey_not_registered`
-- `passkey_mismatch`
-- `passkey_invalid_signature`
-- `demo_credential_not_allowed`
-- `credential_assurance_too_low`
-- `credential_evidence_class_not_allowed`
+Passkeys are optional and sit on top of wallet holder binding.
 
-That gives relying parties explicit verifier outcomes for replay-safe flows in multi-instance deployments.
+Registration endpoints:
 
-## Local Integration Flow
+- `POST /api/passkeys/register/options`
+- `POST /api/passkeys/register/verify`
 
-1. The backend requests a Mintra presentation challenge.
-2. The frontend sends the request to Auro.
+Assertion endpoint:
 
-The current demo verifier flow is wired against Auro for credential presentation. Pallad connection may work for wallet auth, but presentation is not supported in the demo yet.
-3. The frontend signs the holder-binding message with the same wallet.
-4. If required, the frontend asks the verifier for passkey assertion options and signs the same challenge payload with WebAuthn.
-5. The backend verifies the presentation envelope.
-6. The backend atomically consumes the challenge during verification.
-7. The backend grants or denies access.
+- `POST /api/passkeys/assertion/options`
 
 ## Verifier Environment
 
@@ -366,8 +160,11 @@ REDIS_URL=redis://user:password@host:6379
 PORT=3002
 ```
 
-See:
+If `REDIS_URL` is unset, the verifier uses an in-memory store. That is fine for local development, but production should use Redis so replay protection survives multiple instances.
 
-- [consume-proofs.md](./consume-proofs.md)
+## Related Docs
+
 - [off-chain-verification.md](./off-chain-verification.md)
+- [consume-proofs.md](./consume-proofs.md)
 - [replay-protection-and-audience-binding.md](./replay-protection-and-audience-binding.md)
+- [zk-proofs-and-registry.md](./zk-proofs-and-registry.md)
