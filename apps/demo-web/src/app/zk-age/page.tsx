@@ -24,6 +24,9 @@ type RegistryState =
     }
   | null;
 
+let runtimeWarmupPromise: Promise<void> | undefined;
+const proofWarmupPromises = new Map<ProofMode, Promise<void>>();
+
 export default function ZkAgePage() {
   const [step, setStep] = useState<Step>("idle");
   const [proofMode, setProofMode] = useState<ProofMode>("age18");
@@ -55,6 +58,14 @@ export default function ZkAgePage() {
       window.removeEventListener("mintra:wallet-provider-name", syncWallet as EventListener);
     };
   }, []);
+
+  useEffect(() => {
+    if (!walletAddress || isCrossOriginIsolated !== true) {
+      return;
+    }
+
+    void warmProofMode(proofMode);
+  }, [walletAddress, isCrossOriginIsolated, proofMode]);
 
   useEffect(() => {
     const registryAddress = process.env.NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS;
@@ -156,9 +167,10 @@ export default function ZkAgePage() {
     try {
       setMessage(null);
       setResult(null);
+      const warmupPromise = warmProofMode(proofMode);
 
       setStep("loading-input");
-      const zkInput = await mintra.getZkProofInput(linkedWallet);
+      const [zkInput] = await Promise.all([mintra.getZkProofInput(linkedWallet), warmupPromise]);
       setProofInput(zkInput);
 
       setStep("requesting-policy");
@@ -494,8 +506,7 @@ async function createProofForRequest(
   zkInput: GetZkProofInputResponse,
   request: ZkPolicyRequest
 ) {
-  const { setNumberOfWorkers } = await import("o1js");
-  setNumberOfWorkers(1);
+  await ensureProofRuntime();
 
   if (request.proofType === "mintra.zk.age-threshold/v1") {
     const dateOfBirth = zkInput.dateOfBirth;
@@ -539,4 +550,43 @@ async function createProofForRequest(
     blocklistNumeric: request.publicInputs.blocklistNumeric,
     ...(zkInput.zkSalts?.country ? { salt: BigInt(`0x${zkInput.zkSalts.country}`) } : {}),
   });
+}
+
+async function ensureProofRuntime() {
+  runtimeWarmupPromise ??= import("o1js").then(({ setNumberOfWorkers }) => {
+    setNumberOfWorkers(1);
+  });
+  return runtimeWarmupPromise;
+}
+
+async function warmProofMode(proofMode: ProofMode) {
+  const existing = proofWarmupPromises.get(proofMode);
+  if (existing) {
+    return existing;
+  }
+
+  const warmupPromise = (async () => {
+    await ensureProofRuntime();
+    const zkClaims = await import("@mintra/zk-claims");
+
+    if (proofMode === "age18" || proofMode === "age21") {
+      await zkClaims.compileAgeClaimProgram();
+      return;
+    }
+
+    if (proofMode === "kyc") {
+      await zkClaims.compileKycPassedProgram();
+      return;
+    }
+
+    await zkClaims.compileCountryMembershipProgram();
+  })();
+
+  proofWarmupPromises.set(proofMode, warmupPromise);
+  try {
+    await warmupPromise;
+  } catch (error) {
+    proofWarmupPromises.delete(proofMode);
+    throw error;
+  }
 }
