@@ -515,6 +515,8 @@ describe("Mintra API", () => {
     expect(data.credentialMetadata.version).toBe("v2");
     expect(data.credentialMetadata.sourceCommitments.dob_commitment.value).toBe("b".repeat(64));
     expect(data.credentialMetadata.credentialTrust.demoCredential).toBe(false);
+    expect(data.zkProofMaterial.userId).toBe(WALLET_1);
+    expect(data.zkProofMaterial.credentialMetadata.version).toBe("v2");
   });
 
   it("POST /api/demo/issue-claims creates synthetic demo claims for the authenticated wallet", async () => {

@@ -8,6 +8,7 @@ import {
   readLinkedWalletAddress,
   readLinkedWalletProviderId,
   readLinkedWalletProviderName,
+  writeStoredZkProofMaterial,
 } from "@/lib/wallet-session";
 import { authenticateWallet, extractErrorMessage, resetWalletSession } from "@/lib/wallet-auth";
 import { discoverMinaWallets, getWalletById, summarizeWallet, type MinaWalletSummary } from "@/lib/mina-wallet";
@@ -251,6 +252,10 @@ export function WalletCredentialCard({
       }
 
       await provider.storePrivateCredential({ credential: parsedCredential });
+
+      if (issued.zkProofMaterial) {
+        writeStoredZkProofMaterial(ownerPublicKey, issued.zkProofMaterial);
+      }
 
       setState("done");
       setMessage(

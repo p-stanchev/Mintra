@@ -50,12 +50,11 @@ export const IssueMinaCredentialRequestSchema = z.object({
 });
 export type IssueMinaCredentialRequest = z.infer<typeof IssueMinaCredentialRequestSchema>;
 
-export const IssueMinaCredentialResponseSchema = z.object({
+const IssueMinaCredentialResponseBaseSchema = z.object({
   credentialJson: z.string(),
   issuerPublicKey: z.string(),
   credentialMetadata: CredentialMetadataSchema.optional(),
 });
-export type IssueMinaCredentialResponse = z.infer<typeof IssueMinaCredentialResponseSchema>;
 
 export const GetZkProofInputResponseSchema = z.object({
   userId: MinaPublicKeySchema,
@@ -74,6 +73,12 @@ export type GetZkProofInputResponse = z.infer<typeof GetZkProofInputResponseSche
 
 export const GetZkAgeProofInputResponseSchema = GetZkProofInputResponseSchema;
 export type GetZkAgeProofInputResponse = GetZkProofInputResponse;
+
+export const IssueMinaCredentialResponseSchema =
+  IssueMinaCredentialResponseBaseSchema.extend({
+    zkProofMaterial: GetZkProofInputResponseSchema.optional(),
+  });
+export type IssueMinaCredentialResponse = z.infer<typeof IssueMinaCredentialResponseSchema>;
 
 export const CreateZkProofRequestSchema = z.object({
   userId: MinaPublicKeySchema,

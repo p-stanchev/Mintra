@@ -1,7 +1,10 @@
+import type { GetZkProofInputResponse } from "@mintra/sdk-types";
+
 export const LINKED_WALLET_STORAGE_KEY = "mintra.linkedWalletAddress";
 export const AUTH_TOKEN_STORAGE_KEY = "mintra.authToken";
 export const WALLET_PROVIDER_ID_STORAGE_KEY = "mintra.walletProviderId";
 export const WALLET_PROVIDER_NAME_STORAGE_KEY = "mintra.walletProviderName";
+const ZK_PROOF_MATERIAL_STORAGE_PREFIX = "mintra.zkProofMaterial.";
 
 // Mina public keys are base58-encoded, ~55 chars, always starting with B62
 const MINA_PUBKEY_RE = /^B62[1-9A-HJ-NP-Za-km-z]{50,54}$/;
@@ -66,6 +69,33 @@ export function writeAuthToken(token: string): void {
   if (typeof window === "undefined") return;
   window.sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
   window.dispatchEvent(new CustomEvent("mintra:auth-updated", { detail: token }));
+}
+
+export function readStoredZkProofMaterial(walletAddress: string): GetZkProofInputResponse | null {
+  if (typeof window === "undefined" || !isValidMinaPublicKey(walletAddress)) return null;
+  const raw = window.localStorage.getItem(`${ZK_PROOF_MATERIAL_STORAGE_PREFIX}${walletAddress}`);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as GetZkProofInputResponse;
+  } catch {
+    return null;
+  }
+}
+
+export function writeStoredZkProofMaterial(
+  walletAddress: string,
+  proofMaterial: GetZkProofInputResponse
+): void {
+  if (typeof window === "undefined" || !isValidMinaPublicKey(walletAddress)) return;
+  window.localStorage.setItem(
+    `${ZK_PROOF_MATERIAL_STORAGE_PREFIX}${walletAddress}`,
+    JSON.stringify(proofMaterial)
+  );
+}
+
+export function clearStoredZkProofMaterial(walletAddress: string | null): void {
+  if (typeof window === "undefined" || !walletAddress || !isValidMinaPublicKey(walletAddress)) return;
+  window.localStorage.removeItem(`${ZK_PROOF_MATERIAL_STORAGE_PREFIX}${walletAddress}`);
 }
 
 export function clearWalletSession(): void {

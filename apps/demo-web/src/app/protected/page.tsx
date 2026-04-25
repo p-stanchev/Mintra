@@ -5,6 +5,7 @@ import {
   readLinkedWalletAddress,
   readLinkedWalletProviderId,
   readLinkedWalletProviderName,
+  readStoredZkProofMaterial,
 } from "@/lib/wallet-session";
 import { getWalletById } from "@/lib/mina-wallet";
 import { mintra } from "@/lib/mintra";
@@ -144,7 +145,8 @@ export default function ProtectedPage() {
       setError(null);
 
       setZkStep("loading-input");
-      const zkInput: GetZkProofInputResponse = await mintra.getZkProofInput(walletAddress);
+      const zkInput: GetZkProofInputResponse =
+        readStoredZkProofMaterial(walletAddress) ?? (await mintra.getZkProofInput(walletAddress));
 
       if (!zkInput.dateOfBirth) {
         throw new Error("This credential does not include date of birth for age proving.");
@@ -165,21 +167,42 @@ export default function ProtectedPage() {
       const zkRequest = (await policyResponse.json()) as Extract<ZkPolicyRequest, { proofType: "mintra.zk.age-threshold/v1" }>;
 
       setZkStep("proving");
-      const { proveAgeClaimFromCredentialMetadata } = await import("@mintra/zk-claims");
+      let proofJson: unknown;
+      try {
+        const proofResponse = await mintra.createZkProof({
+          userId: zkInput.userId,
+          request: zkRequest,
+        });
+        proofJson = proofResponse.proof;
+      } catch (error) {
+        const message = error instanceof Error ? error.message.toLowerCase() : "";
+        const canFallback =
+          message.includes("api error 404") ||
+          message.includes("api error 405") ||
+          message.includes("api error 501") ||
+          message.includes("route post:/api/mina/zk-proof not found") ||
+          message.includes("no approved verification found for this user");
 
-      const proof = await proveAgeClaimFromCredentialMetadata({
-        credentialMetadata: zkInput.credentialMetadata,
-        dateOfBirth: zkInput.dateOfBirth,
-        minAge: zkRequest.requirements.ageGte,
-        referenceDate: zkRequest.publicInputs.referenceDate,
-        ...(zkInput.zkSalts?.dob ? { salt: BigInt(`0x${zkInput.zkSalts.dob}`) } : {}),
-      });
+        if (!canFallback) {
+          throw error;
+        }
+
+        const { proveAgeClaimFromCredentialMetadata } = await import("@mintra/zk-claims");
+        const proof = await proveAgeClaimFromCredentialMetadata({
+          credentialMetadata: zkInput.credentialMetadata,
+          dateOfBirth: zkInput.dateOfBirth,
+          minAge: zkRequest.requirements.ageGte,
+          referenceDate: zkRequest.publicInputs.referenceDate,
+          ...(zkInput.zkSalts?.dob ? { salt: BigInt(`0x${zkInput.zkSalts.dob}`) } : {}),
+        });
+        proofJson = proof.toJSON();
+      }
 
       setZkStep("verifying");
       const verifyResponse = await fetch(`${verifierUrl}/api/zk/verify-proof`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ request: zkRequest, proof: proof.toJSON() }),
+        body: JSON.stringify({ request: zkRequest, proof: proofJson }),
       });
 
       if (!verifyResponse.ok) {

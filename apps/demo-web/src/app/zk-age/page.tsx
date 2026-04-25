@@ -4,6 +4,7 @@ import { mintra } from "@/lib/mintra";
 import {
   readLinkedWalletAddress,
   readLinkedWalletProviderName,
+  readStoredZkProofMaterial,
 } from "@/lib/wallet-session";
 import type {
   GetZkProofInputResponse,
@@ -151,7 +152,8 @@ export default function ZkAgePage() {
       setResult(null);
 
       setStep("loading-input");
-      const zkInput = await mintra.getZkProofInput(linkedWallet);
+      const zkInput =
+        readStoredZkProofMaterial(linkedWallet) ?? (await mintra.getZkProofInput(linkedWallet));
       setProofInput(zkInput);
 
       setStep("requesting-policy");
@@ -572,6 +574,7 @@ function shouldFallbackToBrowserProving(error: unknown) {
     message.includes("api error 404") ||
     message.includes("api error 405") ||
     message.includes("api error 501") ||
-    message.includes("route post:/api/mina/zk-proof not found")
+    message.includes("route post:/api/mina/zk-proof not found") ||
+    message.includes("no approved verification found for this user")
   );
 }

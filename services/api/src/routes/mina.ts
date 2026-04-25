@@ -8,11 +8,6 @@ import {
   type GetZkProofInputResponse,
   type ZkPolicyRequest,
 } from "@mintra/sdk-types";
-import {
-  proveAgeClaimFromCredentialMetadata,
-  proveCountryMembershipFromCredentialMetadata,
-  proveKycPassedFromCredentialMetadata,
-} from "@mintra/zk-claims";
 import { isValidMinaPublicKey, requireFreshWalletAuth } from "../auth";
 import { buildNormalizedClaims } from "../claim-state";
 import type { ClaimsRecord } from "../store";
@@ -49,6 +44,7 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
     }
 
     const normalizedClaims = buildNormalizedClaims(claim);
+    const zkProofMaterial = buildZkProofInputPayload(app, userId, claim);
 
     const result = await app.minaBridge.issueCredential({
       userId,
@@ -69,7 +65,10 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
     });
 
     app.log.info("mina.credential_issued");
-    return reply.send(result);
+    return reply.send({
+      ...result,
+      ...(zkProofMaterial === null ? {} : { zkProofMaterial }),
+    });
   });
 
   app.get<{ Params: { userId: string } }>("/zk-age-proof-input/:userId", async (request, reply) => {
@@ -194,12 +193,14 @@ async function createBackendZkProof(input: {
   zkInput: GetZkProofInputResponse;
   request: ZkPolicyRequest;
 }) {
+  const zkClaims = await import("@mintra/zk-claims");
+
   if (input.request.proofType === "mintra.zk.age-threshold/v1") {
     if (!input.zkInput.dateOfBirth) {
       throw new Error("This credential does not include date of birth for age proving.");
     }
 
-    const proof = await proveAgeClaimFromCredentialMetadata({
+    const proof = await zkClaims.proveAgeClaimFromCredentialMetadata({
       credentialMetadata: input.zkInput.credentialMetadata,
       dateOfBirth: input.zkInput.dateOfBirth,
       minAge: input.request.requirements.ageGte,
@@ -214,7 +215,7 @@ async function createBackendZkProof(input: {
       throw new Error("This credential does not currently satisfy the KYC-passed proof.");
     }
 
-    const proof = await proveKycPassedFromCredentialMetadata({
+    const proof = await zkClaims.proveKycPassedFromCredentialMetadata({
       credentialMetadata: input.zkInput.credentialMetadata,
       kycPassed: input.zkInput.kycPassed,
       ...(input.zkInput.zkSalts?.kyc ? { salt: BigInt(`0x${input.zkInput.zkSalts.kyc}`) } : {}),
@@ -226,7 +227,7 @@ async function createBackendZkProof(input: {
     throw new Error("This credential does not include a normalized country code for country proofs.");
   }
 
-  const proof = await proveCountryMembershipFromCredentialMetadata({
+  const proof = await zkClaims.proveCountryMembershipFromCredentialMetadata({
     credentialMetadata: input.zkInput.credentialMetadata,
     countryCodeNumeric: input.zkInput.countryCodeNumeric,
     allowlistNumeric: input.request.publicInputs.allowlistNumeric,
