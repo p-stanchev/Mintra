@@ -333,6 +333,9 @@ importers:
       mina-signer:
         specifier: ^3.0.7
         version: 3.1.0
+      o1js:
+        specifier: ^2.14.0
+        version: 2.14.0
       zod:
         specifier: ^3.23.0
         version: 3.25.76
