@@ -15,6 +15,7 @@
     "@mintra/mina-bridge": "workspace:*",
     "@mintra/provider-didit": "workspace:*",
     "@mintra/sdk-types": "workspace:*",
+    "@mintra/zk-claims": "workspace:*",
     "dotenv": "^16.4.0",
     "fastify": "^4.27.0",
     "i18n-iso-countries": "^7.14.0",

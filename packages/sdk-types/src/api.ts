@@ -7,6 +7,7 @@ import {
   SourceCommitmentsSchema,
 } from "@mintra/credential-v2";
 import { CredentialMetadataSchema } from "@mintra/credential-v2";
+import { ZkPolicyRequestSchema } from "./zk";
 
 const MinaPublicKeySchema = z
   .string()
@@ -73,6 +74,16 @@ export type GetZkProofInputResponse = z.infer<typeof GetZkProofInputResponseSche
 
 export const GetZkAgeProofInputResponseSchema = GetZkProofInputResponseSchema;
 export type GetZkAgeProofInputResponse = GetZkProofInputResponse;
+
+export const CreateZkProofRequestSchema = z.object({
+  request: ZkPolicyRequestSchema,
+});
+export type CreateZkProofRequest = z.infer<typeof CreateZkProofRequestSchema>;
+
+export const CreateZkProofResponseSchema = z.object({
+  proof: z.unknown(),
+});
+export type CreateZkProofResponse = z.infer<typeof CreateZkProofResponseSchema>;
 
 export const IssueDemoClaimsRequestSchema = z.object({
   userId: MinaPublicKeySchema,

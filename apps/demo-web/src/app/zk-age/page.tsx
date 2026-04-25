@@ -23,9 +23,7 @@ type RegistryState =
       zkappState: string[];
     }
   | null;
-
-let runtimeWarmupPromise: Promise<void> | undefined;
-const proofWarmupPromises = new Map<ProofMode, Promise<void>>();
+let proofRuntimePromise: Promise<void> | undefined;
 
 export default function ZkAgePage() {
   const [step, setStep] = useState<Step>("idle");
@@ -58,14 +56,6 @@ export default function ZkAgePage() {
       window.removeEventListener("mintra:wallet-provider-name", syncWallet as EventListener);
     };
   }, []);
-
-  useEffect(() => {
-    if (!walletAddress || isCrossOriginIsolated !== true) {
-      return;
-    }
-
-    void warmProofMode(proofMode);
-  }, [walletAddress, isCrossOriginIsolated, proofMode]);
 
   useEffect(() => {
     const registryAddress = process.env.NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS;
@@ -156,21 +146,12 @@ export default function ZkAgePage() {
       process.env.NEXT_PUBLIC_MINTRA_VERIFIER_URL?.replace(/\/$/, "") ??
       "http://localhost:3002";
 
-    if (!window.crossOriginIsolated) {
-      setMessage(
-        "This browser session is not cross-origin isolated, so o1js worker proving is unavailable. Enable COOP/COEP headers on the app deployment and try again."
-      );
-      setResult(null);
-      return;
-    }
-
     try {
       setMessage(null);
       setResult(null);
-      const warmupPromise = warmProofMode(proofMode);
 
       setStep("loading-input");
-      const [zkInput] = await Promise.all([mintra.getZkProofInput(linkedWallet), warmupPromise]);
+      const zkInput = await mintra.getZkProofInput(linkedWallet);
       setProofInput(zkInput);
 
       setStep("requesting-policy");
@@ -214,7 +195,7 @@ export default function ZkAgePage() {
         },
         body: JSON.stringify({
           request: zkRequest,
-          proof: proof.toJSON(),
+          proof,
         }),
       });
 
@@ -271,13 +252,9 @@ export default function ZkAgePage() {
         <div className="mt-4 rounded-2xl border border-line bg-fog px-4 py-3 text-sm text-slate">
           Proof runtime:{" "}
           <span className="font-medium text-ink">
-            {isCrossOriginIsolated === null
-              ? "checking browser runtime"
-              : isCrossOriginIsolated
-                ? "cross-origin isolated"
-                : "not isolated"}
+            {isCrossOriginIsolated === null ? "checking browser runtime" : "server-side by default"}
           </span>
-          . Browser-side o1js proving requires isolation so workers can use `SharedArrayBuffer`.
+          . The demo now prefers backend proving to avoid mobile freezes. Browser-side o1js proving only runs as a fallback if the API endpoint is unavailable{isCrossOriginIsolated === false ? " and this session is not cross-origin isolated." : "."}
         </div>
       </section>
 
@@ -506,6 +483,29 @@ async function createProofForRequest(
   zkInput: GetZkProofInputResponse,
   request: ZkPolicyRequest
 ) {
+  try {
+    const response = await mintra.createZkProof({ request });
+    return response.proof;
+  } catch (error) {
+    if (!shouldFallbackToBrowserProving(error)) {
+      throw error;
+    }
+  }
+
+  if (!window.crossOriginIsolated) {
+    throw new Error(
+      "Server-side proving is unavailable and this browser session is not cross-origin isolated for local proving."
+    );
+  }
+
+  const proof = await createBrowserProofForRequest(zkInput, request);
+  return proof.toJSON();
+}
+
+async function createBrowserProofForRequest(
+  zkInput: GetZkProofInputResponse,
+  request: ZkPolicyRequest
+) {
   await ensureProofRuntime();
 
   if (request.proofType === "mintra.zk.age-threshold/v1") {
@@ -553,40 +553,22 @@ async function createProofForRequest(
 }
 
 async function ensureProofRuntime() {
-  runtimeWarmupPromise ??= import("o1js").then(({ setNumberOfWorkers }) => {
+  proofRuntimePromise ??= import("o1js").then(({ setNumberOfWorkers }) => {
     setNumberOfWorkers(1);
   });
-  return runtimeWarmupPromise;
+  return proofRuntimePromise;
 }
 
-async function warmProofMode(proofMode: ProofMode) {
-  const existing = proofWarmupPromises.get(proofMode);
-  if (existing) {
-    return existing;
+function shouldFallbackToBrowserProving(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
   }
 
-  const warmupPromise = (async () => {
-    await ensureProofRuntime();
-    const zkClaims = await import("@mintra/zk-claims");
-
-    if (proofMode === "age18" || proofMode === "age21") {
-      await zkClaims.compileAgeClaimProgram();
-      return;
-    }
-
-    if (proofMode === "kyc") {
-      await zkClaims.compileKycPassedProgram();
-      return;
-    }
-
-    await zkClaims.compileCountryMembershipProgram();
-  })();
-
-  proofWarmupPromises.set(proofMode, warmupPromise);
-  try {
-    await warmupPromise;
-  } catch (error) {
-    proofWarmupPromises.delete(proofMode);
-    throw error;
-  }
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("api error 404") ||
+    message.includes("api error 405") ||
+    message.includes("api error 501") ||
+    message.includes("route post:/api/mina/zk-proof not found")
+  );
 }

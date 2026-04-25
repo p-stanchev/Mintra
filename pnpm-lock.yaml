@@ -266,6 +266,9 @@ importers:
       '@mintra/sdk-types':
         specifier: workspace:*
         version: link:../../packages/sdk-types
+      '@mintra/zk-claims':
+        specifier: workspace:*
+        version: link:../../packages/zk-claims
       dotenv:
         specifier: ^16.4.0
         version: 16.6.1
