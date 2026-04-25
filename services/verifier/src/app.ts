@@ -550,6 +550,63 @@ function toKycPublicInput(proof: InstanceType<typeof KycPassedClaimProof>) {
   };
 }
 
+function readRawProofPublicInput(proof: unknown) {
+  if (!proof || typeof proof !== "object") return null;
+  const maybeProof = proof as { publicInput?: unknown };
+  return Array.isArray(maybeProof.publicInput) ? maybeProof.publicInput : null;
+}
+
+function toAgePublicInputFromRawProof(proof: unknown) {
+  const publicInput = readRawProofPublicInput(proof);
+  if (!publicInput || publicInput.length < 5) {
+    throw new Error("Age proof request payload did not include a valid publicInput array");
+  }
+
+  return {
+    dobCommitment: String(publicInput[0]),
+    minAge: Number(publicInput[1]) as 18 | 21,
+    referenceDate: [
+      String(publicInput[2]),
+      String(publicInput[3]).padStart(2, "0"),
+      String(publicInput[4]).padStart(2, "0"),
+    ].join("-"),
+  };
+}
+
+function toKycPublicInputFromRawProof(proof: unknown) {
+  const publicInput = readRawProofPublicInput(proof);
+  if (!publicInput || publicInput.length < 1) {
+    throw new Error("KYC proof request payload did not include a valid publicInput array");
+  }
+
+  return {
+    kycCommitment: String(publicInput[0]),
+  };
+}
+
+function toCountryPublicInputFromRawProof(proof: unknown) {
+  const publicInput = readRawProofPublicInput(proof);
+  if (!publicInput || publicInput.length < 17) {
+    throw new Error("Country proof request payload did not include a valid publicInput array");
+  }
+
+  const countryCommitment = String(publicInput[0]);
+  const allowlistNumeric = publicInput
+    .slice(1, 9)
+    .map((value) => Number(value))
+    .filter((value) => value > 0);
+  const blocklistNumeric = publicInput
+    .slice(9, 17)
+    .map((value) => Number(value))
+    .filter((value) => value > 0);
+
+  return {
+    countryCommitment,
+    allowlistNumeric,
+    blocklistNumeric,
+  };
+}
+
 async function verifyZkProofPayload(params: {
   requestBody: z.infer<typeof VerifyZkClaimProofRequestSchema>;
   audience: string;
@@ -591,9 +648,22 @@ async function verifyZkProofPayload(params: {
   }
 
   if (zkPolicyRequest.proofType === "mintra.zk.age-threshold/v1") {
+    app.log.info(
+      {
+        proofKeys:
+          params.requestBody.proof && typeof params.requestBody.proof === "object"
+            ? Object.keys(params.requestBody.proof as Record<string, unknown>)
+            : [],
+        hasRawPublicInput: !!readRawProofPublicInput(params.requestBody.proof),
+      },
+      "verifier.zk_age_proof_received"
+    );
+
     const proof = AgeClaimProof.fromJSON(params.requestBody.proof);
     const verified = await verifyAgeClaimProof({ proof });
-    const publicInput = toAgePublicInput(proof);
+    const publicInput = proof.publicInput
+      ? toAgePublicInput(proof)
+      : toAgePublicInputFromRawProof(params.requestBody.proof);
 
     if (
       publicInput.minAge !== zkPolicyRequest.requirements.ageGte ||
@@ -630,9 +700,22 @@ async function verifyZkProofPayload(params: {
   }
 
   if (zkPolicyRequest.proofType === "mintra.zk.kyc-passed/v1") {
+    app.log.info(
+      {
+        proofKeys:
+          params.requestBody.proof && typeof params.requestBody.proof === "object"
+            ? Object.keys(params.requestBody.proof as Record<string, unknown>)
+            : [],
+        hasRawPublicInput: !!readRawProofPublicInput(params.requestBody.proof),
+      },
+      "verifier.zk_kyc_proof_received"
+    );
+
     const proof = KycPassedClaimProof.fromJSON(params.requestBody.proof);
     const verified = await verifyKycPassedClaimProof({ proof });
-    const publicInput = toKycPublicInput(proof);
+    const publicInput = proof.publicInput
+      ? toKycPublicInput(proof)
+      : toKycPublicInputFromRawProof(params.requestBody.proof);
 
     return {
       statusCode: 200,
@@ -647,9 +730,22 @@ async function verifyZkProofPayload(params: {
     };
   }
 
+  app.log.info(
+    {
+      proofKeys:
+        params.requestBody.proof && typeof params.requestBody.proof === "object"
+          ? Object.keys(params.requestBody.proof as Record<string, unknown>)
+          : [],
+      hasRawPublicInput: !!readRawProofPublicInput(params.requestBody.proof),
+    },
+    "verifier.zk_country_proof_received"
+  );
+
   const proof = CountryMembershipClaimProof.fromJSON(params.requestBody.proof);
   const verified = await verifyCountryMembershipProof({ proof });
-  const publicInput = countryMembershipPublicInputToLists(proof.publicInput);
+  const publicInput = proof.publicInput
+    ? countryMembershipPublicInputToLists(proof.publicInput)
+    : toCountryPublicInputFromRawProof(params.requestBody.proof);
 
   if (
     JSON.stringify(publicInput.allowlistNumeric) !==
