@@ -26,7 +26,7 @@ Core product message:
 ## What Is Implemented
 
 - Next.js demo frontend
-- Fastify API for wallet auth, KYC start, webhook ingestion, normalized claim storage, and Mina credential issuance
+- Fastify API for wallet auth, KYC start, webhook ingestion, normalized claim storage, Mina credential issuance, and authenticated backend zk proof generation
 - separate verifier service for off-chain Mina presentation verification
 - extracted `@mintra/credential-v2` package for commitment-backed credential schemas and utilities
 - extracted `@mintra/zk-claims` package for Mina-compatible off-chain o1js proof programs
@@ -655,6 +655,8 @@ The demo web app now includes:
 - `/zk-age`
   - dynamic zk proof runner
   - currently supports age, KYC, and country proof modes
+  - prefers authenticated backend proving for reliability and mobile performance
+  - falls back to browser-side proving only when the API prove route is unavailable
   - registry address display
   - on-chain registry state readout when `NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS` and `NEXT_PUBLIC_MINA_GRAPHQL_URL` are configured
 - `/relying-party`
@@ -742,12 +744,14 @@ More:
 
 Browser-side `o1js` proving uses workers and `SharedArrayBuffer`.
 
-That means the demo web deployment should serve:
+The current demo prefers backend proving through `POST /api/mina/zk-proof`, so these headers are no longer required for the normal `/zk-age` flow.
+
+They are still required if the frontend needs to fall back to browser-side proving:
 
 - `Cross-Origin-Opener-Policy: same-origin`
 - `Cross-Origin-Embedder-Policy: credentialless`
 
-Without those headers, the `/zk-age` page can still load but browser-side proof generation will be unavailable and the UI will surface that limitation instead of crashing.
+Without those headers, the `/zk-age` page can still load and backend proving can still work, but browser-side fallback proving will be unavailable and the UI will surface that limitation instead of crashing.
 
 ## Can Data Be Faked?
 
