@@ -1,26 +1,30 @@
 import { createRequire } from "node:module";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { verifyPresentation } from "@mintra/verifier-core";
-import type { PresentationEnvelope } from "@mintra/sdk-types";
+import { PresentationEnvelopeSchema } from "@mintra/sdk-types";
 
 const nodeRequire = createRequire(import.meta.url);
 const MinaSigner = nodeRequire("mina-signer");
+const appOrigin = process.env.APP_ORIGIN ?? "https://app.example.com";
+const verifierOrigin = process.env.VERIFIER_ORIGIN ?? "https://verifier.example.com";
 const signers = [
   new MinaSigner({ network: "mainnet" }),
   new MinaSigner({ network: "testnet" }),
 ];
 
-export async function POST(request: NextRequest) {
-  const body = (await request.json()) as {
-    presentationEnvelope: PresentationEnvelope;
-    expectedOwnerPublicKey?: string;
-  };
+const VerifyBodySchema = z.object({
+  presentationEnvelope: PresentationEnvelopeSchema,
+  expectedOwnerPublicKey: z.string().optional(),
+});
 
-  const origin = request.headers.get("origin") ?? "https://example.com";
+export async function POST(request: NextRequest) {
+  const body = VerifyBodySchema.parse(await request.json());
+
   const result = await verifyPresentation({
     envelope: body.presentationEnvelope,
-    verifierIdentity: origin,
-    expectedAudience: origin,
+    verifierIdentity: verifierOrigin,
+    expectedAudience: appOrigin,
     holderBindingVerifier: {
       verifyMessage(input) {
         return signers.some((signer) =>

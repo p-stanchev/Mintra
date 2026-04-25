@@ -1,39 +1,42 @@
 import Fastify from "fastify";
 import { createRequire } from "node:module";
+import { z } from "zod";
 import {
   createPresentationRequest,
   verifyPresentation,
 } from "@mintra/verifier-core";
-import type { PresentationEnvelope } from "@mintra/sdk-types";
+import { PresentationEnvelopeSchema } from "@mintra/sdk-types";
 
 const app = Fastify();
 const nodeRequire = createRequire(import.meta.url);
 const MinaSigner = nodeRequire("mina-signer");
+const appOrigin = process.env.APP_ORIGIN ?? "https://app.example.com";
+const verifierOrigin = process.env.VERIFIER_ORIGIN ?? "https://verifier.example.com";
 const signers = [
   new MinaSigner({ network: "mainnet" }),
   new MinaSigner({ network: "testnet" }),
 ];
 
+const VerifyBodySchema = z.object({
+  presentationEnvelope: PresentationEnvelopeSchema,
+  expectedOwnerPublicKey: z.string().optional(),
+});
+
 app.post("/api/mintra/request", async (request) => {
-  const origin = request.headers.origin ?? "https://example.com";
   return createPresentationRequest({
     proofProductId: "proof_of_age_18",
-    audience: origin,
-    verifier: "https://verifier.example.com",
+    audience: appOrigin,
+    verifier: verifierOrigin,
   });
 });
 
 app.post("/api/mintra/verify", async (request, reply) => {
-  const body = request.body as {
-    presentationEnvelope: PresentationEnvelope;
-    expectedOwnerPublicKey?: string;
-  };
-  const origin = request.headers.origin ?? "https://example.com";
+  const body = VerifyBodySchema.parse(request.body);
 
   const result = await verifyPresentation({
     envelope: body.presentationEnvelope,
-    verifierIdentity: origin,
-    expectedAudience: origin,
+    verifierIdentity: verifierOrigin,
+    expectedAudience: appOrigin,
     holderBindingVerifier: {
       verifyMessage(input) {
         return signers.some((signer) =>
