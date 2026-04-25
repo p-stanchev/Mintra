@@ -1,6 +1,8 @@
 import {
   GetZkProofInputResponseSchema,
+  SignedZkProofMaterialBundleSchema,
   type GetZkProofInputResponse,
+  type SignedZkProofMaterialBundle,
 } from "@mintra/sdk-types";
 
 export const LINKED_WALLET_STORAGE_KEY = "mintra.linkedWalletAddress";
@@ -79,20 +81,36 @@ export function readStoredZkProofMaterial(walletAddress: string): GetZkProofInpu
   const raw = window.localStorage.getItem(`${ZK_PROOF_MATERIAL_STORAGE_PREFIX}${walletAddress}`);
   if (!raw) return null;
   try {
-    return GetZkProofInputResponseSchema.parse(JSON.parse(raw));
+    const parsed = JSON.parse(raw) as unknown;
+    const bundle = SignedZkProofMaterialBundleSchema.safeParse(parsed);
+    if (bundle.success) {
+      return bundle.data.proofMaterial;
+    }
+    return GetZkProofInputResponseSchema.parse(parsed);
   } catch {
     return null;
   }
 }
 
-export function writeStoredZkProofMaterial(
+export function readStoredZkProofMaterialBundle(walletAddress: string): SignedZkProofMaterialBundle | null {
+  if (typeof window === "undefined" || !isValidMinaPublicKey(walletAddress)) return null;
+  const raw = window.localStorage.getItem(`${ZK_PROOF_MATERIAL_STORAGE_PREFIX}${walletAddress}`);
+  if (!raw) return null;
+  try {
+    return SignedZkProofMaterialBundleSchema.parse(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+export function writeStoredZkProofMaterialBundle(
   walletAddress: string,
-  proofMaterial: GetZkProofInputResponse
+  bundle: SignedZkProofMaterialBundle
 ): void {
   if (typeof window === "undefined" || !isValidMinaPublicKey(walletAddress)) return;
   window.localStorage.setItem(
     `${ZK_PROOF_MATERIAL_STORAGE_PREFIX}${walletAddress}`,
-    JSON.stringify(GetZkProofInputResponseSchema.parse(proofMaterial))
+    JSON.stringify(SignedZkProofMaterialBundleSchema.parse(bundle))
   );
 }
 

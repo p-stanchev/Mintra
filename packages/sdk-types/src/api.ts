@@ -13,6 +13,12 @@ const MinaPublicKeySchema = z
   .string()
   .regex(/^B62[1-9A-HJ-NP-Za-km-z]{50,54}$/, "Invalid Mina public key");
 
+export const MinaMessageSignatureSchema = z.object({
+  field: z.string().min(1),
+  scalar: z.string().min(1),
+});
+export type MinaMessageSignature = z.infer<typeof MinaMessageSignatureSchema>;
+
 export const StartVerificationRequestSchema = z.object({
   userId: MinaPublicKeySchema,
   redirectUrl: z.string().url().optional(),
@@ -74,20 +80,38 @@ export type GetZkProofInputResponse = z.infer<typeof GetZkProofInputResponseSche
 export const GetZkAgeProofInputResponseSchema = GetZkProofInputResponseSchema;
 export type GetZkAgeProofInputResponse = GetZkProofInputResponse;
 
+export const ZkProofMaterialBundlePayloadSchema = z.object({
+  version: z.literal("mintra.zk-proof-material/v2"),
+  walletAddress: MinaPublicKeySchema,
+  issuerPublicKey: MinaPublicKeySchema,
+  issuedAt: z.string().datetime(),
+  proofMaterial: GetZkProofInputResponseSchema,
+});
+export type ZkProofMaterialBundlePayload = z.infer<typeof ZkProofMaterialBundlePayloadSchema>;
+
+export const SignedZkProofMaterialBundleSchema =
+  ZkProofMaterialBundlePayloadSchema.extend({
+    issuerSignature: MinaMessageSignatureSchema,
+  });
+export type SignedZkProofMaterialBundle = z.infer<typeof SignedZkProofMaterialBundleSchema>;
+
 export const IssueMinaCredentialResponseSchema =
   IssueMinaCredentialResponseBaseSchema.extend({
     zkProofMaterial: GetZkProofInputResponseSchema.optional(),
+    zkProofMaterialBundle: SignedZkProofMaterialBundleSchema.optional(),
   });
 export type IssueMinaCredentialResponse = z.infer<typeof IssueMinaCredentialResponseSchema>;
 
 export const CreateZkProofRequestSchema = z.object({
   userId: MinaPublicKeySchema,
   request: ZkPolicyRequestSchema,
+  proofMaterialBundle: SignedZkProofMaterialBundleSchema.optional(),
 });
 export type CreateZkProofRequest = z.infer<typeof CreateZkProofRequestSchema>;
 
 export const CreateZkProofResponseSchema = z.object({
   proof: z.unknown(),
+  proofMaterialBundle: SignedZkProofMaterialBundleSchema.optional(),
 });
 export type CreateZkProofResponse = z.infer<typeof CreateZkProofResponseSchema>;
 
@@ -134,3 +158,33 @@ export const VerifyWalletAuthResponseSchema = z.object({
   expiresAt: z.string().datetime(),
 });
 export type VerifyWalletAuthResponse = z.infer<typeof VerifyWalletAuthResponseSchema>;
+
+export function canonicalizeZkProofMaterialBundlePayload(
+  input: ZkProofMaterialBundlePayload
+): string {
+  return stableJsonStringify(ZkProofMaterialBundlePayloadSchema.parse(input));
+}
+
+function stableJsonStringify(value: unknown): string {
+  if (value === null) return "null";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error("Cannot canonicalize non-finite number");
+    }
+    return JSON.stringify(value);
+  }
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableJsonStringify(entry)).join(",")}]`;
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right));
+    return `{${entries
+      .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableJsonStringify(entryValue)}`)
+      .join(",")}}`;
+  }
+  throw new Error(`Unsupported value in canonical JSON: ${typeof value}`);
+}

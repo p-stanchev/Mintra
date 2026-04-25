@@ -18,6 +18,8 @@ declare module "fastify" {
     authStore: WalletAuthStore;
     diditProvider: DiditProvider;
     minaBridge: MinaBridgeLike | null;
+    minaIssuerPrivateKey: string | null;
+    minaIssuerPublicKey: string | null;
     allowedCallbackOrigins: string[];
     authAllowedOrigins: string[];
     credentialTrustDefaults: CredentialTrust;

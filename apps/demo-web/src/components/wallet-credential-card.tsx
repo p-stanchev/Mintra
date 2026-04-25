@@ -19,15 +19,17 @@ import {
   readLinkedWalletAddress,
   readLinkedWalletProviderId,
   readLinkedWalletProviderName,
-  readStoredZkProofMaterial,
+  readStoredZkProofMaterialBundle,
   isValidMinaPublicKey,
-  writeStoredZkProofMaterial,
+  writeStoredZkProofMaterialBundle,
 } from "@/lib/wallet-session";
 import { authenticateWallet, extractErrorMessage, resetWalletSession } from "@/lib/wallet-auth";
 import { discoverMinaWallets, getWalletById, summarizeWallet, type MinaWalletSummary } from "@/lib/mina-wallet";
 import {
-  GetZkProofInputResponseSchema,
+  canonicalizeZkProofMaterialBundlePayload,
+  SignedZkProofMaterialBundleSchema,
   type CredentialTrust,
+  type SignedZkProofMaterialBundle,
 } from "@mintra/sdk-types";
 
 type WalletState = "idle" | "connecting" | "connected" | "issuing" | "storing" | "done" | "error";
@@ -68,7 +70,7 @@ export function WalletCredentialCard({
       return;
     }
 
-    setHasStoredProofMaterial(Boolean(readStoredZkProofMaterial(proofMaterialWallet)));
+    setHasStoredProofMaterial(Boolean(readStoredZkProofMaterialBundle(proofMaterialWallet)));
   }, [proofMaterialWallet, state]);
 
   useEffect(() => {
@@ -281,8 +283,8 @@ export function WalletCredentialCard({
 
       await provider.storePrivateCredential({ credential: parsedCredential });
 
-      if (issued.zkProofMaterial) {
-        writeStoredZkProofMaterial(ownerPublicKey, issued.zkProofMaterial);
+      if (issued.zkProofMaterialBundle) {
+        writeStoredZkProofMaterialBundle(ownerPublicKey, issued.zkProofMaterialBundle);
         setHasStoredProofMaterial(true);
       }
 
@@ -319,20 +321,14 @@ export function WalletCredentialCard({
       return;
     }
 
-    const proofMaterial = readStoredZkProofMaterial(proofMaterialWallet);
-    if (!proofMaterial) {
+    const proofMaterialBundle = readStoredZkProofMaterialBundle(proofMaterialWallet);
+    if (!proofMaterialBundle) {
       setState("error");
-      setMessage("No stored proof material was found for this wallet yet.");
+      setMessage("No signed proof bundle was found for this wallet yet.");
       return;
     }
 
-    const payload = {
-      version: "mintra.zk-proof-material/v1",
-      walletAddress: proofMaterialWallet,
-      proofMaterial,
-    };
-
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(proofMaterialBundle, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -348,35 +344,14 @@ export function WalletCredentialCard({
 
     try {
       const raw = await file.text();
-      const parsed = JSON.parse(raw) as
-        | {
-            version?: string;
-            walletAddress?: string;
-            proofMaterial?: unknown;
-          }
-        | unknown;
-
-      const isWrapped =
-        parsed !== null &&
-        typeof parsed === "object" &&
-        "proofMaterial" in parsed;
-
-      const proofMaterial = GetZkProofInputResponseSchema.parse(
-        isWrapped ? (parsed as { proofMaterial: unknown }).proofMaterial : parsed
-      );
-      const importedWalletAddress =
-        parsed !== null &&
-        typeof parsed === "object" &&
-        "walletAddress" in parsed &&
-        typeof (parsed as { walletAddress?: unknown }).walletAddress === "string"
-          ? (parsed as { walletAddress: string }).walletAddress
-          : undefined;
+      const parsed = SignedZkProofMaterialBundleSchema.parse(JSON.parse(raw));
+      await verifyImportedBundle(parsed);
       const walletForBundle =
-        importedWalletAddress && isValidMinaPublicKey(importedWalletAddress)
-          ? importedWalletAddress
-          : proofMaterial.userId;
+        parsed.walletAddress && isValidMinaPublicKey(parsed.walletAddress)
+          ? parsed.walletAddress
+          : parsed.proofMaterial.userId;
 
-      writeStoredZkProofMaterial(walletForBundle, proofMaterial);
+      writeStoredZkProofMaterialBundle(walletForBundle, parsed);
       setHasStoredProofMaterial(true);
       setState("done");
       setMessage(`Proof material imported for ${walletForBundle}.`);
@@ -598,4 +573,36 @@ export function WalletCredentialCard({
       </div>
     </div>
   );
+}
+
+async function verifyImportedBundle(bundle: SignedZkProofMaterialBundle) {
+  const trustedIssuerPublicKey = process.env.NEXT_PUBLIC_MINTRA_TRUSTED_ISSUER_PUBLIC_KEY?.trim();
+  if (!trustedIssuerPublicKey) {
+    throw new Error("Trusted issuer public key is not configured for proof bundle import.");
+  }
+  if (bundle.issuerPublicKey !== trustedIssuerPublicKey) {
+    throw new Error("Proof bundle issuer does not match the configured trusted Mintra issuer.");
+  }
+  if (bundle.walletAddress !== bundle.proofMaterial.userId) {
+    throw new Error("Proof bundle wallet address does not match the embedded proof owner.");
+  }
+
+  const MinaSignerModule = await import("mina-signer");
+  const MinaSigner = MinaSignerModule.default;
+  const signer = new MinaSigner({ network: "mainnet" });
+  const verified = signer.verifyMessage({
+    publicKey: bundle.issuerPublicKey,
+    data: canonicalizeZkProofMaterialBundlePayload({
+      version: bundle.version,
+      walletAddress: bundle.walletAddress,
+      issuerPublicKey: bundle.issuerPublicKey,
+      issuedAt: bundle.issuedAt,
+      proofMaterial: bundle.proofMaterial,
+    }),
+    signature: bundle.issuerSignature,
+  });
+
+  if (!verified) {
+    throw new Error("Proof bundle signature verification failed.");
+  }
 }

@@ -45,6 +45,7 @@ export async function buildApp(opts: AppOptions = {}) {
   const issuerEnvironment = opts.issuerEnvironment ??
     (process.env["MINTRA_ISSUER_ENVIRONMENT"] === "demo" ? "demo" : "production");
   const nodeRequire = createRequire(__filename);
+  const MinaSigner = nodeRequire("mina-signer");
   const credentialTrustDefaults: CredentialTrust = {
     issuerEnvironment,
     issuerId: opts.issuerId ??
@@ -165,7 +166,18 @@ export async function buildApp(opts: AppOptions = {}) {
   } catch (err) {
     app.log.warn({ err }, "@mintra/mina-bridge unavailable — Mina credential issuance disabled");
   }
+  let minaIssuerPublicKey: string | null = null;
+  if (minaKey) {
+    try {
+      const signer = new MinaSigner({ network: "mainnet" });
+      minaIssuerPublicKey = signer.derivePublicKey(minaKey);
+    } catch (err) {
+      app.log.warn({ err }, "Could not derive Mina issuer public key");
+    }
+  }
   app.decorate("minaBridge", minaBridge);
+  app.decorate("minaIssuerPrivateKey", minaKey ?? null);
+  app.decorate("minaIssuerPublicKey", minaIssuerPublicKey);
 
   await app.register(authRouter, { prefix: "/api/auth" });
   await app.register(verificationsRouter, { prefix: "/api/verifications" });

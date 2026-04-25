@@ -5,9 +5,12 @@ import {
   readLinkedWalletAddress,
   readLinkedWalletProviderName,
   readStoredZkProofMaterial,
+  readStoredZkProofMaterialBundle,
+  writeStoredZkProofMaterialBundle,
 } from "@/lib/wallet-session";
 import type {
   GetZkProofInputResponse,
+  SignedZkProofMaterialBundle,
   ZkPolicyRequest,
   ZkVerificationResult,
 } from "@mintra/sdk-types";
@@ -152,8 +155,11 @@ export default function ZkAgePage() {
       setResult(null);
 
       setStep("loading-input");
+      const storedBundle = readStoredZkProofMaterialBundle(linkedWallet);
       const zkInput =
-        readStoredZkProofMaterial(linkedWallet) ?? (await mintra.getZkProofInput(linkedWallet));
+        storedBundle?.proofMaterial ??
+        readStoredZkProofMaterial(linkedWallet) ??
+        (await mintra.getZkProofInput(linkedWallet));
       setProofInput(zkInput);
 
       setStep("requesting-policy");
@@ -187,7 +193,13 @@ export default function ZkAgePage() {
       const zkRequest = policyBody as ZkPolicyRequest;
 
       setStep("proving");
-      const proof = await createProofForRequest(zkInput, zkRequest);
+      const { proof, proofMaterialBundle } = await createProofForRequest(zkInput, zkRequest, storedBundle);
+      if (!proofMaterialBundle) {
+        throw new Error("A signed proof bundle is required before the verifier can accept this zk proof.");
+      }
+      if (proofMaterialBundle) {
+        writeStoredZkProofMaterialBundle(proofMaterialBundle.walletAddress, proofMaterialBundle);
+      }
 
       setStep("verifying");
       const verifyResponse = await fetch(`${verifierUrl}/api/zk/verify-proof`, {
@@ -198,6 +210,7 @@ export default function ZkAgePage() {
         body: JSON.stringify({
           request: zkRequest,
           proof,
+          proofMaterialBundle,
         }),
       });
 
@@ -483,18 +496,27 @@ function extractZkErrorMessage(payload: unknown, fallback: string): string {
 
 async function createProofForRequest(
   zkInput: GetZkProofInputResponse,
-  request: ZkPolicyRequest
+  request: ZkPolicyRequest,
+  storedBundle: SignedZkProofMaterialBundle | null
 ) {
   try {
     const response = await mintra.createZkProof({
       userId: zkInput.userId,
       request,
+      ...(storedBundle === null ? {} : { proofMaterialBundle: storedBundle }),
     });
-    return response.proof;
+    return {
+      proof: response.proof,
+      proofMaterialBundle: response.proofMaterialBundle ?? storedBundle,
+    };
   } catch (error) {
     if (!shouldFallbackToBrowserProving(error)) {
       throw error;
     }
+  }
+
+  if (!storedBundle) {
+    throw new Error("A signed proof bundle is required for verifier-backed zk proofs. Reissue the credential or import a signed proof bundle.");
   }
 
   if (!window.crossOriginIsolated) {
@@ -504,7 +526,10 @@ async function createProofForRequest(
   }
 
   const proof = await createBrowserProofForRequest(zkInput, request);
-  return proof.toJSON();
+  return {
+    proof: proof.toJSON(),
+    proofMaterialBundle: storedBundle,
+  };
 }
 
 async function createBrowserProofForRequest(

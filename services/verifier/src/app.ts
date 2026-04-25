@@ -10,23 +10,15 @@ import {
   verifyPresentation,
 } from "@mintra/verifier-core";
 import {
-  AgeClaimProof,
   compileAgeClaimProgram,
   compileCountryMembershipProgram,
   compileKycPassedProgram,
-  createAgeClaimPublicInput,
-  createCountryMembershipPublicInput,
-  createKycPassedPublicInput,
-  CountryMembershipClaimProof,
-  countryMembershipPublicInputToLists,
-  KycPassedClaimProof,
-  verifyAgeClaimProof,
-  verifyCountryMembershipProof,
-  verifyKycPassedClaimProof,
 } from "@mintra/zk-claims";
 import {
+  canonicalizeZkProofMaterialBundlePayload,
   type PresentationEnvelope,
   PresentationEnvelopeSchema,
+  SignedZkProofMaterialBundleSchema,
   ZkProofTypeSchema,
   ZkPolicyRequestSchema,
 } from "@mintra/sdk-types";
@@ -92,6 +84,7 @@ const VerifyPresentationRequestSchema = z.object({
 const VerifyZkClaimProofRequestSchema = z.object({
   request: z.unknown(),
   proof: z.unknown(),
+  proofMaterialBundle: SignedZkProofMaterialBundleSchema,
 });
 
 const CreateZkPolicyRequestSchema = z.object({
@@ -118,6 +111,11 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
           .map((value) => value.trim())
           .filter(Boolean);
   const verifierPublicUrl = process.env["VERIFIER_PUBLIC_URL"]?.trim();
+  const trustedIssuerPublicKey =
+    process.env["TRUSTED_ISSUER_PUBLIC_KEY"]?.trim() ??
+    process.env["MINTRA_TRUSTED_ISSUER_PUBLIC_KEY"]?.trim() ??
+    process.env["MINTRA_ISSUER_PUBLIC_KEY"]?.trim() ??
+    null;
 
   const app = Fastify({ logger: opts.logger ?? true });
   const challengeStore = createPresentationChallengeStoreFromEnv();
@@ -425,6 +423,7 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
       const result = await verifyZkProofPayload({
         requestBody: parsed.data,
         audience,
+        trustedIssuerPublicKey,
       });
       return reply.status(result.statusCode).send(result.payload);
     } catch (error) {
@@ -459,6 +458,7 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
       const result = await verifyZkProofPayload({
         requestBody: parsed.data,
         audience,
+        trustedIssuerPublicKey,
       });
       return reply.status(result.statusCode).send(result.payload);
     } catch (error) {
@@ -533,32 +533,6 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
   return app;
 }
 
-function toAgePublicInput(proof: InstanceType<typeof AgeClaimProof>) {
-  if (!proof.publicInput) {
-    throw new Error("Age proof did not include public inputs");
-  }
-
-  return {
-    dobCommitment: proof.publicInput.dobCommitment.toString(),
-    minAge: Number(proof.publicInput.minAge.toString()) as 18 | 21,
-    referenceDate: [
-      proof.publicInput.referenceYear.toString(),
-      proof.publicInput.referenceMonth.toString().padStart(2, "0"),
-      proof.publicInput.referenceDay.toString().padStart(2, "0"),
-    ].join("-"),
-  };
-}
-
-function toKycPublicInput(proof: InstanceType<typeof KycPassedClaimProof>) {
-  if (!proof.publicInput) {
-    throw new Error("KYC proof did not include public inputs");
-  }
-
-  return {
-    kycCommitment: proof.publicInput.kycCommitment.toString(),
-  };
-}
-
 function readRawProofPublicInput(proof: unknown) {
   if (!proof || typeof proof !== "object") return null;
   const maybeProof = proof as { publicInput?: unknown };
@@ -599,61 +573,53 @@ function toCountryPublicInputFromRawProof(proof: unknown) {
     throw new Error("Country proof request payload did not include a valid publicInput array");
   }
 
-  const countryCommitment = String(publicInput[0]);
-  const allowlistNumeric = publicInput
-    .slice(1, 9)
-    .map((value) => Number(value))
-    .filter((value) => value > 0);
-  const blocklistNumeric = publicInput
-    .slice(9, 17)
-    .map((value) => Number(value))
-    .filter((value) => value > 0);
-
   return {
-    countryCommitment,
-    allowlistNumeric,
-    blocklistNumeric,
+    countryCommitment: String(publicInput[0]),
+    allowlistNumeric: publicInput.slice(1, 9).map((value) => Number(value)).filter((value) => value > 0),
+    blocklistNumeric: publicInput.slice(9, 17).map((value) => Number(value)).filter((value) => value > 0),
   };
-}
-
-function hydrateAgeProofPublicInputFromRaw(proof: InstanceType<typeof AgeClaimProof>, rawProof: unknown) {
-  if (proof.publicInput) return;
-  const publicInput = toAgePublicInputFromRawProof(rawProof);
-  proof.publicInput = createAgeClaimPublicInput({
-    dobCommitment: publicInput.dobCommitment,
-    minAge: publicInput.minAge,
-    referenceDate: publicInput.referenceDate,
-  });
-}
-
-function hydrateKycProofPublicInputFromRaw(
-  proof: InstanceType<typeof KycPassedClaimProof>,
-  rawProof: unknown
-) {
-  if (proof.publicInput) return;
-  const publicInput = toKycPublicInputFromRawProof(rawProof);
-  proof.publicInput = createKycPassedPublicInput({
-    kycCommitment: publicInput.kycCommitment,
-  });
-}
-
-function hydrateCountryProofPublicInputFromRaw(
-  proof: InstanceType<typeof CountryMembershipClaimProof>,
-  rawProof: unknown
-) {
-  if (proof.publicInput) return;
-  const publicInput = toCountryPublicInputFromRawProof(rawProof);
-  proof.publicInput = createCountryMembershipPublicInput({
-    countryCommitment: publicInput.countryCommitment,
-    allowlistNumeric: publicInput.allowlistNumeric,
-    blocklistNumeric: publicInput.blocklistNumeric,
-  });
 }
 
 async function verifyZkProofPayload(params: {
   requestBody: z.infer<typeof VerifyZkClaimProofRequestSchema>;
   audience: string;
+  trustedIssuerPublicKey: string | null;
 }) {
+  if (!params.trustedIssuerPublicKey) {
+    return {
+      statusCode: 503,
+      payload: {
+        ok: false,
+        proofType: "mintra.zk.age-threshold/v1",
+        audience: params.audience,
+        challengeId: "00000000-0000-0000-0000-000000000000",
+        error: {
+          code: "trusted_issuer_not_configured",
+          message: "Trusted issuer public key is not configured for signed proof bundles",
+        },
+        verifiedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  const bundleVerification = verifySignedProofMaterialBundle(
+    params.requestBody.proofMaterialBundle,
+    params.trustedIssuerPublicKey
+  );
+  if (!bundleVerification.ok) {
+    return {
+      statusCode: 400,
+      payload: {
+        ok: false,
+        proofType: "mintra.zk.age-threshold/v1",
+        audience: params.audience,
+        challengeId: "00000000-0000-0000-0000-000000000000",
+        error: bundleVerification.error,
+        verifiedAt: new Date().toISOString(),
+      },
+    };
+  }
+
   const zkPolicyRequest = ZkPolicyRequestSchema.parse(params.requestBody.request);
 
   if (zkPolicyRequest.audience !== params.audience) {
@@ -694,6 +660,10 @@ async function verifyZkProofPayload(params: {
     const { verificationKey } = await compileAgeClaimProgram();
     const verified = await verifyJsonProof(params.requestBody.proof as never, verificationKey);
     const publicInput = toAgePublicInputFromRawProof(params.requestBody.proof);
+    const expectedDobCommitment =
+      bundleVerification.bundle.proofMaterial.credentialMetadata.sourceCommitments[
+        zkPolicyRequest.publicInputs.commitmentKey
+      ]?.value;
 
     if (
       publicInput.minAge !== zkPolicyRequest.requirements.ageGte ||
@@ -710,6 +680,24 @@ async function verifyZkProofPayload(params: {
           error: {
             code: "zk_public_input_mismatch",
             message: "Proof public inputs do not match the requested zk policy",
+          },
+          verifiedAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    if (!expectedDobCommitment || publicInput.dobCommitment !== expectedDobCommitment) {
+      return {
+        statusCode: 400,
+        payload: {
+          ok: false,
+          proofType: zkPolicyRequest.proofType,
+          audience: params.audience,
+          challengeId: zkPolicyRequest.challenge.challengeId,
+          publicInput,
+          error: {
+            code: "zk_bundle_commitment_mismatch",
+            message: "Proof commitment does not match the signed Mintra proof bundle",
           },
           verifiedAt: new Date().toISOString(),
         },
@@ -733,6 +721,28 @@ async function verifyZkProofPayload(params: {
     const { verificationKey } = await compileKycPassedProgram();
     const verified = await verifyJsonProof(params.requestBody.proof as never, verificationKey);
     const publicInput = toKycPublicInputFromRawProof(params.requestBody.proof);
+    const expectedKycCommitment =
+      bundleVerification.bundle.proofMaterial.credentialMetadata.sourceCommitments[
+        zkPolicyRequest.publicInputs.commitmentKey
+      ]?.value;
+
+    if (!expectedKycCommitment || publicInput.kycCommitment !== expectedKycCommitment) {
+      return {
+        statusCode: 400,
+        payload: {
+          ok: false,
+          proofType: zkPolicyRequest.proofType,
+          audience: params.audience,
+          challengeId: zkPolicyRequest.challenge.challengeId,
+          publicInput,
+          error: {
+            code: "zk_bundle_commitment_mismatch",
+            message: "Proof commitment does not match the signed Mintra proof bundle",
+          },
+          verifiedAt: new Date().toISOString(),
+        },
+      };
+    }
 
     return {
       statusCode: 200,
@@ -750,12 +760,14 @@ async function verifyZkProofPayload(params: {
   const { verificationKey } = await compileCountryMembershipProgram();
   const verified = await verifyJsonProof(params.requestBody.proof as never, verificationKey);
   const publicInput = toCountryPublicInputFromRawProof(params.requestBody.proof);
+  const expectedCountryCommitment =
+    bundleVerification.bundle.proofMaterial.credentialMetadata.sourceCommitments[
+      zkPolicyRequest.publicInputs.commitmentKey
+    ]?.value;
 
   if (
-    JSON.stringify(publicInput.allowlistNumeric) !==
-      JSON.stringify(zkPolicyRequest.publicInputs.allowlistNumeric) ||
-    JSON.stringify(publicInput.blocklistNumeric) !==
-      JSON.stringify(zkPolicyRequest.publicInputs.blocklistNumeric)
+    JSON.stringify(publicInput.allowlistNumeric) !== JSON.stringify(zkPolicyRequest.publicInputs.allowlistNumeric) ||
+    JSON.stringify(publicInput.blocklistNumeric) !== JSON.stringify(zkPolicyRequest.publicInputs.blocklistNumeric)
   ) {
     return {
       statusCode: 400,
@@ -774,6 +786,24 @@ async function verifyZkProofPayload(params: {
     };
   }
 
+  if (!expectedCountryCommitment || publicInput.countryCommitment !== expectedCountryCommitment) {
+    return {
+      statusCode: 400,
+      payload: {
+        ok: false,
+        proofType: zkPolicyRequest.proofType,
+        audience: params.audience,
+        challengeId: zkPolicyRequest.challenge.challengeId,
+        publicInput,
+        error: {
+          code: "zk_bundle_commitment_mismatch",
+          message: "Proof commitment does not match the signed Mintra proof bundle",
+        },
+        verifiedAt: new Date().toISOString(),
+      },
+    };
+  }
+
   return {
     statusCode: 200,
     payload: {
@@ -785,6 +815,56 @@ async function verifyZkProofPayload(params: {
       verifiedAt: new Date().toISOString(),
     },
   };
+}
+
+function verifySignedProofMaterialBundle(
+  bundle: z.infer<typeof SignedZkProofMaterialBundleSchema>,
+  trustedIssuerPublicKey: string
+) {
+  if (bundle.issuerPublicKey !== trustedIssuerPublicKey) {
+    return {
+      ok: false as const,
+      error: {
+        code: "zk_bundle_untrusted_issuer",
+        message: "Proof bundle issuer does not match the trusted Mintra issuer",
+      },
+    };
+  }
+
+  if (bundle.walletAddress !== bundle.proofMaterial.userId) {
+    return {
+      ok: false as const,
+      error: {
+        code: "zk_bundle_wallet_mismatch",
+        message: "Proof bundle wallet address does not match the embedded proof owner",
+      },
+    };
+  }
+
+  const signer = new MinaSigner({ network: "mainnet" });
+  const verified = signer.verifyMessage({
+    publicKey: bundle.issuerPublicKey,
+    data: canonicalizeZkProofMaterialBundlePayload({
+      version: bundle.version,
+      walletAddress: bundle.walletAddress,
+      issuerPublicKey: bundle.issuerPublicKey,
+      issuedAt: bundle.issuedAt,
+      proofMaterial: bundle.proofMaterial,
+    }),
+    signature: bundle.issuerSignature,
+  });
+
+  if (!verified) {
+    return {
+      ok: false as const,
+      error: {
+        code: "zk_bundle_invalid_signature",
+        message: "Proof bundle signature verification failed",
+      },
+    };
+  }
+
+  return { ok: true as const, bundle };
 }
 
 function readAllowedOrigin(

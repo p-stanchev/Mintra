@@ -1,16 +1,22 @@
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import countries from "i18n-iso-countries";
+import { createRequire } from "node:module";
 import {
+  canonicalizeZkProofMaterialBundlePayload,
   CreateZkProofRequestSchema,
   CreateZkProofResponseSchema,
   GetZkProofInputResponseSchema,
   IssueMinaCredentialRequestSchema,
   type GetZkProofInputResponse,
+  type SignedZkProofMaterialBundle,
   type ZkPolicyRequest,
 } from "@mintra/sdk-types";
 import { isValidMinaPublicKey, requireFreshWalletAuth } from "../auth";
 import { buildNormalizedClaims } from "../claim-state";
 import type { ClaimsRecord } from "../store";
+
+const nodeRequire = createRequire(__filename);
+const MinaSigner = nodeRequire("mina-signer");
 
 export const minaRouter: FastifyPluginAsync = async (app) => {
   app.post("/issue-credential", async (request, reply) => {
@@ -45,6 +51,7 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
 
     const normalizedClaims = buildNormalizedClaims(claim);
     const zkProofMaterial = buildZkProofInputPayload(app, userId, claim);
+    const zkProofMaterialBundle = createSignedZkProofMaterialBundle(app, ownerPublicKey, zkProofMaterial);
 
     const result = await app.minaBridge.issueCredential({
       userId,
@@ -68,6 +75,7 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
     return reply.send({
       ...result,
       ...(zkProofMaterial === null ? {} : { zkProofMaterial }),
+      ...(zkProofMaterialBundle === null ? {} : { zkProofMaterialBundle }),
     });
   });
 
@@ -120,14 +128,36 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
       });
     }
 
-    const claim = await app.store.getClaims(parsed.data.userId);
-    if (!claim) {
-      return reply.status(404).send({ error: "No approved verification found for this user" });
+    let bundle: SignedZkProofMaterialBundle | null = null;
+    try {
+      bundle = parsed.data.proofMaterialBundle
+        ? verifySignedZkProofMaterialBundle(app, parsed.data.proofMaterialBundle)
+        : null;
+    } catch (error) {
+      return reply.status(400).send({
+        error: error instanceof Error ? error.message : "Invalid proof material bundle",
+      });
+    }
+    let zkInput = bundle?.proofMaterial ?? null;
+    let proofMaterialBundle = bundle;
+
+    if (!zkInput) {
+      const claim = await app.store.getClaims(parsed.data.userId);
+      if (!claim) {
+        return reply.status(404).send({ error: "No approved verification found for this user" });
+      }
+
+      zkInput = buildZkProofInputPayload(app, parsed.data.userId, claim);
+      if (!zkInput) {
+        return reply.status(409).send({ error: "Credential metadata version v2 is required for zk proof generation" });
+      }
+      proofMaterialBundle = createSignedZkProofMaterialBundle(app, parsed.data.userId, zkInput);
     }
 
-    const zkInput = buildZkProofInputPayload(app, parsed.data.userId, claim);
-    if (!zkInput) {
-      return reply.status(409).send({ error: "Credential metadata version v2 is required for zk proof generation" });
+    if (zkInput.userId !== parsed.data.userId) {
+      return reply.status(403).send({
+        error: "Proof material bundle does not belong to the authenticated wallet owner",
+      });
     }
 
     try {
@@ -135,7 +165,12 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
         zkInput,
         request: parsed.data.request,
       });
-      return reply.send(CreateZkProofResponseSchema.parse({ proof }));
+      return reply.send(
+        CreateZkProofResponseSchema.parse({
+          proof,
+          ...(proofMaterialBundle === null ? {} : { proofMaterialBundle }),
+        })
+      );
     } catch (error) {
       app.log.warn({ err: error }, "mina.zk_proof_failed");
       return reply.status(400).send({
@@ -144,6 +179,68 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
     }
   });
 };
+
+function createSignedZkProofMaterialBundle(
+  app: FastifyInstance,
+  walletAddress: string,
+  proofMaterial: GetZkProofInputResponse | null
+): SignedZkProofMaterialBundle | null {
+  if (!proofMaterial || !app.minaIssuerPrivateKey || !app.minaIssuerPublicKey) {
+    return null;
+  }
+
+  const signer = new MinaSigner({ network: "mainnet" });
+  const payload = {
+    version: "mintra.zk-proof-material/v2" as const,
+    walletAddress,
+    issuerPublicKey: app.minaIssuerPublicKey,
+    issuedAt: new Date().toISOString(),
+    proofMaterial,
+  };
+  const signed = signer.signMessage(
+    canonicalizeZkProofMaterialBundlePayload(payload),
+    app.minaIssuerPrivateKey
+  );
+
+  return {
+    ...payload,
+    issuerSignature: signed.signature,
+  };
+}
+
+function verifySignedZkProofMaterialBundle(
+  app: FastifyInstance,
+  bundle: SignedZkProofMaterialBundle
+): SignedZkProofMaterialBundle {
+  if (!app.minaIssuerPublicKey) {
+    throw new Error("Mintra issuer public key is not configured for signed proof bundles");
+  }
+  if (bundle.issuerPublicKey !== app.minaIssuerPublicKey) {
+    throw new Error("Proof material bundle issuer does not match this Mintra issuer");
+  }
+  if (bundle.walletAddress !== bundle.proofMaterial.userId) {
+    throw new Error("Proof material bundle wallet does not match the embedded proof owner");
+  }
+
+  const signer = new MinaSigner({ network: "mainnet" });
+  const verified = signer.verifyMessage({
+    data: canonicalizeZkProofMaterialBundlePayload({
+      version: bundle.version,
+      walletAddress: bundle.walletAddress,
+      issuerPublicKey: bundle.issuerPublicKey,
+      issuedAt: bundle.issuedAt,
+      proofMaterial: bundle.proofMaterial,
+    }),
+    publicKey: bundle.issuerPublicKey,
+    signature: bundle.issuerSignature,
+  });
+
+  if (!verified) {
+    throw new Error("Proof material bundle signature verification failed");
+  }
+
+  return bundle;
+}
 
 function buildZkProofInputPayload(
   app: FastifyInstance,

@@ -6,6 +6,8 @@ import {
   readLinkedWalletProviderId,
   readLinkedWalletProviderName,
   readStoredZkProofMaterial,
+  readStoredZkProofMaterialBundle,
+  writeStoredZkProofMaterialBundle,
 } from "@/lib/wallet-session";
 import { getWalletById } from "@/lib/mina-wallet";
 import { mintra } from "@/lib/mintra";
@@ -145,8 +147,11 @@ export default function ProtectedPage() {
       setError(null);
 
       setZkStep("loading-input");
+      const storedBundle = readStoredZkProofMaterialBundle(walletAddress);
       const zkInput: GetZkProofInputResponse =
-        readStoredZkProofMaterial(walletAddress) ?? (await mintra.getZkProofInput(walletAddress));
+        storedBundle?.proofMaterial ??
+        readStoredZkProofMaterial(walletAddress) ??
+        (await mintra.getZkProofInput(walletAddress));
 
       if (!zkInput.dateOfBirth) {
         throw new Error("This credential does not include date of birth for age proving.");
@@ -168,12 +173,18 @@ export default function ProtectedPage() {
 
       setZkStep("proving");
       let proofJson: unknown;
+      let proofMaterialBundle = storedBundle;
       try {
         const proofResponse = await mintra.createZkProof({
           userId: zkInput.userId,
           request: zkRequest,
+          ...(storedBundle === null ? {} : { proofMaterialBundle: storedBundle }),
         });
         proofJson = proofResponse.proof;
+        proofMaterialBundle = proofResponse.proofMaterialBundle ?? storedBundle;
+        if (proofMaterialBundle) {
+          writeStoredZkProofMaterialBundle(proofMaterialBundle.walletAddress, proofMaterialBundle);
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message.toLowerCase() : "";
         const canFallback =
@@ -186,6 +197,9 @@ export default function ProtectedPage() {
         if (!canFallback) {
           throw error;
         }
+        if (!storedBundle) {
+          throw new Error("A signed proof bundle is required for verifier-backed zk proofs. Reissue the credential or import a signed proof bundle.");
+        }
 
         const { proveAgeClaimFromCredentialMetadata } = await import("@mintra/zk-claims");
         const proof = await proveAgeClaimFromCredentialMetadata({
@@ -196,13 +210,18 @@ export default function ProtectedPage() {
           ...(zkInput.zkSalts?.dob ? { salt: BigInt(`0x${zkInput.zkSalts.dob}`) } : {}),
         });
         proofJson = proof.toJSON();
+        proofMaterialBundle = storedBundle;
+      }
+
+      if (!proofMaterialBundle) {
+        throw new Error("A signed proof bundle is required before the verifier can accept this zk proof.");
       }
 
       setZkStep("verifying");
       const verifyResponse = await fetch(`${verifierUrl}/api/zk/verify-proof`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ request: zkRequest, proof: proofJson }),
+        body: JSON.stringify({ request: zkRequest, proof: proofJson, proofMaterialBundle }),
       });
 
       if (!verifyResponse.ok) {
