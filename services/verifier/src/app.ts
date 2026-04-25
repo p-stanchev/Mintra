@@ -11,6 +11,9 @@ import {
 } from "@mintra/verifier-core";
 import {
   AgeClaimProof,
+  compileAgeClaimProgram,
+  compileCountryMembershipProgram,
+  compileKycPassedProgram,
   createAgeClaimPublicInput,
   createCountryMembershipPublicInput,
   createKycPassedPublicInput,
@@ -34,6 +37,9 @@ import { PasskeyBindingService } from "./passkeys/service";
 
 const nodeRequire = createRequire(__filename);
 const MinaSigner = nodeRequire("mina-signer");
+const { verify: verifyJsonProof } = nodeRequire("o1js") as {
+  verify: (proof: unknown, verificationKey: unknown) => Promise<boolean>;
+};
 
 const MinaPublicKeySchema = z
   .string()
@@ -685,10 +691,9 @@ async function verifyZkProofPayload(params: {
   }
 
   if (zkPolicyRequest.proofType === "mintra.zk.age-threshold/v1") {
-    const proof = AgeClaimProof.fromJSON(params.requestBody.proof);
-    hydrateAgeProofPublicInputFromRaw(proof, params.requestBody.proof);
-    const verified = await verifyAgeClaimProof({ proof });
-    const publicInput = toAgePublicInput(proof);
+    const { verificationKey } = await compileAgeClaimProgram();
+    const verified = await verifyJsonProof(params.requestBody.proof as never, verificationKey);
+    const publicInput = toAgePublicInputFromRawProof(params.requestBody.proof);
 
     if (
       publicInput.minAge !== zkPolicyRequest.requirements.ageGte ||
@@ -725,10 +730,9 @@ async function verifyZkProofPayload(params: {
   }
 
   if (zkPolicyRequest.proofType === "mintra.zk.kyc-passed/v1") {
-    const proof = KycPassedClaimProof.fromJSON(params.requestBody.proof);
-    hydrateKycProofPublicInputFromRaw(proof, params.requestBody.proof);
-    const verified = await verifyKycPassedClaimProof({ proof });
-    const publicInput = toKycPublicInput(proof);
+    const { verificationKey } = await compileKycPassedProgram();
+    const verified = await verifyJsonProof(params.requestBody.proof as never, verificationKey);
+    const publicInput = toKycPublicInputFromRawProof(params.requestBody.proof);
 
     return {
       statusCode: 200,
@@ -743,10 +747,9 @@ async function verifyZkProofPayload(params: {
     };
   }
 
-  const proof = CountryMembershipClaimProof.fromJSON(params.requestBody.proof);
-  hydrateCountryProofPublicInputFromRaw(proof, params.requestBody.proof);
-  const verified = await verifyCountryMembershipProof({ proof });
-  const publicInput = countryMembershipPublicInputToLists(proof.publicInput);
+  const { verificationKey } = await compileCountryMembershipProgram();
+  const verified = await verifyJsonProof(params.requestBody.proof as never, verificationKey);
+  const publicInput = toCountryPublicInputFromRawProof(params.requestBody.proof);
 
   if (
     JSON.stringify(publicInput.allowlistNumeric) !==
