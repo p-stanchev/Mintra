@@ -36,9 +36,9 @@ export async function getDoc(slug: string): Promise<{ title: string; html: strin
     const title = extractTitle(content, slug);
     const renderer = new Renderer();
     const baseLink = renderer.link.bind(renderer);
-    renderer.link = ({ href, title, tokens }) => {
-      const rewrittenHref = rewriteDocHref(href);
-      return baseLink({ href: rewrittenHref, title, tokens });
+    renderer.link = (link) => {
+      const rewrittenHref = rewriteDocHref(link.href ?? "");
+      return baseLink({ ...link, href: rewrittenHref });
     };
 
     const html = await marked(content, { gfm: true, renderer });
@@ -48,7 +48,7 @@ export async function getDoc(slug: string): Promise<{ title: string; html: strin
   }
 }
 
-function rewriteDocHref(href: string | null | undefined): string | null | undefined {
+function rewriteDocHref(href: string): string {
   if (!href) return href;
   if (/^(?:[a-z]+:)?\/\//i.test(href) || href.startsWith("#")) {
     return href;
