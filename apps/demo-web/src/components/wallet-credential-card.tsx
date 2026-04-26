@@ -577,13 +577,28 @@ export function WalletCredentialCard({
 
 async function verifyImportedBundle(bundle: SignedZkProofMaterialBundle) {
   const trustedIssuerPublicKey = process.env.NEXT_PUBLIC_MINTRA_TRUSTED_ISSUER_PUBLIC_KEY?.trim();
+  console.debug("[mintra:proof-bundle] import start", {
+    trustedIssuerPublicKey: trustedIssuerPublicKey ?? null,
+    bundleIssuerPublicKey: bundle.issuerPublicKey,
+    bundleVersion: bundle.version,
+    walletAddress: bundle.walletAddress,
+    proofMaterialUserId: bundle.proofMaterial.userId,
+  });
   if (!trustedIssuerPublicKey) {
     throw new Error("Trusted issuer public key is not configured for proof bundle import.");
   }
   if (bundle.issuerPublicKey !== trustedIssuerPublicKey) {
+    console.debug("[mintra:proof-bundle] issuer mismatch", {
+      trustedIssuerPublicKey,
+      bundleIssuerPublicKey: bundle.issuerPublicKey,
+    });
     throw new Error("Proof bundle issuer does not match the configured trusted Mintra issuer.");
   }
   if (bundle.walletAddress !== bundle.proofMaterial.userId) {
+    console.debug("[mintra:proof-bundle] wallet mismatch", {
+      walletAddress: bundle.walletAddress,
+      proofMaterialUserId: bundle.proofMaterial.userId,
+    });
     throw new Error("Proof bundle wallet address does not match the embedded proof owner.");
   }
 
@@ -599,6 +614,12 @@ async function verifyImportedBundle(bundle: SignedZkProofMaterialBundle) {
       issuedAt: bundle.issuedAt,
       proofMaterial: bundle.proofMaterial,
     }),
+    signature: bundle.issuerSignature,
+  });
+  console.debug("[mintra:proof-bundle] signature verify", {
+    verified,
+    trustedIssuerPublicKey,
+    bundleIssuerPublicKey: bundle.issuerPublicKey,
     signature: bundle.issuerSignature,
   });
 
