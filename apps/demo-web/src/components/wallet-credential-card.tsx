@@ -605,7 +605,7 @@ async function verifyImportedBundle(bundle: SignedZkProofMaterialBundle) {
   const MinaSignerModule = await import("mina-signer");
   const MinaSigner = MinaSignerModule.default;
   const signer = new MinaSigner({ network: "mainnet" });
-  const verified = signer.verifyMessage({
+  const browserVerified = signer.verifyMessage({
     publicKey: bundle.issuerPublicKey,
     data: canonicalizeZkProofMaterialBundlePayload({
       version: bundle.version,
@@ -617,13 +617,12 @@ async function verifyImportedBundle(bundle: SignedZkProofMaterialBundle) {
     signature: bundle.issuerSignature,
   });
   console.debug("[mintra:proof-bundle] signature verify", {
-    verified,
+    browserVerified,
     trustedIssuerPublicKey,
     bundleIssuerPublicKey: bundle.issuerPublicKey,
     signature: bundle.issuerSignature,
   });
-
-  if (!verified) {
-    throw new Error("Proof bundle signature verification failed.");
-  }
+  console.debug("[mintra:proof-bundle] requesting api verification");
+  const response = await mintra.verifyZkProofMaterialBundle({ bundle });
+  console.debug("[mintra:proof-bundle] api verify", response);
 }

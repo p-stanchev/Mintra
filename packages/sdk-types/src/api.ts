@@ -115,6 +115,18 @@ export const CreateZkProofResponseSchema = z.object({
 });
 export type CreateZkProofResponse = z.infer<typeof CreateZkProofResponseSchema>;
 
+export const VerifyZkProofMaterialBundleRequestSchema = z.object({
+  bundle: SignedZkProofMaterialBundleSchema,
+});
+export type VerifyZkProofMaterialBundleRequest = z.infer<typeof VerifyZkProofMaterialBundleRequestSchema>;
+
+export const VerifyZkProofMaterialBundleResponseSchema = z.object({
+  ok: z.literal(true),
+  walletAddress: MinaPublicKeySchema,
+  issuerPublicKey: MinaPublicKeySchema,
+});
+export type VerifyZkProofMaterialBundleResponse = z.infer<typeof VerifyZkProofMaterialBundleResponseSchema>;
+
 export const IssueDemoClaimsRequestSchema = z.object({
   userId: MinaPublicKeySchema,
   ageOver18: z.boolean(),

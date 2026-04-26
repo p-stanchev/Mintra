@@ -7,6 +7,7 @@ import {
   CreateZkProofResponseSchema,
   GetZkProofInputResponseSchema,
   IssueMinaCredentialRequestSchema,
+  VerifyZkProofMaterialBundleRequestSchema,
   type GetZkProofInputResponse,
   type SignedZkProofMaterialBundle,
   type ZkPolicyRequest,
@@ -178,7 +179,48 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
       });
     }
   });
+
+  app.post("/verify-proof-bundle", async (request, reply) => {
+    const authWallet = requireFreshWalletAuth(request, reply);
+    if (!authWallet) return;
+
+    const parsed = CreateVerifyProofBundleBody(request.body);
+    if (!parsed.ok) {
+      return reply.status(400).send({ error: parsed.error });
+    }
+
+    let bundle: SignedZkProofMaterialBundle;
+    try {
+      bundle = verifySignedZkProofMaterialBundle(app, parsed.bundle);
+    } catch (error) {
+      return reply.status(400).send({
+        error: error instanceof Error ? error.message : "Invalid proof material bundle",
+      });
+    }
+
+    if (bundle.walletAddress !== authWallet || bundle.proofMaterial.userId !== authWallet) {
+      return reply.status(403).send({
+        error: "Proof material bundle does not belong to the authenticated wallet owner",
+      });
+    }
+
+    return reply.send({
+      ok: true,
+      walletAddress: bundle.walletAddress,
+      issuerPublicKey: bundle.issuerPublicKey,
+    });
+  });
 };
+
+function CreateVerifyProofBundleBody(body: unknown):
+  | { ok: true; bundle: SignedZkProofMaterialBundle }
+  | { ok: false; error: string } {
+  const parsed = VerifyZkProofMaterialBundleRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.message };
+  }
+  return { ok: true, bundle: parsed.data.bundle };
+}
 
 function createSignedZkProofMaterialBundle(
   app: FastifyInstance,
