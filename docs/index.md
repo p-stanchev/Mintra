@@ -25,6 +25,7 @@ Supporting docs:
 - [how-presentations-work.md](./how-presentations-work.md)
 - [off-chain-verification.md](./off-chain-verification.md)
 - [consume-proofs.md](./consume-proofs.md)
+- [credential-and-proof-authenticity.md](./credential-and-proof-authenticity.md)
 - [preventing-proof-sharing.md](./preventing-proof-sharing.md)
 - [replay-protection-and-audience-binding.md](./replay-protection-and-audience-binding.md)
 - [security.md](./security.md)
