@@ -12,6 +12,14 @@ Start here:
 - [zk-contracts-package.md](./zk-contracts-package.md)
 - [zkapp-age-gate-example.md](./zkapp-age-gate-example.md)
 
+Current reusable-proof model:
+
+- wallet credential for presentation reuse
+- issuer-signed proof-material bundle for zk proving reuse
+- wallet-native proof-material storage when supported
+- local import/export only as backup and recovery
+- no required Mintra online claim state at proof time when valid signed proof material is present
+
 Supporting docs:
 
 - [how-presentations-work.md](./how-presentations-work.md)

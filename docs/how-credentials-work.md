@@ -45,6 +45,20 @@ The signed credential is then stored in Auro.
 
 In the current demo build, Pallad can be connected as a wallet, but credential storage is not supported there yet.
 
+For zk proving, Mintra also issues an issuer-signed reusable proof-material bundle. That bundle carries:
+
+- holder wallet binding
+- commitment-backed proof material
+- issuer public key
+- issuer signature
+- issue time
+
+The preferred storage order is:
+
+1. wallet-native proof-material storage when the wallet exposes it
+2. local signed-bundle fallback in the browser
+3. export/import only for backup, restore, and cross-device recovery
+
 ## Source Data vs Commitments vs Derived Claims
 
 - source data:
@@ -93,5 +107,7 @@ Mintra currently:
 - retains normalized claims for up to 30 days in the current setup
 - allows apps to require fresher credentials with verifier policy
 - supports re-verification even before retention expiry
+
+When a holder already has a valid signed proof-material bundle, Mintra does not need to retain the backend claim record at proof time for the reusable zk flow to work.
 
 When a new verification succeeds, Mintra overwrites the older claim state.

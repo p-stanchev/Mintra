@@ -4,6 +4,11 @@ This example is intentionally optional and non-core.
 
 It shows how a Mina app could structure an optional on-chain enforcement layer around Mintra verification results without pretending that direct in-circuit presentation verification is already productionized here.
 
+The reusable holder state for the current zk flow remains off-chain:
+
+- wallet-held proof material when supported
+- signed proof-bundle fallback otherwise
+
 ## What This Example Demonstrates
 
 - a clean separation between Mintra proof verification and zkApp business logic

@@ -28,6 +28,13 @@ Use the contracts like this:
 
 This keeps Mintra infrastructure-first and avoids forcing every integration through a single shared on-chain policy.
 
+In the current reusable model, relying parties primarily trust:
+
+- the holder wallet
+- the issuer-signed proof-material bundle
+- verifier-side policy and proof checks
+- optional shared registry anchors on-chain
+
 ## Shared Registry
 
 `MintraRegistry` stores:

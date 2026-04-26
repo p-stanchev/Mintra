@@ -15,11 +15,18 @@ Mintra combines:
 2. KYC provider orchestration
 3. normalized claim extraction
 4. Mina credential issuance
-5. selective presentation verification
-6. verifier-side replay and audience protection
-7. claim trust and issuer-environment metadata
+5. issuer-signed reusable proof-material bundles for zk proving
+6. selective presentation verification
+7. verifier-side replay and audience protection
+8. claim trust and issuer-environment metadata
 
 Mintra’s current core product is off-chain credential issuance and off-chain proof verification.
+
+For zk proving reuse, the holder controls the reusable proof material:
+
+- wallet-native when supported
+- local signed-bundle fallback otherwise
+- no required Mintra online claim state at proof time when valid signed proof material is already held
 
 That includes distinguishing:
 
