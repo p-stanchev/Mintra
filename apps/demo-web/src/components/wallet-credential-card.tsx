@@ -15,13 +15,16 @@ import {
 } from "lucide-react";
 import { mintra } from "@/lib/mintra";
 import {
+  persistReusableProofMaterial,
+  resolveReusableProofMaterial,
+  type ReusableProofMaterialSource,
+} from "@/lib/proof-material";
+import {
   readAuthToken,
   readLinkedWalletAddress,
   readLinkedWalletProviderId,
   readLinkedWalletProviderName,
-  readStoredZkProofMaterialBundle,
   isValidMinaPublicKey,
-  writeStoredZkProofMaterialBundle,
 } from "@/lib/wallet-session";
 import { authenticateWallet, extractErrorMessage, resetWalletSession } from "@/lib/wallet-auth";
 import { discoverMinaWallets, getWalletById, summarizeWallet, type MinaWalletSummary } from "@/lib/mina-wallet";
@@ -53,6 +56,7 @@ export function WalletCredentialCard({
   const [mounted, setMounted] = useState(false);
   const [walletMenuOpen, setWalletMenuOpen] = useState(false);
   const [hasStoredProofMaterial, setHasStoredProofMaterial] = useState(false);
+  const [proofMaterialSource, setProofMaterialSource] = useState<ReusableProofMaterialSource>("none");
   const walletMenuRef = useRef<HTMLDivElement | null>(null);
   const proofMaterialInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -67,11 +71,22 @@ export function WalletCredentialCard({
   useEffect(() => {
     if (!proofMaterialWallet || !isValidMinaPublicKey(proofMaterialWallet)) {
       setHasStoredProofMaterial(false);
+      setProofMaterialSource("none");
       return;
     }
-
-    setHasStoredProofMaterial(Boolean(readStoredZkProofMaterialBundle(proofMaterialWallet)));
-  }, [proofMaterialWallet, state]);
+    let cancelled = false;
+    void resolveReusableProofMaterial({
+      walletAddress: proofMaterialWallet,
+      walletProviderId: selectedWalletId || walletProviderId,
+    }).then((resolution) => {
+      if (cancelled) return;
+      setHasStoredProofMaterial(Boolean(resolution.bundle));
+      setProofMaterialSource(resolution.source);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [proofMaterialWallet, selectedWalletId, state, walletProviderId]);
 
   useEffect(() => {
     setMounted(true);
@@ -284,8 +299,13 @@ export function WalletCredentialCard({
       await provider.storePrivateCredential({ credential: parsedCredential });
 
       if (issued.zkProofMaterialBundle) {
-        writeStoredZkProofMaterialBundle(ownerPublicKey, issued.zkProofMaterialBundle);
+        const storedSource = await persistReusableProofMaterial({
+          walletAddress: ownerPublicKey,
+          walletProviderId: provider.id,
+          bundle: issued.zkProofMaterialBundle,
+        });
         setHasStoredProofMaterial(true);
+        setProofMaterialSource(storedSource);
       }
 
       setState("done");
@@ -314,14 +334,17 @@ export function WalletCredentialCard({
     setMessage("Wallet disconnected.");
   }
 
-  function handleDownloadProofMaterial() {
+  async function handleDownloadProofMaterial() {
     if (!proofMaterialWallet || !isValidMinaPublicKey(proofMaterialWallet)) {
       setState("error");
       setMessage("Connect the verified wallet before exporting proof material.");
       return;
     }
 
-    const proofMaterialBundle = readStoredZkProofMaterialBundle(proofMaterialWallet);
+    const { bundle: proofMaterialBundle } = await resolveReusableProofMaterial({
+      walletAddress: proofMaterialWallet,
+      walletProviderId: selectedWalletId || walletProviderId,
+    });
     if (!proofMaterialBundle) {
       setState("error");
       setMessage("No signed proof bundle was found for this wallet yet.");
@@ -351,10 +374,19 @@ export function WalletCredentialCard({
           ? parsed.walletAddress
           : parsed.proofMaterial.userId;
 
-      writeStoredZkProofMaterialBundle(walletForBundle, parsed);
+      const storedSource = await persistReusableProofMaterial({
+        walletAddress: walletForBundle,
+        walletProviderId: selectedWalletId || walletProviderId,
+        bundle: parsed,
+      });
       setHasStoredProofMaterial(true);
+      setProofMaterialSource(storedSource);
       setState("done");
-      setMessage(`Proof material imported for ${walletForBundle}.`);
+      setMessage(
+        storedSource === "wallet"
+          ? `Proof material imported and stored through the wallet for ${walletForBundle}.`
+          : `Proof material imported locally for ${walletForBundle}.`
+      );
     } catch (err) {
       setState("error");
       setMessage(extractErrorMessage(err));
@@ -439,7 +471,7 @@ export function WalletCredentialCard({
           <div className="rounded-[20px] border border-line bg-stone-50 px-4 py-4 text-sm text-slate">
             <p className="font-medium text-ink">{selectedWallet.name}</p>
             <p className="mt-1 leading-6">
-              Proofs: {selectedWallet.capabilities.requestPresentation ? "supported" : "not detected"} · Credential storage: {selectedWallet.capabilities.storeCredential ? "supported" : "not detected"}
+              Proofs: {selectedWallet.capabilities.requestPresentation ? "supported" : "not detected"} · Credential storage: {selectedWallet.capabilities.storeCredential ? "supported" : "not detected"} · Proof material reuse: {selectedWallet.capabilities.readProofMaterial || selectedWallet.capabilities.storeProofMaterial ? "wallet-aware" : "local fallback"}
             </p>
           </div>
         )}
@@ -504,7 +536,7 @@ export function WalletCredentialCard({
 
           <button
             type="button"
-            onClick={handleDownloadProofMaterial}
+            onClick={() => void handleDownloadProofMaterial()}
             disabled={!hasStoredProofMaterial}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
@@ -551,9 +583,17 @@ export function WalletCredentialCard({
         <div className="rounded-[20px] border border-line bg-stone-50 px-4 py-3 text-sm text-slate">
           <p className="font-medium text-ink">Reusable proof bundle</p>
           <p className="mt-1 leading-6">
-            Mintra now stores a holder-side zk proof bundle on this device after credential issuance. Export it if you
-            want the proving inputs available without depending on Mintra keeping your claim record alive.
+            Mintra now treats signed proof material as holder-owned state. The demo prefers wallet-native storage when
+            the connected wallet exposes it, falls back to local signed storage in this browser, and only uses export or
+            import for backup and recovery.
           </p>
+          <div className="mt-3 inline-flex items-center rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink">
+            {proofMaterialSource === "wallet"
+              ? "Wallet proof material available"
+              : proofMaterialSource === "local"
+                ? "Local proof material available"
+                : "No reusable proof material yet"}
+          </div>
         </div>
 
         <div className="grid gap-2.5 text-xs text-slate md:grid-cols-2 2xl:grid-cols-3">

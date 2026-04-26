@@ -42,7 +42,13 @@ Current commitment keys include:
 - `kyc_passed_poseidon_commitment`
 - `country_code_poseidon_commitment`
 
-The browser demo page requests authenticated prover input from the API, then uses that commitment-backed metadata to generate the matching proof.
+The reusable proving order is now:
+
+1. wallet-held signed proof material when the wallet exposes it
+2. imported or browser-local signed proof bundle fallback
+3. authenticated API recovery when the holder has neither of the above
+
+The browser demo then uses that commitment-backed metadata to generate the matching proof, or asks the API to prove on the holder's behalf from the same signed bundle.
 
 ## Registry
 
@@ -93,7 +99,7 @@ NEXT_PUBLIC_MINA_GRAPHQL_URL=https://api.minascan.io/node/devnet/v1/graphql
 
 The `/zk-age` page then reads the registry account from Mina GraphQL and displays the anchored hashes and root slots.
 
-The `/zk-age` page now prefers authenticated backend proving through the API and only falls back to browser-side proving when that API route is unavailable.
+The `/zk-age` page now prefers authenticated backend proving through the API, resolves wallet-native proof material first, and only falls back to browser-side proving when that API route is unavailable.
 
 ## Browser Runtime Requirement
 

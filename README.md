@@ -35,6 +35,7 @@ Core product message:
 - typed `mintra.zk-policy/v1` request format for off-chain zk proof flows
 - verifier-owned single-use presentation challenges
 - holder-binding via wallet `signMessage`
+- issuer-signed reusable proof-material bundles for zk proving
 - passkey / WebAuthn holder binding on top of wallet binding
 - replay protection and audience binding
 - proof products:
@@ -71,6 +72,14 @@ The current bridge step now implemented is a committed-claims foundation:
 - sensitive source fields can be represented as commitments such as `dob_commitment`
 - public product-facing outputs are carried as derived claims such as `age_over_18`
 - raw source identity fields are not retained by Mintra once commitments and derived claims are produced
+
+The current reusable proving model is:
+
+- wallet-bound Mina credential for presentation reuse
+- issuer-signed `SignedZkProofMaterialBundle` for zk proving reuse
+- wallet-native proof-material storage when the wallet exposes it
+- local signed-bundle fallback when the wallet does not
+- API recovery path only when the holder has neither wallet-held nor local proof material
 
 The first credential-to-proof binding step is now also in place:
 
@@ -283,6 +292,8 @@ MINTRA_ISSUER_ID=mintra-production-issuer
 MINTRA_ISSUER_DISPLAY_NAME=Mintra
 ```
 
+`MINA_ISSUER_PRIVATE_KEY` signs the reusable proof-material bundle that can travel with the holder across sites.
+
 Didit-backed credentials should stay production. If you want synthetic test credentials, use the `/demo-issuer` page instead of changing the API issuer environment.
 
 ### Verifier config
@@ -298,6 +309,7 @@ CORS_ORIGIN=http://localhost:3000
 VERIFIER_PUBLIC_URL=http://localhost:3002
 PORT=3002
 REDIS_URL=
+TRUSTED_ISSUER_PUBLIC_KEY=
 ```
 
 If `REDIS_URL` is unset, the verifier falls back to the in-memory challenge store for local development. For production and multi-instance deploys, set `REDIS_URL` so single-use challenge consumption is replay-safe across replicas.
@@ -310,6 +322,7 @@ Create `apps/demo-web/.env.local`:
 NEXT_PUBLIC_MINTRA_API_URL=http://localhost:3001
 NEXT_PUBLIC_MINTRA_VERIFIER_URL=http://localhost:3002
 NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS=
+NEXT_PUBLIC_MINTRA_TRUSTED_ISSUER_PUBLIC_KEY=
 NEXT_PUBLIC_MINA_GRAPHQL_URL=https://api.minascan.io/node/devnet/v1/graphql
 ```
 
@@ -418,8 +431,9 @@ Today the flow is:
 
 1. KYC with Didit
 2. Mintra issues a wallet-bound credential
-3. the holder generates an o1js proof off-chain
-4. the verifier checks that proof off-chain on its own backend
+3. the holder reuses wallet-held or signed-bundle proof material
+4. the holder or API generates an o1js proof off-chain
+5. the verifier checks that proof off-chain on its own backend
 
 That is enough for real reusable verification infrastructure.
 
@@ -634,6 +648,10 @@ and verify the submitted age proof at:
 
 - `POST /api/zk/verify-proof`
 
+Signed proof-material bundles can also be verified directly at:
+
+- `POST /api/mina/verify-proof-bundle`
+
 Current limitation:
 
 - the current zk proof products are verified off-chain
@@ -656,6 +674,7 @@ The demo web app now includes:
   - dynamic zk proof runner
   - currently supports age, KYC, and country proof modes
   - prefers authenticated backend proving for reliability and mobile performance
+  - resolves reusable proof material from the wallet first, then local signed-bundle fallback
   - falls back to browser-side proving only when the API prove route is unavailable
   - registry address display
   - on-chain registry state readout when `NEXT_PUBLIC_MINTRA_ZKAPP_REGISTRY_ADDRESS` and `NEXT_PUBLIC_MINA_GRAPHQL_URL` are configured
@@ -716,6 +735,7 @@ pnpm --filter @mintra/zk-contracts deploy:age-gate
 ## Security Notes
 
 - Mintra stores normalized claims, not raw KYC artifacts.
+- Mintra does not need to retain the holder claim record at proof time when a valid signed proof-material bundle is present.
 - Mintra claim retention is up to 30 days.
 - Freshness can be enforced sooner by verifier policy.
 - age thresholds are recomputed server-side from stored DOB instead of trusting a static provider age snapshot

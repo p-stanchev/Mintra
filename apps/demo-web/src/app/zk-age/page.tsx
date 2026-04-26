@@ -2,11 +2,15 @@
 
 import { mintra } from "@/lib/mintra";
 import {
+  persistReusableProofMaterial,
+  resolveReusableProofMaterial,
+  type ReusableProofMaterialSource,
+} from "@/lib/proof-material";
+import {
   readLinkedWalletAddress,
+  readLinkedWalletProviderId,
   readLinkedWalletProviderName,
   readStoredZkProofMaterial,
-  readStoredZkProofMaterialBundle,
-  writeStoredZkProofMaterialBundle,
 } from "@/lib/wallet-session";
 import type {
   GetZkProofInputResponse,
@@ -38,6 +42,7 @@ export default function ZkAgePage() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletProviderName, setWalletProviderName] = useState<string | null>(null);
   const [proofInput, setProofInput] = useState<GetZkProofInputResponse | null>(null);
+  const [proofMaterialSource, setProofMaterialSource] = useState<ReusableProofMaterialSource>("none");
   const [countryAllowlist, setCountryAllowlist] = useState("BG, DE");
   const [countryBlocklist, setCountryBlocklist] = useState("");
   const [registryState, setRegistryState] = useState<RegistryState>(null);
@@ -155,7 +160,12 @@ export default function ZkAgePage() {
       setResult(null);
 
       setStep("loading-input");
-      const storedBundle = readStoredZkProofMaterialBundle(linkedWallet);
+      const storedBundleResolution = await resolveReusableProofMaterial({
+        walletAddress: linkedWallet,
+        walletProviderId: readLinkedWalletProviderId(),
+      });
+      const storedBundle = storedBundleResolution.bundle;
+      setProofMaterialSource(storedBundleResolution.source);
       const zkInput =
         storedBundle?.proofMaterial ??
         readStoredZkProofMaterial(linkedWallet) ??
@@ -198,7 +208,12 @@ export default function ZkAgePage() {
         throw new Error("A signed proof bundle is required before the verifier can accept this zk proof.");
       }
       if (proofMaterialBundle) {
-        writeStoredZkProofMaterialBundle(proofMaterialBundle.walletAddress, proofMaterialBundle);
+        const storedSource = await persistReusableProofMaterial({
+          walletAddress: proofMaterialBundle.walletAddress,
+          walletProviderId: readLinkedWalletProviderId(),
+          bundle: proofMaterialBundle,
+        });
+        setProofMaterialSource(storedSource);
       }
 
       setStep("verifying");
@@ -285,6 +300,16 @@ export default function ZkAgePage() {
               {walletProviderName
                 ? `Wallet provider: ${walletProviderName}`
                 : "The zk browser flow uses the wallet-authenticated API session, not direct wallet proving."}
+            </div>
+            <div className="mt-2 text-xs text-slate">
+              Proof material source:{" "}
+              <span className="font-medium text-ink">
+                {proofMaterialSource === "wallet"
+                  ? "wallet-native signed proof material"
+                  : proofMaterialSource === "local"
+                    ? "local signed proof bundle"
+                    : "none yet"}
+              </span>
             </div>
           </div>
 

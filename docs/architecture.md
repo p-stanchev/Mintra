@@ -114,11 +114,15 @@ The richer trust and commitment data lives in `credentialMetadata.version = "v2"
 
 ### ZK Proof Flow
 
-1. the frontend loads authenticated prover input from the API
+1. the frontend resolves reusable proof material from:
+   - the wallet when supported
+   - the holder's local signed bundle fallback
+   - the API only as a recovery path
 2. the verifier issues a typed `mintra.zk-policy/v1` request
-3. the frontend generates the matching o1js proof from `credentialMetadata.version = "v2"`
-4. the verifier checks the raw posted proof JSON against the compiled verification key
-5. the verifier checks the raw public input array against the requested policy
+3. the frontend or API generates the matching o1js proof from `credentialMetadata.version = "v2"`
+4. the verifier checks the issuer-signed proof-material bundle
+5. the verifier checks the raw posted proof JSON against the compiled verification key
+6. the verifier checks the raw public input array against the requested policy and signed commitments
 
 ## Off-Chain First
 
@@ -128,8 +132,9 @@ The current execution order is:
 
 1. provider-backed KYC
 2. wallet-bound credential issuance
-3. o1js proof generation off-chain
-4. verifier checks the proof off-chain
+3. holder-owned reusable proof-material storage
+4. o1js proof generation off-chain
+5. verifier checks the proof off-chain
 
 That is the current product default.
 

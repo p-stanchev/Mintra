@@ -9,8 +9,15 @@ The key product model is:
 That means:
 
 - the wallet credential is portable across apps
+- signed proof-material bundles are portable across apps for zk proving
 - a single proof presentation is not meant to be forwarded and reused everywhere
 - each relying party should request its own fresh proof
+
+For zk proofs specifically, the preferred proving source is:
+
+1. wallet-held signed proof material
+2. local or imported signed proof bundle
+3. authenticated API recovery if the holder has no reusable proof material yet
 
 ## Recommended Backend Flow
 

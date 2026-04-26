@@ -25,6 +25,8 @@ declare global {
     getAccounts?: () => Promise<string[]>;
     signMessage?: (args: { message: string }) => Promise<MinaSignedMessage | MinaProviderError>;
     storePrivateCredential?: (args: { credential: unknown }) => Promise<unknown>;
+    storeProofMaterialBundle?: (args: { bundle: unknown }) => Promise<unknown>;
+    getProofMaterialBundle?: (args: { walletAddress?: string }) => Promise<unknown>;
     requestPresentation?: (args: {
       presentation: {
         presentationRequest: unknown;

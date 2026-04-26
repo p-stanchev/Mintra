@@ -67,6 +67,13 @@ The verifier returns a normalized result with fields such as:
 
 ## ZK Proof Flow
 
+The reusable trust model for zk proofs is:
+
+- the holder wallet identity
+- an issuer-signed proof-material bundle
+- the verifier's typed zk policy request
+- optional shared on-chain trust anchors through `MintraRegistry`
+
 ### Create a zk policy request
 
 `POST /api/zk/policy-request`
@@ -122,6 +129,19 @@ Example request:
       "commitmentKey": "dob_poseidon_commitment"
     }
   },
+  "proofMaterialBundle": {
+    "version": "mintra.zk-proof-material/v2",
+    "walletAddress": "B62...",
+    "issuerPublicKey": "B62...",
+    "issuedAt": "2026-04-26T00:00:00.000Z",
+    "proofMaterial": {
+      "userId": "B62..."
+    },
+    "issuerSignature": {
+      "field": "...",
+      "scalar": "..."
+    }
+  },
   "proof": {
     "publicInput": ["...", "18", "2026", "4", "25"],
     "publicOutput": [],
@@ -134,9 +154,16 @@ Example request:
 The verifier currently:
 
 1. validates the typed zk policy request
-2. verifies audience and expiry
-3. verifies the raw proof JSON against the compiled verification key
-4. reads the raw `publicInput` array to confirm it matches the requested policy
+2. verifies the signed proof-material bundle against the trusted issuer public key
+3. verifies audience and expiry
+4. verifies the raw proof JSON against the compiled verification key
+5. confirms the raw `publicInput` array matches the requested policy and the signed bundle commitments
+
+### Verify a signed proof-material bundle directly
+
+`POST /api/mina/verify-proof-bundle`
+
+This route is useful for import, backup restore, and cross-site portability checks before proving.
 
 ## Passkeys
 

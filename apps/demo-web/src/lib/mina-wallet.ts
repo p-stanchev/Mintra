@@ -1,6 +1,12 @@
 "use client";
 
-export type MinaWalletCapability = "connect" | "signMessage" | "requestPresentation" | "storeCredential";
+export type MinaWalletCapability =
+  | "connect"
+  | "signMessage"
+  | "requestPresentation"
+  | "storeCredential"
+  | "storeProofMaterial"
+  | "readProofMaterial";
 
 export interface MinaWalletAdapter {
   id: string;
@@ -17,6 +23,8 @@ export interface MinaWalletAdapter {
     };
   }): Promise<MinaPresentationResponse | MinaProviderError>;
   storePrivateCredential(args: { credential: unknown }): Promise<unknown>;
+  storeProofMaterialBundle(args: { bundle: unknown }): Promise<unknown>;
+  getProofMaterialBundle(args: { walletAddress?: string }): Promise<unknown>;
 }
 
 export type MinaWalletSummary = Pick<MinaWalletAdapter, "id" | "name" | "source" | "capabilities">;
@@ -197,6 +205,12 @@ function createAdapterFromProvider(params: {
     storeCredential: preferRequestRpc
       ? Boolean(provider.storePrivateCredential)
       : Boolean(provider.storePrivateCredential || provider.request),
+    storeProofMaterial: preferRequestRpc
+      ? Boolean(provider.storeProofMaterialBundle)
+      : Boolean(provider.storeProofMaterialBundle || provider.request),
+    readProofMaterial: preferRequestRpc
+      ? Boolean(provider.getProofMaterialBundle)
+      : Boolean(provider.getProofMaterialBundle || provider.request),
   } satisfies Record<MinaWalletCapability, boolean>;
 
   return {
@@ -304,6 +318,46 @@ function createAdapterFromProvider(params: {
       }
 
       throw new Error(`${params.name} does not expose Mina credential storage yet.`);
+    },
+    async storeProofMaterialBundle(args) {
+      if (!preferRequestRpc && provider.storeProofMaterialBundle) {
+        return provider.storeProofMaterialBundle(args);
+      }
+
+      if (preferRequestRpc && provider.storeProofMaterialBundle) {
+        return provider.storeProofMaterialBundle(args);
+      }
+
+      if (provider.request) {
+        const result = await tryProviderRequest(
+          provider,
+          "mina_storeProofMaterialBundle",
+          args
+        );
+        if (result !== null) return result;
+      }
+
+      throw new Error(`${params.name} does not expose Mintra proof-material storage yet.`);
+    },
+    async getProofMaterialBundle(args) {
+      if (!preferRequestRpc && provider.getProofMaterialBundle) {
+        return provider.getProofMaterialBundle(args);
+      }
+
+      if (preferRequestRpc && provider.getProofMaterialBundle) {
+        return provider.getProofMaterialBundle(args);
+      }
+
+      if (provider.request) {
+        const result = await tryProviderRequest(
+          provider,
+          "mina_getProofMaterialBundle",
+          args
+        );
+        if (result !== null) return result;
+      }
+
+      throw new Error(`${params.name} does not expose Mintra proof-material retrieval yet.`);
     },
   };
 }

@@ -2,12 +2,15 @@
 
 import { requestPresentationWithHolderBinding } from "@/lib/auro-presentation";
 import {
+  persistReusableProofMaterial,
+  resolveReusableProofMaterial,
+  type ReusableProofMaterialSource,
+} from "@/lib/proof-material";
+import {
   readLinkedWalletAddress,
   readLinkedWalletProviderId,
   readLinkedWalletProviderName,
   readStoredZkProofMaterial,
-  readStoredZkProofMaterialBundle,
-  writeStoredZkProofMaterialBundle,
 } from "@/lib/wallet-session";
 import { getWalletById } from "@/lib/mina-wallet";
 import { mintra } from "@/lib/mintra";
@@ -35,6 +38,7 @@ export default function ProtectedPage() {
   const [error, setError] = useState<string | null>(null);
   const [verificationResult, setVerificationResult] = useState<PresentationVerificationResult | ZkVerificationResult | null>(null);
   const [walletProviderName, setWalletProviderName] = useState<string | null>(null);
+  const [proofMaterialSource, setProofMaterialSource] = useState<ReusableProofMaterialSource>("none");
 
   const requestWalletProof = useCallback(async () => {
     const walletAddress = readLinkedWalletAddress();
@@ -147,7 +151,12 @@ export default function ProtectedPage() {
       setError(null);
 
       setZkStep("loading-input");
-      const storedBundle = readStoredZkProofMaterialBundle(walletAddress);
+      const storedBundleResolution = await resolveReusableProofMaterial({
+        walletAddress,
+        walletProviderId: readLinkedWalletProviderId(),
+      });
+      const storedBundle = storedBundleResolution.bundle;
+      setProofMaterialSource(storedBundleResolution.source);
       const zkInput: GetZkProofInputResponse =
         storedBundle?.proofMaterial ??
         readStoredZkProofMaterial(walletAddress) ??
@@ -183,7 +192,12 @@ export default function ProtectedPage() {
         proofJson = proofResponse.proof;
         proofMaterialBundle = proofResponse.proofMaterialBundle ?? storedBundle;
         if (proofMaterialBundle) {
-          writeStoredZkProofMaterialBundle(proofMaterialBundle.walletAddress, proofMaterialBundle);
+          const storedSource = await persistReusableProofMaterial({
+            walletAddress: proofMaterialBundle.walletAddress,
+            walletProviderId: readLinkedWalletProviderId(),
+            bundle: proofMaterialBundle,
+          });
+          setProofMaterialSource(storedSource);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message.toLowerCase() : "";
@@ -342,6 +356,18 @@ export default function ProtectedPage() {
             Prove your <code style={{ fontFamily: "var(--mono)", fontSize: 12 }}>age_over_18</code> claim
             using either the Auro wallet presentation flow or a direct ZK verifier proof.
           </p>
+          {mode === "zk" && (
+            <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 16 }}>
+              Reusable proof material source:{" "}
+              <strong>
+                {proofMaterialSource === "wallet"
+                  ? "wallet-native"
+                  : proofMaterialSource === "local"
+                    ? "local signed bundle"
+                    : "none yet"}
+              </strong>
+            </p>
+          )}
 
           <div className="row" style={{ justifyContent: "center", gap: 8, marginBottom: 20 }}>
             <button
