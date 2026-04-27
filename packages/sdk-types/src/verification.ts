@@ -17,6 +17,9 @@ export const VerificationStatusSchema = z.enum([
 ]);
 export type VerificationStatus = z.infer<typeof VerificationStatusSchema>;
 
+export const VerificationProviderIdSchema = z.enum(["didit", "idnorm"]);
+export type VerificationProviderId = z.infer<typeof VerificationProviderIdSchema>;
+
 export const NormalizedClaimsSchema = z.object({
   age_over_18: z.boolean().optional(),
   age_over_21: z.boolean().optional(),
@@ -30,7 +33,7 @@ export type NormalizedClaims = z.infer<typeof NormalizedClaimsSchema>;
 export const VerificationRecordSchema = z.object({
   id: z.string().uuid(),
   userId: z.string(),
-  provider: z.literal("didit"),
+  provider: VerificationProviderIdSchema,
   status: VerificationStatusSchema,
   claims: NormalizedClaimsSchema,
   claimModelVersion: ClaimModelVersionSchema.optional(),

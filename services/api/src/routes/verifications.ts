@@ -12,14 +12,14 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
     const authWallet = requireWalletAuth(request, reply);
     if (!authWallet) return;
 
-    let body: { userId: string; redirectUrl?: string };
+    let body: { userId: string; providerId?: "didit" | "idnorm"; redirectUrl?: string };
     try {
       body = StartVerificationRequestSchema.parse(request.body) as typeof body;
     } catch (err) {
       return reply.status(400).send({ error: "Invalid request", detail: String(err) });
     }
 
-    const { userId, redirectUrl } = body;
+    const { userId, providerId, redirectUrl } = body;
     if (authWallet !== userId) {
       return reply.status(403).send({ error: "Verification can only be started for the authenticated wallet" });
     }
@@ -36,17 +36,27 @@ export const verificationsRouter: FastifyPluginAsync = async (app) => {
       }
     }
 
-    const session = await app.diditProvider.createSession({
+    const chosenProviderId = providerId ?? app.defaultVerificationProviderId;
+    if (!chosenProviderId) {
+      return reply.status(503).send({ error: "No verification provider is configured" });
+    }
+    const provider = app.verificationProviders[chosenProviderId];
+    if (!provider) {
+      return reply.status(400).send({ error: `Verification provider '${chosenProviderId}' is not configured` });
+    }
+
+    const session = await provider.createSession({
       userId,
       ...(redirectUrl !== undefined ? { redirectUrl } : {}),
     });
 
-    const record = await app.store.createVerification(userId, session.sessionId);
+    const record = await app.store.createVerification(userId, chosenProviderId, session.sessionId);
     app.log.info({ verificationId: record.id }, "verification.created");
 
     return reply.status(201).send({
       sessionId: record.id,
       verificationUrl: session.verificationUrl,
+      provider: chosenProviderId,
       status: record.status,
     });
   });

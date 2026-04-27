@@ -82,6 +82,8 @@ export interface DiditProviderConfig {
 }
 
 export class DiditProvider implements VerificationProvider {
+  readonly id = "didit" as const;
+
   constructor(private readonly config: DiditProviderConfig) {}
 
   async createSession(input: CreateSessionInput): Promise<CreateSessionResult> {
@@ -168,6 +170,10 @@ export class DiditProvider implements VerificationProvider {
   mapClaims(event: NormalizedWebhookEvent): NormalizedClaims {
     const materialized = deriveClaimMaterial(event);
     return materialized.normalizedClaims;
+  }
+
+  mapVerificationStatus(event: NormalizedWebhookEvent) {
+    return DIDIT_STATUS_MAP[event.rawStatus] ?? "pending";
   }
 
   async materializeClaims(event: NormalizedWebhookEvent): Promise<ClaimMaterialization> {
@@ -272,6 +278,19 @@ export class DiditProvider implements VerificationProvider {
     return timingSafeEqual(expectedBuf, receivedBuf);
   }
 }
+
+const DIDIT_STATUS_MAP: Record<string, "approved" | "rejected" | "needs_review" | "pending"> = {
+  Approved: "approved",
+  Declined: "rejected",
+  "In Review": "needs_review",
+  Abandoned: "rejected",
+  "Not Started": "pending",
+  Pending: "pending",
+  Started: "pending",
+  "In Progress": "pending",
+  Processing: "pending",
+  Submitted: "pending",
+};
 
 function deriveClaimMaterial(event: NormalizedWebhookEvent): {
   normalizedClaims: NormalizedClaims;

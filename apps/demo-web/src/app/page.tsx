@@ -42,27 +42,16 @@ const PROVIDERS: ProviderOption[] = [
   {
     id: "didit",
     name: "Didit",
-    description: "Active provider in the current demo flow.",
+    description: "Document-first KYC flow already integrated in Mintra.",
     available: true,
     badge: "Live",
   },
   {
-    id: "persona",
-    name: "Persona",
-    description: "Planned provider integration.",
-    available: false,
-  },
-  {
-    id: "sumsub",
-    name: "Sumsub",
-    description: "Planned provider integration.",
-    available: false,
-  },
-  {
-    id: "veriff",
-    name: "Veriff",
-    description: "Planned provider integration.",
-    available: false,
+    id: "idnorm",
+    name: "IdNorm",
+    description: "Alternative provider flow using IdNorm sessions and webhook updates.",
+    available: true,
+    badge: "Live",
   },
 ];
 
@@ -221,7 +210,7 @@ export default function Home() {
 
   const handleStartVerification = useCallback(
     async (providerId: string) => {
-      if (providerId !== "didit" || !verifyConsentChecked || !walletAddress) {
+      if (!verifyConsentChecked || !walletAddress) {
         return;
       }
 
@@ -229,7 +218,10 @@ export default function Home() {
         setVerifyModalState("loading");
         setVerifyError(null);
 
-        const session = await mintra.startVerification({ userId: walletAddress });
+        const session = await mintra.startVerification({
+          userId: walletAddress,
+          providerId: providerId as "didit" | "idnorm",
+        });
         sessionStorage.setItem("mintra.sessionId", session.sessionId);
         setVerifyModalState("redirecting");
         window.location.href = session.verificationUrl;
@@ -708,7 +700,7 @@ function VerificationProviderModal({
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate">
               {linkedWallet
-                ? "Pick a provider to launch verification. Only Didit is enabled in the current demo."
+                ? "Pick a provider to launch verification. Each provider feeds the same normalized Mintra claim model once approved."
                 : "Connect your wallet on the home page before starting verification."}
             </p>
           </div>

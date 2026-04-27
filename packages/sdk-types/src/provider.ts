@@ -1,5 +1,6 @@
 import type { NormalizedClaims } from "./verification";
 import type { ClaimModelVersion, CredentialTrust, DerivedClaims, SourceCommitments } from "@mintra/credential-v2";
+import type { VerificationProviderId, VerificationStatus } from "./verification";
 
 export interface CreateSessionInput {
   userId: string;
@@ -55,8 +56,11 @@ export interface ClaimMaterialization {
 }
 
 export interface VerificationProvider {
+  readonly id: VerificationProviderId;
   createSession(input: CreateSessionInput): Promise<CreateSessionResult>;
   parseWebhook(request: IncomingWebhook): Promise<NormalizedWebhookEvent>;
+  mapVerificationStatus(event: NormalizedWebhookEvent): VerificationStatus;
   mapClaims(event: NormalizedWebhookEvent): NormalizedClaims;
   materializeClaims(event: NormalizedWebhookEvent): Promise<ClaimMaterialization>;
+  getZkSalt(userId: string, claimType: "dob" | "kyc" | "country"): bigint;
 }

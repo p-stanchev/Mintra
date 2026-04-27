@@ -265,7 +265,7 @@ Names are intentionally excluded because they do not improve Mintra's proof prod
 - pnpm `>=9`
 - Auro wallet for the full demo flow
 - Pallad wallet only if you want to test wallet connection
-- Didit account
+- At least one provider account: Didit or IdNorm
 
 ### Install
 
@@ -285,6 +285,10 @@ Set:
 DIDIT_API_KEY=your_didit_api_key
 DIDIT_WEBHOOK_SECRET=your_didit_webhook_secret
 DIDIT_WORKFLOW_ID=your_didit_workflow_id
+IDNORM_API_KEY=your_idnorm_api_key
+IDNORM_WEBHOOK_SECRET=your_idnorm_webhook_secret
+IDNORM_CONFIGURATION_ID=your_idnorm_configuration_id
+MINTRA_DEFAULT_PROVIDER=didit
 PORT=3001
 CORS_ORIGIN=http://localhost:3000
 MINA_ISSUER_PRIVATE_KEY=your_mina_private_key
@@ -294,6 +298,9 @@ MINTRA_ISSUER_DISPLAY_NAME=Mintra
 ```
 
 `MINA_ISSUER_PRIVATE_KEY` signs the reusable proof-material bundle that can travel with the holder across sites.
+
+You can configure either provider independently or both at once. When both are configured, `MINTRA_DEFAULT_PROVIDER`
+controls the API default and the demo UI lets the user choose between Didit and IdNorm when starting verification.
 
 Didit-backed credentials should stay production. If you want synthetic test credentials, use the `/demo-issuer` page instead of changing the API issuer environment.
 

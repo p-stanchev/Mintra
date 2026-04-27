@@ -14,6 +14,7 @@
     "@fastify/rate-limit": "^9.0.0",
     "@mintra/mina-bridge": "workspace:*",
     "@mintra/provider-didit": "workspace:*",
+    "@mintra/provider-idnorm": "workspace:*",
     "@mintra/sdk-types": "workspace:*",
     "@mintra/zk-claims": "workspace:*",
     "dotenv": "^16.4.0",

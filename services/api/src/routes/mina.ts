@@ -307,14 +307,24 @@ function buildZkProofInputPayload(
     : undefined;
 
   const zkSalts: { dob?: string; kyc?: string; country?: string } = {};
+  const provider = claim.provider ? app.verificationProviders[claim.provider] : app.diditProvider;
   if (claim.dateOfBirth) {
-    zkSalts.dob = app.diditProvider.getZkSalt(userId, "dob").toString(16);
+    if (!provider) {
+      throw new Error(`Verification provider '${claim.provider ?? "unknown"}' is not configured for DOB zk salt derivation`);
+    }
+    zkSalts.dob = provider.getZkSalt(userId, "dob").toString(16);
   }
   if (claim.kycPassed === true) {
-    zkSalts.kyc = app.diditProvider.getZkSalt(userId, "kyc").toString(16);
+    if (!provider) {
+      throw new Error(`Verification provider '${claim.provider ?? "unknown"}' is not configured for KYC zk salt derivation`);
+    }
+    zkSalts.kyc = provider.getZkSalt(userId, "kyc").toString(16);
   }
   if (claim.countryCode) {
-    zkSalts.country = app.diditProvider.getZkSalt(userId, "country").toString(16);
+    if (!provider) {
+      throw new Error(`Verification provider '${claim.provider ?? "unknown"}' is not configured for country zk salt derivation`);
+    }
+    zkSalts.country = provider.getZkSalt(userId, "country").toString(16);
   }
 
   return GetZkProofInputResponseSchema.parse({

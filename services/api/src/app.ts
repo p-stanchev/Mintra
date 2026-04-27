@@ -3,7 +3,8 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { createDiditProvider } from "@mintra/provider-didit";
-import type { CredentialTrust } from "@mintra/sdk-types";
+import { createIdNormProvider } from "@mintra/provider-idnorm";
+import type { CredentialTrust, VerificationProviderId } from "@mintra/sdk-types";
 import { WalletAuthStore, readBearerToken } from "./auth";
 import { createStore } from "./store";
 import { authRouter } from "./routes/auth";
@@ -19,6 +20,10 @@ export interface AppOptions {
   diditApiKey?: string;
   diditWebhookSecret?: string;
   diditWorkflowId?: string;
+  idnormApiKey?: string;
+  idnormWebhookSecret?: string;
+  idnormConfigurationId?: string;
+  defaultVerificationProviderId?: VerificationProviderId;
   minaIssuerPrivateKey?: string;
   issuerEnvironment?: CredentialTrust["issuerEnvironment"];
   issuerId?: string;
@@ -38,9 +43,16 @@ export async function buildApp(opts: AppOptions = {}) {
       .map((s) => s.trim())
       .filter(Boolean);
 
-  const diditApiKey = opts.diditApiKey ?? requireEnv("DIDIT_API_KEY");
-  const diditWebhookSecret = opts.diditWebhookSecret ?? requireEnv("DIDIT_WEBHOOK_SECRET");
-  const diditWorkflowId = opts.diditWorkflowId ?? requireEnv("DIDIT_WORKFLOW_ID");
+  const diditApiKey = opts.diditApiKey ?? readEnv("DIDIT_API_KEY");
+  const diditWebhookSecret = opts.diditWebhookSecret ?? readEnv("DIDIT_WEBHOOK_SECRET");
+  const diditWorkflowId = opts.diditWorkflowId ?? readEnv("DIDIT_WORKFLOW_ID");
+  const idnormApiKey = opts.idnormApiKey ?? readEnv("IDNORM_API_KEY");
+  const idnormWebhookSecret = opts.idnormWebhookSecret ?? readEnv("IDNORM_WEBHOOK_SECRET");
+  const idnormConfigurationId = opts.idnormConfigurationId ?? readEnv("IDNORM_CONFIGURATION_ID");
+  const defaultVerificationProviderId =
+    opts.defaultVerificationProviderId ??
+    normalizeProviderId(readEnv("MINTRA_DEFAULT_PROVIDER")) ??
+    null;
   const minaKey = opts.minaIssuerPrivateKey ?? process.env["MINA_ISSUER_PRIVATE_KEY"];
   const issuerEnvironment = opts.issuerEnvironment ??
     (process.env["MINTRA_ISSUER_ENVIRONMENT"] === "demo" ? "demo" : "production");
@@ -107,7 +119,7 @@ export async function buildApp(opts: AppOptions = {}) {
     done();
   });
 
-  // Wallet bearer auth — skips /health, auth bootstrap, and the Didit webhook (which uses HMAC)
+  // Wallet bearer auth — skips /health, auth bootstrap, and provider webhooks (which use HMAC)
   app.addHook("onRequest", (request, reply, done) => {
     const url = request.url.split("?")[0] ?? "";
     const token = readBearerToken(request);
@@ -119,7 +131,12 @@ export async function buildApp(opts: AppOptions = {}) {
       }
     }
 
-    if (url === "/health" || url === "/api/providers/didit/webhook" || url.startsWith("/api/auth/")) {
+    if (
+      url === "/health" ||
+      url === "/api/providers/didit/webhook" ||
+      url === "/api/providers/idnorm/webhook" ||
+      url.startsWith("/api/auth/")
+    ) {
       return done();
     }
 
@@ -141,12 +158,42 @@ export async function buildApp(opts: AppOptions = {}) {
     authStore.close();
   });
 
-  const diditProvider = createDiditProvider({
-    apiKey: diditApiKey,
-    webhookSecret: diditWebhookSecret,
-    workflowId: diditWorkflowId,
-  });
+  const verificationProviders: Partial<Record<VerificationProviderId, ReturnType<typeof createDiditProvider> | ReturnType<typeof createIdNormProvider>>> = {};
+  const diditProvider =
+    diditApiKey && diditWebhookSecret && diditWorkflowId
+      ? createDiditProvider({
+          apiKey: diditApiKey,
+          webhookSecret: diditWebhookSecret,
+          workflowId: diditWorkflowId,
+        })
+      : null;
+  const idnormProvider =
+    idnormApiKey && idnormWebhookSecret && idnormConfigurationId
+      ? createIdNormProvider({
+          apiKey: idnormApiKey,
+          webhookSecret: idnormWebhookSecret,
+          configurationId: idnormConfigurationId,
+        })
+      : null;
+  if (diditProvider) verificationProviders.didit = diditProvider;
+  if (idnormProvider) verificationProviders.idnorm = idnormProvider;
+  const resolvedDefaultProviderId =
+    (defaultVerificationProviderId && verificationProviders[defaultVerificationProviderId]
+      ? defaultVerificationProviderId
+      : null) ??
+    (diditProvider ? "didit" : null) ??
+    (idnormProvider ? "idnorm" : null);
+
+  if (!resolvedDefaultProviderId) {
+    throw new Error(
+      "No verification provider is configured. Set DIDIT_* or IDNORM_* environment variables."
+    );
+  }
+
   app.decorate("diditProvider", diditProvider);
+  app.decorate("idnormProvider", idnormProvider);
+  app.decorate("verificationProviders", verificationProviders);
+  app.decorate("defaultVerificationProviderId", resolvedDefaultProviderId);
 
   let minaBridge: {
     issueCredential(req: {
@@ -189,6 +236,8 @@ export async function buildApp(opts: AppOptions = {}) {
   app.get("/health", async () => ({
     ok: true,
     service: "mintra-api",
+    verificationProviders: Object.keys(verificationProviders),
+    defaultVerificationProviderId: resolvedDefaultProviderId,
     minaIssuerPublicKey,
     credentialTrustDefaults: {
       issuerEnvironment: credentialTrustDefaults.issuerEnvironment,
@@ -207,4 +256,14 @@ function requireEnv(key: string): string {
   const val = process.env[key];
   if (!val) throw new Error(`Missing required environment variable: ${key}`);
   return val;
+}
+
+function readEnv(key: string): string | undefined {
+  const val = process.env[key];
+  return val?.trim() ? val.trim() : undefined;
+}
+
+function normalizeProviderId(value: string | undefined): VerificationProviderId | null {
+  if (value === "didit" || value === "idnorm") return value;
+  return null;
 }

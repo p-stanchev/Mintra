@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { NormalizedClaimsSchema, VerificationRecordSchema } from "./verification";
+import {
+  NormalizedClaimsSchema,
+  VerificationProviderIdSchema,
+  VerificationRecordSchema,
+} from "./verification";
 import {
   ClaimModelVersionSchema,
   CredentialTrustSchema,
@@ -21,6 +25,7 @@ export type MinaMessageSignature = z.infer<typeof MinaMessageSignatureSchema>;
 
 export const StartVerificationRequestSchema = z.object({
   userId: MinaPublicKeySchema,
+  providerId: VerificationProviderIdSchema.optional(),
   redirectUrl: z.string().url().optional(),
 });
 export type StartVerificationRequest = z.infer<typeof StartVerificationRequestSchema>;
@@ -28,6 +33,7 @@ export type StartVerificationRequest = z.infer<typeof StartVerificationRequestSc
 export const StartVerificationResponseSchema = z.object({
   sessionId: z.string(),
   verificationUrl: z.string().url(),
+  provider: VerificationProviderIdSchema,
   status: z.literal("not_started"),
 });
 export type StartVerificationResponse = z.infer<typeof StartVerificationResponseSchema>;

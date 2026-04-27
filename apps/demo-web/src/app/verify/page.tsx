@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { BadgeCheck, Building2, Lock } from "lucide-react";
 import { mintra } from "@/lib/mintra";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
@@ -21,27 +21,16 @@ const PROVIDERS: ProviderOption[] = [
   {
     id: "didit",
     name: "Didit",
-    description: "Active provider in the current demo flow.",
+    description: "Document-first KYC flow already integrated in Mintra.",
     available: true,
     badge: "Live",
   },
   {
-    id: "persona",
-    name: "Persona",
-    description: "Planned provider integration.",
-    available: false,
-  },
-  {
-    id: "sumsub",
-    name: "Sumsub",
-    description: "Planned provider integration.",
-    available: false,
-  },
-  {
-    id: "veriff",
-    name: "Veriff",
-    description: "Planned provider integration.",
-    available: false,
+    id: "idnorm",
+    name: "IdNorm",
+    description: "Alternative provider flow using IdNorm sessions and webhook updates.",
+    available: true,
+    badge: "Live",
   },
 ];
 
@@ -65,7 +54,6 @@ export default function VerifyPage() {
   }, []);
 
   async function handleStartVerification(providerId: string) {
-    if (providerId !== "didit") return;
     if (!consentChecked) return;
     if (!linkedWallet) {
       setState("blocked");
@@ -77,7 +65,7 @@ export default function VerifyPage() {
       setState("loading");
       setError(null);
 
-      const session = await mintra.startVerification({ userId: linkedWallet });
+      const session = await mintra.startVerification({ userId: linkedWallet, providerId: providerId as "didit" | "idnorm" });
       sessionStorage.setItem("mintra.sessionId", session.sessionId);
       setState("redirecting");
       window.location.href = session.verificationUrl;
@@ -86,11 +74,6 @@ export default function VerifyPage() {
       setError(extractUiErrorMessage(err, "Unknown error"));
     }
   }
-
-  const activeProvider = useMemo(
-    () => PROVIDERS.find((provider) => provider.available) ?? PROVIDERS[0],
-    []
-  );
 
   return (
     <div className="stack" style={{ alignItems: "center", paddingTop: 60 }}>
@@ -106,7 +89,7 @@ export default function VerifyPage() {
         {state === "choosing" && (
           <>
             <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 24 }}>
-              Pick a provider to launch verification. Only Didit is enabled in the current demo.
+              Pick a provider to launch verification. Each provider feeds the same normalized Mintra claim model once approved.
             </p>
 
             <div
@@ -217,8 +200,7 @@ export default function VerifyPage() {
             </div>
 
             <p style={{ fontSize: 13, color: "var(--muted)" }}>
-              Selected flow will continue with{" "}
-              <strong style={{ color: "#111111" }}>{activeProvider.name}</strong>.
+              Choose the provider that matches the workflow you want to test.
             </p>
             {!consentChecked && (
               <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 8 }}>

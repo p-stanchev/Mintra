@@ -1,7 +1,13 @@
 import { v4 as uuidv4 } from "uuid";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { ClaimModelVersion, CredentialTrust, DerivedClaims, SourceCommitments } from "@mintra/sdk-types";
+import type {
+  ClaimModelVersion,
+  CredentialTrust,
+  DerivedClaims,
+  SourceCommitments,
+  VerificationProviderId,
+} from "@mintra/sdk-types";
 
 const MAX_VERIFICATIONS = 10_000;
 const MAX_CLAIMS = 10_000;
@@ -19,7 +25,7 @@ export type VerificationStatus =
 export interface VerificationRecord {
   id: string;
   userId: string;
-  provider: "didit";
+  provider: VerificationProviderId;
   status: VerificationStatus;
   providerReference: string;
   createdAt: Date;
@@ -36,6 +42,7 @@ export interface ClaimsRecord {
   nationality?: string | null;
   dateOfBirth?: string | null;
   documentExpiresAt?: Date | null;
+  provider?: VerificationProviderId;
   claimModelVersion: ClaimModelVersion;
   derivedClaims?: DerivedClaims;
   sourceCommitments?: SourceCommitments;
@@ -44,7 +51,11 @@ export interface ClaimsRecord {
 }
 
 export interface VerificationStore {
-  createVerification(userId: string, sessionId: string): Promise<VerificationRecord>;
+  createVerification(
+    userId: string,
+    provider: VerificationProviderId,
+    sessionId: string
+  ): Promise<VerificationRecord>;
   getVerification(id: string): Promise<VerificationRecord | undefined>;
   getVerificationByProviderRef(sessionId: string): Promise<VerificationRecord | undefined>;
   updateVerificationStatus(sessionId: string, status: VerificationStatus): Promise<VerificationRecord | undefined>;
@@ -59,6 +70,7 @@ export interface VerificationStore {
       nationality?: string;
       dateOfBirth?: string;
       documentExpiresAt?: string;
+      provider?: VerificationProviderId;
       claimModelVersion?: ClaimModelVersion;
       derivedClaims?: DerivedClaims;
       sourceCommitments?: SourceCommitments;
@@ -89,7 +101,11 @@ export class InMemoryStore implements VerificationStore {
     this.stateFile = stateFile;
   }
 
-  async createVerification(userId: string, sessionId: string): Promise<VerificationRecord> {
+  async createVerification(
+    userId: string,
+    provider: VerificationProviderId,
+    sessionId: string
+  ): Promise<VerificationRecord> {
     if (this.verifications.size >= MAX_VERIFICATIONS) {
       throw new Error("Verification store capacity exceeded");
     }
@@ -98,7 +114,7 @@ export class InMemoryStore implements VerificationStore {
     const record: VerificationRecord = {
       id,
       userId,
-      provider: "didit",
+      provider,
       status: "not_started",
       providerReference: sessionId,
       createdAt: now,
@@ -160,6 +176,7 @@ export class InMemoryStore implements VerificationStore {
       ...(data.nationality === undefined ? {} : { nationality: data.nationality }),
       ...(data.dateOfBirth === undefined ? {} : { dateOfBirth: data.dateOfBirth }),
       ...(data.documentExpiresAt === undefined ? {} : { documentExpiresAt: new Date(data.documentExpiresAt) }),
+      ...(data.provider === undefined ? {} : { provider: data.provider }),
       claimModelVersion: data.claimModelVersion ?? "v1",
       ...(data.derivedClaims === undefined ? {} : { derivedClaims: data.derivedClaims }),
       ...(data.sourceCommitments === undefined ? {} : { sourceCommitments: data.sourceCommitments }),
