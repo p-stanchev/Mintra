@@ -30,8 +30,7 @@ const PROVIDERS: ProviderOption[] = [
     id: "idnorm",
     name: "IdNorm",
     description: "Alternative provider flow using IdNorm sessions and webhook updates.",
-    available: true,
-    badge: "Live",
+    available: false,
   },
 ];
 
