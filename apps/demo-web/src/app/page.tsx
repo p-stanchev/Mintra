@@ -14,6 +14,7 @@ import { extractUiErrorMessage } from "@/lib/errors";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowRight,
   BadgeCheck,
@@ -689,8 +690,19 @@ function VerificationProviderModal({
   state: VerifyModalState;
   activeProviderName: string;
 }) {
-  return (
-      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/35 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
+  return createPortal(
+      <div className="fixed inset-0 z-[120] flex min-h-screen items-center justify-center bg-black/35 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
       <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[24px] border border-line bg-white p-4 shadow-[0_20px_80px_rgba(17,17,17,0.18)] sm:rounded-[28px] sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -804,6 +816,8 @@ function VerificationProviderModal({
         )}
       </div>
     </div>
+    ,
+    document.body
   );
 }
 
