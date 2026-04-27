@@ -320,6 +320,12 @@ If `REDIS_URL` is unset, the verifier falls back to the in-memory challenge stor
 
 `TRUST_SOURCE=auto` makes the verifier prefer Mina registry trust and fall back to the configured issuer key only if registry resolution is unavailable. Use `TRUST_SOURCE=registry` once you want registry lookup and VK-hash matching to be mandatory at startup.
 
+When registry trust is active, the effective issuer comes from `MintraRegistry`. That means:
+
+- API `MINA_ISSUER_PRIVATE_KEY` should derive to the registry issuer public key
+- verifier `TRUSTED_ISSUER_PUBLIC_KEY` should match that same public key
+- demo-web `NEXT_PUBLIC_MINTRA_TRUSTED_ISSUER_PUBLIC_KEY` should also match it
+
 ### Frontend config
 
 Create `apps/demo-web/.env.local`:

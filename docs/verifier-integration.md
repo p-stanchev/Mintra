@@ -173,6 +173,8 @@ If registry trust is active, the verifier also confirms that the on-chain VK has
 
 In `auto` mode, the verifier prefers Mina registry trust and falls back to `TRUSTED_ISSUER_PUBLIC_KEY` only when registry resolution fails and a fallback issuer key is still configured.
 
+When registry trust is active, the effective issuer is the registry's `issuerPublicKey`. The API signing key and the frontend trusted issuer key should be aligned to that same public key.
+
 ### Verify a signed proof-material bundle directly
 
 `POST /api/mina/verify-proof-bundle`

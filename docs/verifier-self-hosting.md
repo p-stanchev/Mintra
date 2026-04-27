@@ -43,6 +43,7 @@ Notes:
 - `TRUSTED_ISSUER_PUBLIC_KEY` is still useful in `auto` mode as a fallback if registry lookup is temporarily unavailable.
 - `MINTRA_REGISTRY_ADDRESS` should be the deployed `MintraRegistry` zkApp address, not the issuer key.
 - `MINA_GRAPHQL_URL` should point to the same network where the registry is deployed.
+- if registry trust is active, the registry's `issuerPublicKey` is the effective trusted issuer even when `TRUSTED_ISSUER_PUBLIC_KEY` is also set
 
 ## What the Verifier Resolves from the Registry
 
@@ -56,6 +57,18 @@ When registry mode is active, the verifier reads:
 - revocation root
 
 The verifier compares the on-chain VK hashes against its locally compiled proof programs. If they do not match, the verifier refuses registry trust.
+
+## Issuer Alignment
+
+When `trustSource` resolves to `registry`, the active issuer comes from the registry, not the env fallback.
+
+To keep the whole stack consistent:
+
+- `MINA_ISSUER_PRIVATE_KEY` on the API should derive to the registry issuer public key
+- `NEXT_PUBLIC_MINTRA_TRUSTED_ISSUER_PUBLIC_KEY` on `demo-web` should match the registry issuer public key
+- `TRUSTED_ISSUER_PUBLIC_KEY` on the verifier should also match it, even if it is present only as an `auto`-mode fallback
+
+If those are not aligned, old signed bundles and newly issued bundles can drift away from the verifier's actual trust source.
 
 ## Docker
 

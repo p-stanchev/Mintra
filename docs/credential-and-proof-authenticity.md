@@ -50,6 +50,14 @@ This bundle is signed by the Mina issuer key configured through:
 - verifier: `TRUSTED_ISSUER_PUBLIC_KEY`
 - demo-web: `NEXT_PUBLIC_MINTRA_TRUSTED_ISSUER_PUBLIC_KEY`
 
+When the verifier is running with registry trust active, the effective trusted issuer comes from `MintraRegistry`, not from `TRUSTED_ISSUER_PUBLIC_KEY`.
+
+That means these values must all line up:
+
+- the API signing key must derive to the same public key the registry exposes as `issuerPublicKey`
+- `NEXT_PUBLIC_MINTRA_TRUSTED_ISSUER_PUBLIC_KEY` should match that same issuer public key
+- `TRUSTED_ISSUER_PUBLIC_KEY` should also match it, even if it is only acting as an `auto`-mode fallback
+
 If a user edits:
 
 - `dateOfBirth`
@@ -97,7 +105,7 @@ Those are not the real trust boundary.
 The real trust boundary is:
 
 - issuer signature validity
-- trusted issuer key configuration
+- trusted issuer key resolution
 - wallet holder binding
 - verifier-side proof checks
 
