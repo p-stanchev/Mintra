@@ -19,11 +19,23 @@ export async function resolveReusableProofMaterial(params: {
   walletProviderId?: string | null;
 }): Promise<ReusableProofMaterialResolution> {
   const walletBundle = await readWalletProofMaterialBundle(params);
+  const localBundle = readStoredZkProofMaterialBundle(params.walletAddress);
+
+  if (walletBundle && localBundle) {
+    const walletIssuedAt = Date.parse(walletBundle.issuedAt);
+    const localIssuedAt = Date.parse(localBundle.issuedAt);
+    if (Number.isFinite(walletIssuedAt) && Number.isFinite(localIssuedAt)) {
+      return localIssuedAt > walletIssuedAt
+        ? { bundle: localBundle, source: "local" }
+        : { bundle: walletBundle, source: "wallet" };
+    }
+    return { bundle: walletBundle, source: "wallet" };
+  }
+
   if (walletBundle) {
     return { bundle: walletBundle, source: "wallet" };
   }
 
-  const localBundle = readStoredZkProofMaterialBundle(params.walletAddress);
   if (localBundle) {
     return { bundle: localBundle, source: "local" };
   }
