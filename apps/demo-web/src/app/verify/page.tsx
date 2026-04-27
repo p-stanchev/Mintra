@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
-import { BadgeCheck, Building2, Lock } from "lucide-react";
+import { BadgeCheck, Lock } from "lucide-react";
 import { mintra } from "@/lib/mintra";
 import { readLinkedWalletAddress } from "@/lib/wallet-session";
 import { extractUiErrorMessage } from "@/lib/errors";
@@ -65,7 +66,11 @@ export default function VerifyPage() {
       setState("loading");
       setError(null);
 
-      const session = await mintra.startVerification({ userId: linkedWallet, providerId: providerId as "didit" | "idnorm" });
+      const session = await mintra.startVerification({
+        userId: linkedWallet,
+        providerId: providerId as "didit" | "idnorm",
+        redirectUrl: `${window.location.origin}/verify/callback`,
+      });
       sessionStorage.setItem("mintra.sessionId", session.sessionId);
       setState("redirecting");
       window.location.href = session.verificationUrl;
@@ -170,11 +175,17 @@ export default function VerifyPage() {
                           width: 38,
                           height: 38,
                           borderRadius: 9999,
+                          overflow: "hidden",
                           background: provider.available ? "#111111" : "#e7e5e4",
-                          color: provider.available ? "#ffffff" : "#78716c",
                         }}
                       >
-                        <Building2 size={18} />
+                        <Image
+                          src={`/assets/${provider.id}.png`}
+                          alt={provider.name}
+                          width={38}
+                          height={38}
+                          style={{ objectFit: "cover", opacity: provider.available ? 1 : 0.4 }}
+                        />
                       </div>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
