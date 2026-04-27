@@ -238,6 +238,18 @@ export async function buildApp(opts: AppOptions = {}) {
     service: "mintra-api",
     verificationProviders: Object.keys(verificationProviders),
     defaultVerificationProviderId: resolvedDefaultProviderId,
+    providerConfig: {
+      didit: {
+        apiKey: Boolean(diditApiKey),
+        webhookSecret: Boolean(diditWebhookSecret),
+        workflowId: Boolean(diditWorkflowId),
+      },
+      idnorm: {
+        apiKey: Boolean(idnormApiKey),
+        webhookSecret: Boolean(idnormWebhookSecret),
+        configurationId: Boolean(idnormConfigurationId),
+      },
+    },
     minaIssuerPublicKey,
     credentialTrustDefaults: {
       issuerEnvironment: credentialTrustDefaults.issuerEnvironment,
