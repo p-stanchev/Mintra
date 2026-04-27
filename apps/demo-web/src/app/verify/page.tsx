@@ -167,26 +167,13 @@ export default function VerifyPage() {
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          width: 38,
-                          height: 38,
-                          borderRadius: 9999,
-                          overflow: "hidden",
-                          background: provider.available ? "#111111" : "#e7e5e4",
-                        }}
-                      >
-                        <Image
-                          src={`/assets/${provider.id}.png`}
-                          alt={provider.name}
-                          width={38}
-                          height={38}
-                          style={{ objectFit: "cover", opacity: provider.available ? 1 : 0.4 }}
-                        />
-                      </div>
+                      <Image
+                        src={`/assets/${provider.id}.png`}
+                        alt={provider.name}
+                        width={38}
+                        height={38}
+                        style={{ objectFit: "contain", opacity: provider.available ? 1 : 0.4 }}
+                      />
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                           <span style={{ fontSize: 16, fontWeight: 600, color: "#111111" }}>{provider.name}</span>
