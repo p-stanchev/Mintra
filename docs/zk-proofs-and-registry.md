@@ -8,13 +8,14 @@ Mintra's current zk path is:
 2. Mintra issues commitment-backed credential metadata
 3. the holder generates an o1js proof off-chain
 4. the verifier checks that proof off-chain
-5. Mintra optionally anchors shared trust data on-chain through `MintraRegistry`
+5. the verifier resolves shared trust data from `MintraRegistry` by default
 
 This means Mintra is **off-chain first**:
 
 - proofs are generated off-chain
 - proofs are verified off-chain
 - the on-chain registry stores shared trust anchors, not the full verifier policy
+- relying parties can self-host the verifier and resolve those anchors from Mina directly
 
 ## Supported ZK Proof Types
 
@@ -70,6 +71,8 @@ The registry does **not** store:
 - raw provider results
 - wallet-specific verifier policy
 
+`services/verifier` now prefers registry trust by default when `MINTRA_REGISTRY_ADDRESS` and `MINA_GRAPHQL_URL` are configured. Env-based issuer trust remains an operational fallback, not the primary trust source.
+
 ## Site Policy vs On-Chain Anchors
 
 Mintra's preferred split is:
@@ -117,3 +120,4 @@ Without those headers, the page should still load, but browser-side proving will
 - [zkapp-integration.md](./zkapp-integration.md)
 - [zk-contracts-package.md](./zk-contracts-package.md)
 - [zkapp-age-gate-example.md](./zkapp-age-gate-example.md)
+- [verifier-self-hosting.md](./verifier-self-hosting.md)

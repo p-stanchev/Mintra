@@ -187,6 +187,7 @@ docs/
   replay-protection-and-audience-binding.md
   security-considerations.md
   verifier-integration.md
+  verifier-self-hosting.md
   what-is-mintra.md
   zkapp-integration.md
 examples/
@@ -307,12 +308,17 @@ Set:
 ```env
 CORS_ORIGIN=http://localhost:3000
 VERIFIER_PUBLIC_URL=http://localhost:3002
+TRUST_SOURCE=auto
+TRUSTED_ISSUER_PUBLIC_KEY=
+MINTRA_REGISTRY_ADDRESS=
+MINA_GRAPHQL_URL=https://api.minascan.io/node/devnet/v1/graphql
 PORT=3002
 REDIS_URL=
-TRUSTED_ISSUER_PUBLIC_KEY=
 ```
 
 If `REDIS_URL` is unset, the verifier falls back to the in-memory challenge store for local development. For production and multi-instance deploys, set `REDIS_URL` so single-use challenge consumption is replay-safe across replicas.
+
+`TRUST_SOURCE=auto` makes the verifier prefer Mina registry trust and fall back to the configured issuer key only if registry resolution is unavailable. Use `TRUST_SOURCE=registry` once you want registry lookup and VK-hash matching to be mandatory at startup.
 
 ### Frontend config
 
@@ -552,6 +558,7 @@ Docs:
 - [docs/consume-proofs.md](./docs/consume-proofs.md)
 - [docs/off-chain-verification.md](./docs/off-chain-verification.md)
 - [docs/verifier-integration.md](./docs/verifier-integration.md)
+- [docs/verifier-self-hosting.md](./docs/verifier-self-hosting.md)
 
 Backend examples:
 

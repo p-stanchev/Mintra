@@ -1,0 +1,12 @@
+node_modules
+.git
+.next
+dist
+coverage
+tmp
+*.log
+keys.json
+apps/demo-web/.next
+services/api/dist
+services/verifier/dist
+packages/*/dist

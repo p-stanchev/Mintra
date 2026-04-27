@@ -7,6 +7,7 @@ Start here:
 - [what-is-mintra.md](./what-is-mintra.md)
 - [architecture.md](./architecture.md)
 - [verifier-integration.md](./verifier-integration.md)
+- [verifier-self-hosting.md](./verifier-self-hosting.md)
 - [how-credentials-work.md](./how-credentials-work.md)
 - [zk-proofs-and-registry.md](./zk-proofs-and-registry.md)
 - [zk-contracts-package.md](./zk-contracts-package.md)

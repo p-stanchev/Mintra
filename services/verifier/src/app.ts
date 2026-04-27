@@ -26,6 +26,11 @@ import { createPresentationChallengeStoreFromEnv } from "./challenges/factory";
 import { PresentationChallengeService } from "./challenges/service";
 import { createPasskeyBindingStoreFromEnv } from "./passkeys/factory";
 import { PasskeyBindingService } from "./passkeys/service";
+import {
+  resolveVerifierTrustContext,
+  type TrustSourceMode,
+  type VerificationKeyHashes,
+} from "./trust";
 
 const nodeRequire = createRequire(__filename);
 const MinaSigner = nodeRequire("mina-signer");
@@ -111,11 +116,29 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
           .map((value) => value.trim())
           .filter(Boolean);
   const verifierPublicUrl = process.env["VERIFIER_PUBLIC_URL"]?.trim();
-  const trustedIssuerPublicKey =
+  const envTrustedIssuerPublicKey =
     process.env["TRUSTED_ISSUER_PUBLIC_KEY"]?.trim() ??
     process.env["MINTRA_TRUSTED_ISSUER_PUBLIC_KEY"]?.trim() ??
     process.env["MINTRA_ISSUER_PUBLIC_KEY"]?.trim() ??
     null;
+  const trustSourceMode = readTrustSourceMode(process.env["TRUST_SOURCE"]);
+  const registryAddress = process.env["MINTRA_REGISTRY_ADDRESS"]?.trim() ?? null;
+  const minaGraphqlUrl = process.env["MINA_GRAPHQL_URL"]?.trim() ?? null;
+  const ageProgram = await compileAgeClaimProgram();
+  const kycProgram = await compileKycPassedProgram();
+  const countryProgram = await compileCountryMembershipProgram();
+  const verificationKeyHashes: VerificationKeyHashes = {
+    age: ageProgram.verificationKey.hash.toString(),
+    kyc: kycProgram.verificationKey.hash.toString(),
+    country: countryProgram.verificationKey.hash.toString(),
+  };
+  const trustContext = await resolveVerifierTrustContext({
+    mode: trustSourceMode,
+    envTrustedIssuerPublicKey,
+    registryAddress,
+    minaGraphqlUrl,
+    verificationKeyHashes,
+  });
 
   const app = Fastify({ logger: opts.logger ?? true });
   const challengeStore = createPresentationChallengeStoreFromEnv();
@@ -129,6 +152,18 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
 
   app.log.info({ driver: challengeStore.driver }, "verifier.challenge_store_ready");
   app.log.info({ driver: passkeyStore.driver }, "verifier.passkey_store_ready");
+  app.log.info(
+    {
+      mode: trustSourceMode,
+      source: trustContext.source,
+      trustedIssuerPublicKey: trustContext.trustedIssuerPublicKey,
+      registryAddress: trustContext.registry?.address ?? registryAddress,
+      registryGraphqlUrl: trustContext.registry?.graphqlUrl ?? minaGraphqlUrl,
+      registryError: trustContext.registryError,
+      verificationKeyHashes: trustContext.verificationKeyHashes,
+    },
+    "verifier.trust_context_ready"
+  );
 
   app.addHook("onSend", (_request, reply, _payload, done) => {
     reply.header("X-Content-Type-Options", "nosniff");
@@ -423,7 +458,12 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
       const result = await verifyZkProofPayload({
         requestBody: parsed.data,
         audience,
-        trustedIssuerPublicKey,
+        trustedIssuerPublicKey: trustContext.trustedIssuerPublicKey,
+        verificationKeys: {
+          age: ageProgram.verificationKey,
+          kyc: kycProgram.verificationKey,
+          country: countryProgram.verificationKey,
+        },
       });
       return reply.status(result.statusCode).send(result.payload);
     } catch (error) {
@@ -458,7 +498,12 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
       const result = await verifyZkProofPayload({
         requestBody: parsed.data,
         audience,
-        trustedIssuerPublicKey,
+        trustedIssuerPublicKey: trustContext.trustedIssuerPublicKey,
+        verificationKeys: {
+          age: ageProgram.verificationKey,
+          kyc: kycProgram.verificationKey,
+          country: countryProgram.verificationKey,
+        },
       });
       return reply.status(result.statusCode).send(result.payload);
     } catch (error) {
@@ -528,6 +573,21 @@ export async function buildVerifierApp(opts: VerifierAppOptions = {}) {
     ],
     challengeStore: challengeStore.driver,
     passkeyStore: passkeyStore.driver,
+    trustSourceMode,
+    trustSource: trustContext.source,
+    trustedIssuerPublicKey: trustContext.trustedIssuerPublicKey,
+    verificationKeyHashes: trustContext.verificationKeyHashes,
+    registry:
+      trustContext.registry === null
+        ? null
+        : {
+            address: trustContext.registry.address,
+            graphqlUrl: trustContext.registry.graphqlUrl,
+            issuerPublicKey: trustContext.registry.issuerPublicKey,
+            credentialRoot: trustContext.registry.credentialRoot,
+            revocationRoot: trustContext.registry.revocationRoot,
+          },
+    registryError: trustContext.registryError,
   }));
 
   return app;
@@ -584,6 +644,11 @@ async function verifyZkProofPayload(params: {
   requestBody: z.infer<typeof VerifyZkClaimProofRequestSchema>;
   audience: string;
   trustedIssuerPublicKey: string | null;
+  verificationKeys: {
+    age: unknown;
+    kyc: unknown;
+    country: unknown;
+  };
 }) {
   if (!params.trustedIssuerPublicKey) {
     return {
@@ -657,8 +722,7 @@ async function verifyZkProofPayload(params: {
   }
 
   if (zkPolicyRequest.proofType === "mintra.zk.age-threshold/v1") {
-    const { verificationKey } = await compileAgeClaimProgram();
-    const verified = await verifyJsonProof(params.requestBody.proof as never, verificationKey);
+    const verified = await verifyJsonProof(params.requestBody.proof as never, params.verificationKeys.age);
     const publicInput = toAgePublicInputFromRawProof(params.requestBody.proof);
     const expectedDobCommitment =
       bundleVerification.bundle.proofMaterial.credentialMetadata.sourceCommitments[
@@ -718,8 +782,7 @@ async function verifyZkProofPayload(params: {
   }
 
   if (zkPolicyRequest.proofType === "mintra.zk.kyc-passed/v1") {
-    const { verificationKey } = await compileKycPassedProgram();
-    const verified = await verifyJsonProof(params.requestBody.proof as never, verificationKey);
+    const verified = await verifyJsonProof(params.requestBody.proof as never, params.verificationKeys.kyc);
     const publicInput = toKycPublicInputFromRawProof(params.requestBody.proof);
     const expectedKycCommitment =
       bundleVerification.bundle.proofMaterial.credentialMetadata.sourceCommitments[
@@ -757,8 +820,7 @@ async function verifyZkProofPayload(params: {
     };
   }
 
-  const { verificationKey } = await compileCountryMembershipProgram();
-  const verified = await verifyJsonProof(params.requestBody.proof as never, verificationKey);
+  const verified = await verifyJsonProof(params.requestBody.proof as never, params.verificationKeys.country);
   const publicInput = toCountryPublicInputFromRawProof(params.requestBody.proof);
   const expectedCountryCommitment =
     bundleVerification.bundle.proofMaterial.credentialMetadata.sourceCommitments[
@@ -865,6 +927,14 @@ function verifySignedProofMaterialBundle(
   }
 
   return { ok: true as const, bundle };
+}
+
+function readTrustSourceMode(value: string | undefined): TrustSourceMode {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "registry" || normalized === "env" || normalized === "auto") {
+    return normalized;
+  }
+  return "auto";
 }
 
 function readAllowedOrigin(

@@ -72,7 +72,8 @@ The reusable trust model for zk proofs is:
 - the holder wallet identity
 - an issuer-signed proof-material bundle
 - the verifier's typed zk policy request
-- optional shared on-chain trust anchors through `MintraRegistry`
+- shared on-chain trust anchors through `MintraRegistry`
+- env-based trusted issuer fallback only when registry trust is unavailable or intentionally disabled
 
 ### Create a zk policy request
 
@@ -154,10 +155,23 @@ Example request:
 The verifier currently:
 
 1. validates the typed zk policy request
-2. verifies the signed proof-material bundle against the trusted issuer public key
-3. verifies audience and expiry
-4. verifies the raw proof JSON against the compiled verification key
-5. confirms the raw `publicInput` array matches the requested policy and the signed bundle commitments
+2. resolves trusted issuer and proof-program trust anchors from the Mina registry by default
+3. verifies the signed proof-material bundle against the resolved trusted issuer public key
+4. verifies audience and expiry
+5. verifies the raw proof JSON against the compiled verification key
+6. confirms the raw `publicInput` array matches the requested policy and the signed bundle commitments
+
+If registry trust is active, the verifier also confirms that the on-chain VK hashes match its locally compiled proof programs before it accepts the registry result.
+
+### Registry-first trust resolution
+
+`services/verifier` supports:
+
+- `TRUST_SOURCE=auto`
+- `TRUST_SOURCE=registry`
+- `TRUST_SOURCE=env`
+
+In `auto` mode, the verifier prefers Mina registry trust and falls back to `TRUSTED_ISSUER_PUBLIC_KEY` only when registry resolution fails and a fallback issuer key is still configured.
 
 ### Verify a signed proof-material bundle directly
 
@@ -183,11 +197,17 @@ Assertion endpoint:
 ```env
 CORS_ORIGIN=https://your-frontend-domain
 VERIFIER_PUBLIC_URL=https://your-verifier-domain
+TRUST_SOURCE=auto
+TRUSTED_ISSUER_PUBLIC_KEY=B62...
+MINTRA_REGISTRY_ADDRESS=B62...
+MINA_GRAPHQL_URL=https://api.minascan.io/node/devnet/v1/graphql
 REDIS_URL=redis://user:password@host:6379
 PORT=3002
 ```
 
 If `REDIS_URL` is unset, the verifier uses an in-memory store. That is fine for local development, but production should use Redis so replay protection survives multiple instances.
+
+Use `TRUST_SOURCE=registry` once your registry deployment is stable and you want startup to fail instead of silently falling back to env trust.
 
 ## Related Docs
 
@@ -195,3 +215,4 @@ If `REDIS_URL` is unset, the verifier uses an in-memory store. That is fine for 
 - [consume-proofs.md](./consume-proofs.md)
 - [replay-protection-and-audience-binding.md](./replay-protection-and-audience-binding.md)
 - [zk-proofs-and-registry.md](./zk-proofs-and-registry.md)
+- [verifier-self-hosting.md](./verifier-self-hosting.md)
