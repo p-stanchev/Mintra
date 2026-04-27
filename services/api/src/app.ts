@@ -186,7 +186,19 @@ export async function buildApp(opts: AppOptions = {}) {
   await app.register(minaRouter, { prefix: "/api/mina" });
   await app.register(demoRouter, { prefix: "/api/demo" });
 
-  app.get("/health", async () => ({ ok: true, service: "mintra-api" }));
+  app.get("/health", async () => ({
+    ok: true,
+    service: "mintra-api",
+    minaIssuerPublicKey,
+    credentialTrustDefaults: {
+      issuerEnvironment: credentialTrustDefaults.issuerEnvironment,
+      issuerId: credentialTrustDefaults.issuerId,
+      issuerDisplayName: credentialTrustDefaults.issuerDisplayName,
+      assuranceLevel: credentialTrustDefaults.assuranceLevel,
+      evidenceClass: credentialTrustDefaults.evidenceClass,
+      demoCredential: credentialTrustDefaults.demoCredential,
+    },
+  }));
 
   return app;
 }
