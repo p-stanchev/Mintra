@@ -384,8 +384,8 @@ export function WalletCredentialCard({
       setState("done");
       setMessage(
         storedSource === "wallet"
-          ? `Proof material imported and stored through the wallet for ${walletForBundle}.`
-          : `Proof material imported locally for ${walletForBundle}.`
+          ? `Proof material restored through the wallet for ${walletForBundle}.`
+          : `Proof material imported locally for ${walletForBundle}. Reconnect the same wallet to use it as recovery state.`
       );
     } catch (err) {
       setState("error");
@@ -541,7 +541,7 @@ export function WalletCredentialCard({
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             <Download className="h-4 w-4" />
-            Download proof bundle
+            Download proof bundle backup
           </button>
 
           <button
@@ -550,7 +550,7 @@ export function WalletCredentialCard({
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-stone-50 sm:w-auto"
           >
             <Upload className="h-4 w-4" />
-            Import proof bundle
+            Restore from proof bundle
           </button>
           <input
             ref={proofMaterialInputRef}
@@ -584,8 +584,8 @@ export function WalletCredentialCard({
           <p className="font-medium text-ink">Reusable proof bundle</p>
           <p className="mt-1 leading-6">
             Mintra now treats signed proof material as holder-owned state. The demo prefers wallet-native storage when
-            the connected wallet exposes it, falls back to local signed storage in this browser, and only uses export or
-            import for backup and recovery.
+            the connected wallet exposes it, falls back to local signed storage in this browser, and uses the proof
+            bundle as backup and recovery if the wallet copy is deleted or unavailable.
           </p>
           <div className="mt-3 inline-flex items-center rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink">
             {proofMaterialSource === "wallet"
