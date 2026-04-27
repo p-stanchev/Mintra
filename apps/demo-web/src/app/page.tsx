@@ -12,13 +12,13 @@ import { authenticateWallet, resetWalletSession } from "@/lib/wallet-auth";
 import { getWalletById } from "@/lib/mina-wallet";
 import { extractUiErrorMessage } from "@/lib/errors";
 import Link from "next/link";
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowRight,
   BadgeCheck,
-  Building2,
   CheckCheck,
   ChevronRight,
   Clock3,
@@ -51,8 +51,7 @@ const PROVIDERS: ProviderOption[] = [
     id: "idnorm",
     name: "IdNorm",
     description: "Alternative provider flow using IdNorm sessions and webhook updates.",
-    available: true,
-    badge: "Live",
+    available: false,
   },
 ];
 
@@ -222,6 +221,7 @@ export default function Home() {
         const session = await mintra.startVerification({
           userId: walletAddress,
           providerId: providerId as "didit" | "idnorm",
+          redirectUrl: `${window.location.origin}/verify/callback`,
         });
         sessionStorage.setItem("mintra.sessionId", session.sessionId);
         setVerifyModalState("redirecting");
@@ -761,13 +761,13 @@ function VerificationProviderModal({
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                      <div
-                        className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                          provider.available ? "bg-ink text-white" : "bg-stone-200 text-stone-500"
-                        }`}
-                      >
-                        <Building2 className="h-4 w-4" />
-                      </div>
+                      <Image
+                        src={`/assets/${provider.id}.png`}
+                        alt={provider.name}
+                        width={38}
+                        height={38}
+                        style={{ objectFit: "contain", opacity: provider.available ? 1 : 0.4 }}
+                      />
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-base font-semibold text-ink">{provider.name}</span>
