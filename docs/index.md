@@ -10,6 +10,7 @@ Start here:
 - [verifier-self-hosting.md](./verifier-self-hosting.md)
 - [how-credentials-work.md](./how-credentials-work.md)
 - [zk-proofs-and-registry.md](./zk-proofs-and-registry.md)
+- [registry-attestations.md](./registry-attestations.md)
 - [zk-contracts-package.md](./zk-contracts-package.md)
 - [zkapp-age-gate-example.md](./zkapp-age-gate-example.md)
 
@@ -31,6 +32,7 @@ Supporting docs:
 - [replay-protection-and-audience-binding.md](./replay-protection-and-audience-binding.md)
 - [security.md](./security.md)
 - [security-considerations.md](./security-considerations.md)
+- [registry-attestations.md](./registry-attestations.md)
 - [zkapp-integration.md](./zkapp-integration.md)
 - [roadmap.md](./roadmap.md)
 

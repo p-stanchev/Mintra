@@ -18,10 +18,13 @@
     "deploy": "pnpm run deploy:registry",
     "deploy:registry": "pnpm run build && node dist/scripts/deploy-registry.js",
     "update:registry": "pnpm run build && node dist/scripts/update-registry.js",
+    "publish:attestation": "pnpm run build && node dist/scripts/publish-attestation.js",
+    "revoke:attestation": "pnpm run build && node dist/scripts/revoke-attestation.js",
     "deploy:age-gate": "pnpm run build && node dist/scripts/deploy.js",
     "update:age-gate-policy": "pnpm run build && node dist/scripts/update-policy.js"
   },
   "dependencies": {
+    "@mintra/credential-v2": "workspace:*",
     "@mintra/zk-claims": "workspace:*",
     "o1js": "^2.3.0",
     "reflect-metadata": "^0.2.2"

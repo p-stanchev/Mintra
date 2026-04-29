@@ -8,12 +8,14 @@ import {
   GetZkProofInputResponseSchema,
   IssueMinaCredentialRequestSchema,
   VerifyZkProofMaterialBundleRequestSchema,
+  createRegistryClaimAttestations,
   type GetZkProofInputResponse,
+  type ClaimAttestations,
   type SignedZkProofMaterialBundle,
   type ZkPolicyRequest,
 } from "@mintra/sdk-types";
 import { isValidMinaPublicKey, requireFreshWalletAuth } from "../auth";
-import { buildNormalizedClaims } from "../claim-state";
+import { buildClaimFreshness, buildNormalizedClaims } from "../claim-state";
 import type { ClaimsRecord } from "../store";
 
 const nodeRequire = createRequire(__filename);
@@ -51,8 +53,20 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
     }
 
     const normalizedClaims = buildNormalizedClaims(claim);
+    const freshness = buildClaimFreshness(claim);
     const zkProofMaterial = buildZkProofInputPayload(app, userId, claim);
-    const zkProofMaterialBundle = createSignedZkProofMaterialBundle(app, ownerPublicKey, zkProofMaterial);
+    const registryAttestations = await buildRegistryAttestations({
+      walletAddress: ownerPublicKey,
+      issuerPublicKey: app.minaIssuerPublicKey,
+      claims: normalizedClaims,
+      expiresAt: freshness.expiresAt,
+    });
+    const zkProofMaterialBundle = createSignedZkProofMaterialBundle(
+      app,
+      ownerPublicKey,
+      zkProofMaterial,
+      registryAttestations
+    );
 
     const result = await app.minaBridge.issueCredential({
       userId,
@@ -77,6 +91,7 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
       ...result,
       ...(zkProofMaterial === null ? {} : { zkProofMaterial }),
       ...(zkProofMaterialBundle === null ? {} : { zkProofMaterialBundle }),
+      ...(registryAttestations === null ? {} : { registryAttestations }),
     });
   });
 
@@ -152,7 +167,20 @@ export const minaRouter: FastifyPluginAsync = async (app) => {
       if (!zkInput) {
         return reply.status(409).send({ error: "Credential metadata version v2 is required for zk proof generation" });
       }
-      proofMaterialBundle = createSignedZkProofMaterialBundle(app, parsed.data.userId, zkInput);
+      const normalizedClaims = buildNormalizedClaims(claim);
+      const freshness = buildClaimFreshness(claim);
+      const registryAttestations = await buildRegistryAttestations({
+        walletAddress: parsed.data.userId,
+        issuerPublicKey: app.minaIssuerPublicKey,
+        claims: normalizedClaims,
+        expiresAt: freshness.expiresAt,
+      });
+      proofMaterialBundle = createSignedZkProofMaterialBundle(
+        app,
+        parsed.data.userId,
+        zkInput,
+        registryAttestations
+      );
     }
 
     if (zkInput.userId !== parsed.data.userId) {
@@ -225,7 +253,8 @@ function CreateVerifyProofBundleBody(body: unknown):
 function createSignedZkProofMaterialBundle(
   app: FastifyInstance,
   walletAddress: string,
-  proofMaterial: GetZkProofInputResponse | null
+  proofMaterial: GetZkProofInputResponse | null,
+  registryAttestations: ClaimAttestations | null
 ): SignedZkProofMaterialBundle | null {
   if (!proofMaterial || !app.minaIssuerPrivateKey || !app.minaIssuerPublicKey) {
     return null;
@@ -238,6 +267,7 @@ function createSignedZkProofMaterialBundle(
     issuerPublicKey: app.minaIssuerPublicKey,
     issuedAt: new Date().toISOString(),
     proofMaterial,
+    ...(registryAttestations === null ? {} : { registryAttestations }),
   };
   const signed = signer.signMessage(
     canonicalizeZkProofMaterialBundlePayload(payload),
@@ -272,6 +302,7 @@ function verifySignedZkProofMaterialBundle(
       issuerPublicKey: bundle.issuerPublicKey,
       issuedAt: bundle.issuedAt,
       proofMaterial: bundle.proofMaterial,
+      ...(bundle.registryAttestations === undefined ? {} : { registryAttestations: bundle.registryAttestations }),
     }),
     publicKey: bundle.issuerPublicKey,
     signature: bundle.issuerSignature,
@@ -282,6 +313,29 @@ function verifySignedZkProofMaterialBundle(
   }
 
   return bundle;
+}
+
+async function buildRegistryAttestations(params: {
+  walletAddress: string;
+  issuerPublicKey: string | null;
+  claims: ReturnType<typeof buildNormalizedClaims>;
+  expiresAt: string;
+}): Promise<ClaimAttestations | null> {
+  if (!params.issuerPublicKey) {
+    return null;
+  }
+
+  const claimEntries = Object.entries(params.claims).filter(([, value]) => value !== undefined);
+  if (claimEntries.length === 0) {
+    return null;
+  }
+
+  return createRegistryClaimAttestations({
+    walletAddress: params.walletAddress,
+    issuerPublicKey: params.issuerPublicKey,
+    claims: params.claims,
+    expiresAt: params.expiresAt,
+  });
 }
 
 function buildZkProofInputPayload(

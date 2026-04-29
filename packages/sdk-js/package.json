@@ -17,7 +17,8 @@
     "dev": "tsup src/index.ts --format esm,cjs --dts --watch"
   },
   "dependencies": {
-    "@mintra/sdk-types": "workspace:*"
+    "@mintra/sdk-types": "workspace:*",
+    "@mintra/verifier-core": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

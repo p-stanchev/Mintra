@@ -653,6 +653,7 @@ async function verifyImportedBundle(bundle: SignedZkProofMaterialBundle) {
       issuerPublicKey: bundle.issuerPublicKey,
       issuedAt: bundle.issuedAt,
       proofMaterial: bundle.proofMaterial,
+      ...(bundle.registryAttestations === undefined ? {} : { registryAttestations: bundle.registryAttestations }),
     }),
     signature: bundle.issuerSignature,
   });

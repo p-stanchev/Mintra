@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@simplewebauthn/server": "^10.0.1",
+    "@mintra/credential-v2": "workspace:*",
     "@mintra/sdk-types": "workspace:*",
     "i18n-iso-countries": "^7.14.0",
     "mina-attestations": "^0.5.3",

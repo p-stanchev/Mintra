@@ -5,9 +5,11 @@ import {
   VerificationRecordSchema,
 } from "./verification";
 import {
+  ClaimAttestationsSchema,
   ClaimModelVersionSchema,
   CredentialTrustSchema,
   DerivedClaimsSchema,
+  RegistryClaimProofsSchema,
   SourceCommitmentsSchema,
 } from "@mintra/credential-v2";
 import { CredentialMetadataSchema } from "@mintra/credential-v2";
@@ -92,6 +94,7 @@ export const ZkProofMaterialBundlePayloadSchema = z.object({
   issuerPublicKey: MinaPublicKeySchema,
   issuedAt: z.string().datetime(),
   proofMaterial: GetZkProofInputResponseSchema,
+  registryAttestations: ClaimAttestationsSchema.optional(),
 });
 export type ZkProofMaterialBundlePayload = z.infer<typeof ZkProofMaterialBundlePayloadSchema>;
 
@@ -105,6 +108,7 @@ export const IssueMinaCredentialResponseSchema =
   IssueMinaCredentialResponseBaseSchema.extend({
     zkProofMaterial: GetZkProofInputResponseSchema.optional(),
     zkProofMaterialBundle: SignedZkProofMaterialBundleSchema.optional(),
+    registryAttestations: ClaimAttestationsSchema.optional(),
   });
 export type IssueMinaCredentialResponse = z.infer<typeof IssueMinaCredentialResponseSchema>;
 
@@ -120,6 +124,30 @@ export const CreateZkProofResponseSchema = z.object({
   proofMaterialBundle: SignedZkProofMaterialBundleSchema.optional(),
 });
 export type CreateZkProofResponse = z.infer<typeof CreateZkProofResponseSchema>;
+
+export const VerifyPresentationWithRegistryRequestSchema = z.object({
+  presentationEnvelope: z.unknown(),
+  registryAddress: z.string().min(1),
+  minaGraphqlUrl: z.string().url(),
+  claimProofs: RegistryClaimProofsSchema,
+  expectedOwnerPublicKey: MinaPublicKeySchema.optional(),
+});
+export type VerifyPresentationWithRegistryRequest = z.infer<typeof VerifyPresentationWithRegistryRequestSchema>;
+
+export const VerifyPresentationWithRegistryResponseSchema = z.object({
+  ok: z.boolean(),
+  registryVerified: z.boolean(),
+  ownerPublicKey: MinaPublicKeySchema.optional(),
+  verifiedAt: z.string().datetime(),
+  error: z
+    .object({
+      code: z.string().min(1),
+      message: z.string().min(1),
+      detail: z.string().optional(),
+    })
+    .optional(),
+});
+export type VerifyPresentationWithRegistryResponse = z.infer<typeof VerifyPresentationWithRegistryResponseSchema>;
 
 export const VerifyZkProofMaterialBundleRequestSchema = z.object({
   bundle: SignedZkProofMaterialBundleSchema,

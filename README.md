@@ -709,6 +709,7 @@ The zkApp example is intentionally separate from the core product.
 See:
 
 - [docs/zk-proofs-and-registry.md](./docs/zk-proofs-and-registry.md)
+- [docs/registry-attestations.md](./docs/registry-attestations.md)
 - [docs/zkapp-integration.md](./docs/zkapp-integration.md)
 - [packages/zk-age-gate-contract/README.md](./packages/zk-age-gate-contract/README.md)
 
@@ -750,6 +751,13 @@ If a zkApp needs its own on-chain app policy, deploy the optional age/KYC gate i
 
 ```bash
 pnpm --filter @mintra/zk-contracts deploy:age-gate
+```
+
+Registry-backed attestation updates now also support:
+
+```bash
+pnpm --filter @mintra/zk-contracts publish:attestation
+pnpm --filter @mintra/zk-contracts revoke:attestation
 ```
 
 ## Security Notes

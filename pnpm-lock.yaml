@@ -184,6 +184,9 @@ importers:
       '@mintra/sdk-types':
         specifier: workspace:*
         version: link:../sdk-types
+      '@mintra/verifier-core':
+        specifier: workspace:*
+        version: link:../verifier-core
     devDependencies:
       tsup:
         specifier: ^8.0.0
@@ -213,6 +216,9 @@ importers:
 
   packages/verifier-core:
     dependencies:
+      '@mintra/credential-v2':
+        specifier: workspace:*
+        version: link:../credential-v2
       '@mintra/sdk-types':
         specifier: workspace:*
         version: link:../sdk-types
@@ -241,6 +247,9 @@ importers:
 
   packages/zk-age-gate-contract:
     dependencies:
+      '@mintra/credential-v2':
+        specifier: workspace:*
+        version: link:../credential-v2
       '@mintra/zk-claims':
         specifier: workspace:*
         version: link:../zk-claims

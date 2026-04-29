@@ -1,6 +1,12 @@
 import countries from "i18n-iso-countries";
 import enLocale from "i18n-iso-countries/langs/en.json" with { type: "json" };
 import {
+  ClaimAttestationSchema,
+  RegistryClaimProofsSchema,
+  verifyRegistryClaimProof,
+  hashSubjectToHex,
+} from "@mintra/credential-v2";
+import {
   type AssuranceLevel,
   type ClaimModelVersion,
   type CredentialTrust,
@@ -177,6 +183,29 @@ export interface VerifyMintraPresentationParams {
   minimumCredentialAssuranceLevel?: AssuranceLevel;
   allowedEvidenceClasses?: EvidenceClass[];
   now?: number;
+}
+
+export interface RegistryTrustLookup {
+  address: string;
+  graphqlUrl: string;
+}
+
+export interface RegistryTrustSnapshot {
+  address: string;
+  graphqlUrl: string;
+  issuerPublicKey: string;
+  credentialRoot: string;
+  revocationRoot: string;
+}
+
+export interface VerifyPresentationWithRegistryParams extends VerifyMintraPresentationParams {
+  registry: RegistryTrustLookup;
+  claimProofs: Record<string, unknown>;
+}
+
+export interface PresentationWithRegistryVerificationResult extends PresentationVerificationResult {
+  registryVerified: boolean;
+  registry?: RegistryTrustSnapshot;
 }
 
 export interface PasskeyBindingRecord extends PasskeyBinding {
@@ -1304,6 +1333,166 @@ export async function verifyPresentation(
   };
 }
 
+export async function verifyPresentationWithRegistry(
+  params: VerifyPresentationWithRegistryParams
+): Promise<PresentationWithRegistryVerificationResult> {
+  const presentationResult = await verifyPresentation(params);
+  if (!presentationResult.ok) {
+    return {
+      ...presentationResult,
+      registryVerified: false,
+    };
+  }
+
+  const registry = await loadRegistrySnapshot(params.registry);
+  const claimProofs = RegistryClaimProofsSchema.parse(params.claimProofs);
+  if (!presentationResult.ownerPublicKey) {
+    return {
+      ...presentationResult,
+      ok: false,
+      registryVerified: false,
+      registry,
+      error: {
+        code: "registry_owner_missing",
+        message: "Presentation owner public key is missing for registry verification",
+      },
+    };
+  }
+  const subjectHash = await hashSubjectToHex(presentationResult.ownerPublicKey);
+  const now = params.now ?? Date.now();
+  const requiredClaimKeys = requiredRegistryClaimKeysForProofProduct(
+    presentationResult.challenge.proofProductId
+  );
+  if (!presentationResult.output) {
+    return {
+      ...presentationResult,
+      ok: false,
+      registryVerified: false,
+      registry,
+      error: {
+        code: "registry_output_missing",
+        message: "Presentation output is missing for registry verification",
+      },
+    };
+  }
+
+  for (const claimKey of requiredClaimKeys) {
+    const claimProof = claimProofs[claimKey];
+    if (!claimProof) {
+      return {
+        ...presentationResult,
+        ok: false,
+        registryVerified: false,
+        registry,
+        error: {
+          code: "registry_claim_missing",
+          message: `Registry proof for claim '${claimKey}' is required`,
+        },
+      };
+    }
+
+    const proofVerified = await verifyRegistryClaimProof(claimProof);
+    if (!proofVerified) {
+      return {
+        ...presentationResult,
+        ok: false,
+        registryVerified: false,
+        registry,
+        error: {
+          code: "registry_proof_invalid",
+          message: `Registry proof for claim '${claimKey}' is invalid`,
+        },
+      };
+    }
+
+    const attestation = ClaimAttestationSchema.parse(claimProof.attestation);
+    if (attestation.subjectHash !== subjectHash) {
+      return {
+        ...presentationResult,
+        ok: false,
+        registryVerified: false,
+        registry,
+        error: {
+          code: "registry_subject_mismatch",
+          message: `Registry proof for claim '${claimKey}' does not belong to this wallet`,
+        },
+      };
+    }
+    if (attestation.issuerPublicKey !== registry.issuerPublicKey) {
+      return {
+        ...presentationResult,
+        ok: false,
+        registryVerified: false,
+        registry,
+        error: {
+          code: "registry_issuer_mismatch",
+          message: `Registry proof for claim '${claimKey}' was not issued by the trusted registry issuer`,
+        },
+      };
+    }
+    if (Date.parse(attestation.expiresAt) < now) {
+      return {
+        ...presentationResult,
+        ok: false,
+        registryVerified: false,
+        registry,
+        error: {
+          code: "registry_attestation_expired",
+          message: `Registry proof for claim '${claimKey}' is expired`,
+        },
+      };
+    }
+    if (claimProof.inclusionProof.root !== registry.credentialRoot) {
+      return {
+        ...presentationResult,
+        ok: false,
+        registryVerified: false,
+        registry,
+        error: {
+          code: "registry_root_mismatch",
+          message: `Credential root for claim '${claimKey}' does not match the Mina registry`,
+        },
+      };
+    }
+    if (claimProof.revocationProof.root !== registry.revocationRoot) {
+      return {
+        ...presentationResult,
+        ok: false,
+        registryVerified: false,
+        registry,
+        error: {
+          code: "registry_revocation_root_mismatch",
+          message: `Revocation root for claim '${claimKey}' does not match the Mina registry`,
+        },
+      };
+    }
+
+    const expectedValue = expectedRegistryClaimValue(
+      presentationResult.challenge.proofProductId,
+      claimKey,
+      presentationResult.output
+    );
+    if (expectedValue !== undefined && !valuesMatch(expectedValue, attestation.value)) {
+      return {
+        ...presentationResult,
+        ok: false,
+        registryVerified: false,
+        registry,
+        error: {
+          code: "registry_claim_value_mismatch",
+          message: `Registry proof for claim '${claimKey}' does not match the verified presentation output`,
+        },
+      };
+    }
+  }
+
+  return {
+    ...presentationResult,
+    registryVerified: true,
+    registry,
+  };
+}
+
 export async function verifyAgeOver18Presentation(
   params: VerifyPresentationParams
 ): Promise<VerifiedPresentationOutput> {
@@ -1334,6 +1523,72 @@ function normalizeCountryList(values: string[] | undefined): string[] {
     if (code) seen.add(code);
   }
   return Array.from(seen);
+}
+
+async function loadRegistrySnapshot(input: RegistryTrustLookup): Promise<RegistryTrustSnapshot> {
+  const response = await fetch(input.graphqlUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query:
+        "query($pk: PublicKey!) { account(publicKey: $pk) { publicKey zkappState } }",
+      variables: { pk: input.address },
+    }),
+  });
+  const payload = (await response.json()) as {
+    data?: { account?: { publicKey: string; zkappState: string[] } | null };
+    errors?: Array<{ message?: string }>;
+  };
+
+  if (!response.ok || payload.errors?.length) {
+    throw new Error(payload.errors?.[0]?.message ?? `Registry GraphQL request failed with ${response.status}`);
+  }
+
+  const account = payload.data?.account;
+  if (!account || !Array.isArray(account.zkappState) || account.zkappState.length < 7) {
+    throw new Error("Registry account does not expose the expected Mintra state layout");
+  }
+
+  const { Field, PublicKey } = await import("o1js");
+  const issuerPublicKey = PublicKey.fromFields([
+    Field(account.zkappState[0]!),
+    Field(account.zkappState[1]!),
+  ]).toBase58();
+
+  return {
+    address: account.publicKey,
+    graphqlUrl: input.graphqlUrl,
+    issuerPublicKey,
+    credentialRoot: String(account.zkappState[5]),
+    revocationRoot: String(account.zkappState[6]),
+  };
+}
+
+function requiredRegistryClaimKeysForProofProduct(proofProductId: ProofProductId): string[] {
+  if (proofProductId === "proof_of_kyc_passed") return ["kyc_passed"];
+  if (proofProductId === "proof_of_country_code") return ["country_code"];
+  return ["age_over_18"];
+}
+
+function expectedRegistryClaimValue(
+  proofProductId: ProofProductId,
+  claimKey: string,
+  output: PresentationVerificationOutput
+): string | number | boolean | undefined {
+  if (claimKey === "age_over_18" && proofProductId === "proof_of_age_18") {
+    return output.ageOver18;
+  }
+  if (claimKey === "kyc_passed") {
+    return output.kycPassed;
+  }
+  if (claimKey === "country_code") {
+    return numericToAlpha2(output.countryCodeNumeric.toString()) ?? output.countryCodeNumeric;
+  }
+  return undefined;
+}
+
+function valuesMatch(left: string | number | boolean, right: string | number | boolean): boolean {
+  return String(left) === String(right);
 }
 
 function normalizeCountryToIso2(value: string | undefined): string | undefined {
